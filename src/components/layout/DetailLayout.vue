@@ -102,6 +102,11 @@
           <slot name="additional-info"></slot>
         </div>
 
+        <!-- Closing -->
+        <div v-if="closing" class="detail-closing">
+          <p class="simple-closing-text">{{ closing }}</p>
+        </div>
+
         <!-- Action buttons slot -->
         <div class="detail-actions">
           <slot name="action-buttons"></slot>
@@ -110,11 +115,6 @@
         <!-- Related content slot -->
         <div class="detail-related">
           <slot name="related-content"></slot>
-        </div>
-
-        <!-- Closing -->
-        <div v-if="closing" class="detail-closing">
-          <p class="simple-closing-text">{{ closing }}</p>
         </div>
       </div>
     </div>
@@ -686,7 +686,6 @@ export default {
 }
 
 .detail-closing {
-  margin-top: 24px;
   padding: 16px;
   text-align: center;
 }

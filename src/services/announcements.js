@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore'
 
 // Import services lain
-import { getUpcomingSchedules } from './schedules'
+import { getUpcomingWorshipSchedules as getUpcomingSchedules } from './schedules'
 
 const NEWS_COLLECTION = 'news'
 

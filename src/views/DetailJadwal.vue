@@ -116,8 +116,7 @@
 import DetailLayout from '@/components/layout/DetailLayout.vue'
 import HeaderWithBack from '@/components/layout/HeaderWithBack.vue'
 import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
-// import ButtonSecondary from '@/components/common/ButtonSecondary.vue' // Commented out - tidak ada
-import { getSchedule, getSchedulesByCategory } from '@/services/schedules'
+import { getSchedulesByCategory, getWorshipSchedule } from '@/services/schedules'
 
 export default {
   name: 'DetailJadwal',
@@ -163,16 +162,22 @@ export default {
           throw new Error('ID jadwal tidak ditemukan')
         }
         
-        console.log(`📄 [DetailJadwal] Fetching schedule: ${scheduleId}`)
+        // Parse schedule ID format: templateId_date
+        const [templateId, date] = scheduleId.split('_')
         
-        const scheduleData = await getSchedule(scheduleId)
-        this.schedule = scheduleData
+        console.log(`📄 [DetailJadwal] Fetching schedule: template=${templateId}, date=${date}`)
+        
+        const scheduleData = await getWorshipSchedule(templateId, date)
+        this.schedule = {
+          ...scheduleData,
+          id: scheduleId // Preserve the combined ID
+        }
         
         console.log(`✅ [DetailJadwal] Schedule loaded:`, scheduleData)
         
         // Fetch related schedules
         if (scheduleData.category) {
-          await this.fetchRelatedSchedules(scheduleData.category, scheduleData.id)
+          await this.fetchRelatedSchedules(scheduleData.category, scheduleId)
         }
         
       } catch (error) {

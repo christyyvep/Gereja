@@ -1,309 +1,312 @@
-// services/schedules.js - Updated untuk unified structure (schedules collection dengan recurring support)
+// services/worshipSchedules.js - New simplified worship schedule system
 import { db } from './firebase'
 import { 
   collection, 
   doc, 
   getDocs, 
-  getDoc, 
-  addDoc, 
+  setDoc,
   updateDoc, 
-  deleteDoc,
   query, 
-  orderBy,
-  where,
-  limit 
+  orderBy
 } from 'firebase/firestore'
 
-const COLLECTION_NAME = 'schedules'
+const COLLECTION_NAME = 'worship_schedules'
 
 /**
- * ⭐ MAIN - Get schedules untuk tanggal tertentu
- * Menggabungkan one-time schedules + generated dari recurring schedules
- * @param {string|Date} date - Target date (YYYY-MM-DD)
- * @returns {Promise<Array>} Array schedules untuk tanggal tersebut
+ * 🎯 NEW MAIN FUNCTION - Get weekly worship overview (10 cards)
+ * Mengambil 10 template worship dan generate info untuk minggu ini
+ * @returns {Promise<Array>} Array 10 worship cards untuk minggu ini
  */
-export async function getSchedulesByDate(date) {
+export async function getWeeklyWorshipOverview() {
   try {
-    if (!date) {
-      throw new Error('Tanggal harus diisi')
+    console.log(`📅 [Worship Service] Getting weekly worship overview...`)
+    
+    // 1. Ambil semua worship templates yang aktif
+    const templates = await getWorshipTemplates()
+    const activeTemplates = templates.filter(t => t.isActive)
+    
+    // 2. Calculate minggu ini
+    const today = new Date()
+    const startOfWeek = new Date(today)
+    const dayOfWeek = today.getDay() // 0 = Minggu
+    startOfWeek.setDate(today.getDate() - dayOfWeek) // Mundur ke Minggu
+    
+    // 3. Generate unique card untuk setiap template
+    const weeklyCards = []
+    const processedTemplates = new Set() // Track templates yang sudah diproses
+    
+    for (const template of activeTemplates) {
+      // Skip jika template sudah diproses
+      if (processedTemplates.has(template.id)) continue
+      
+      // Generate card dan tambahkan ke hasil
+      const card = generateWeeklyCard(template, startOfWeek)
+      weeklyCards.push(card)
+      processedTemplates.add(template.id)
     }
     
-    // Normalize date format
-    const dateString = typeof date === 'string' ? date : date.toISOString().split('T')[0]
-    
-    console.log(`📅 [Schedule Service] Getting schedules for: ${dateString}`)
-    
-    // 1. Ambil one-time schedules untuk tanggal ini
-    const oneTimeSchedules = await getOneTimeSchedulesByDate(dateString)
-    
-    // 2. Generate recurring schedules untuk tanggal ini  
-    const recurringSchedules = await generateRecurringSchedulesForDate(dateString)
-    
-    // 3. Gabungkan dan sort
-    const allSchedules = [
-      ...oneTimeSchedules.map(schedule => ({
-        ...schedule,
-        source: 'one-time'
-      })),
-      ...recurringSchedules.map(schedule => ({
-        ...schedule,
-        source: 'recurring'
-      }))
-    ]
-    
-    // 4. Sort berdasarkan waktu
-    const sortedSchedules = allSchedules.sort((a, b) => {
-      return compareTimeStrings(a.time || '00:00', b.time || '00:00')
+    // 4. Sort berdasarkan dayOfWeek, lalu time
+    weeklyCards.sort((a, b) => {
+      // Daily (Doa Fajar) selalu di atas
+      if (a.dayOfWeek === 'daily' && b.dayOfWeek !== 'daily') return -1
+      if (a.dayOfWeek !== 'daily' && b.dayOfWeek === 'daily') return 1
+      if (a.dayOfWeek === 'daily' && b.dayOfWeek === 'daily') return 0
+      
+      // Sort berdasarkan hari, lalu waktu
+      if (a.dayOfWeek !== b.dayOfWeek) {
+        return a.dayOfWeek - b.dayOfWeek
+      }
+      return compareTimeStrings(a.time, b.time)
     })
     
-    console.log(`📅 [Schedule Service] Found ${oneTimeSchedules.length} one-time + ${recurringSchedules.length} recurring = ${sortedSchedules.length} total`)
-    
-    return sortedSchedules
+    console.log(`✅ [Worship Service] Generated ${weeklyCards.length} unique weekly worship cards`)
+    return weeklyCards
     
   } catch (error) {
-    console.error('❌ [Schedule Service] Error getting schedules by date:', error)
+    console.error('❌ [Worship Service] Error getting weekly overview:', error)
     throw error
   }
 }
 
 /**
- * ⭐ FIXED - Get one-time schedules untuk tanggal tertentu
- * Menggunakan query yang kompatibel dengan index yang ada
- * @param {string} dateString - Date string (YYYY-MM-DD)
- * @returns {Promise<Array>} Array one-time schedules
+ * 🏗️ Generate weekly card dari template untuk minggu ini
+ * @param {Object} template - Worship template
+ * @param {Date} startOfWeek - Hari Minggu minggu ini
+ * @returns {Object} Weekly worship card
  */
-async function getOneTimeSchedulesByDate(dateString) {
-  try {
-    const schedulesRef = collection(db, COLLECTION_NAME)
+function generateWeeklyCard(template, startOfWeek) {
+  // Calculate tanggal spesifik untuk ibadah ini minggu ini
+  let worshipDate = null
+  let dayName = ''
+  
+  if (template.dayOfWeek === 'daily') {
+    // Doa Fajar - setiap hari
+    dayName = 'Setiap Hari'
+    worshipDate = null // Tidak ada tanggal spesifik
+  } else {
+    // Ibadah mingguan - hitung tanggal spesifiknya
+    worshipDate = new Date(startOfWeek)
+    worshipDate.setDate(startOfWeek.getDate() + template.dayOfWeek)
     
-    // Query menggunakan index yang sudah ada: isActive, isRecurring, createdAt
-    const q = query(
-      schedulesRef,
-      where('isActive', '==', true),
-      where('isRecurring', '==', false),
-      orderBy('createdAt', 'desc')  // ← Pakai index yang ada
-    )
-    
-    const querySnapshot = await getDocs(q)
-    const schedules = []
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data()
-      
-      // Filter tanggal di JavaScript (bukan di Firebase query)
-      if (data.date === dateString) {
-        schedules.push({
-          id: doc.id,
-          ...data
-        })
-      }
-    })
-    
-    // Sort berdasarkan time di JavaScript
-    schedules.sort((a, b) => {
-      return compareTimeStrings(a.time || '00:00', b.time || '00:00')
-    })
-    
-    console.log(`📅 [Schedule Service] Found ${schedules.length} one-time schedules for ${dateString}`)
-    return schedules
-    
-  } catch (error) {
-    console.error('❌ [Schedule Service] Error getting one-time schedules:', error)
-    return []
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+    dayName = days[template.dayOfWeek]
   }
+  
+  // Get weekly override untuk tanggal ini (jika ada)
+  const dateString = worshipDate ? worshipDate.toISOString().split('T')[0] : null
+  const weeklyOverride = dateString ? (template.weeklyOverrides?.[dateString] || {}) : {}
+  
+  // Apply template variables
+  const processedDescription = applyTemplateVariables(
+    weeklyOverride.description || template.template?.description || template.description,
+    {
+      theme: weeklyOverride.theme || template.template?.defaultTheme || 'Berkat Tuhan',
+      date: worshipDate ? formatDateIndonesian(dateString) : 'Setiap Hari',
+      location: weeklyOverride.location || template.location
+    }
+  )
+  
+  // Build weekly card
+  const card = {
+    id: template.id,
+    templateId: template.id,
+    
+    // Basic info
+    title: weeklyOverride.title || template.title,
+    description: processedDescription,
+    category: template.category,
+    
+    // Schedule info
+    dayOfWeek: template.dayOfWeek,
+    dayName: dayName,
+    date: dateString, // Tanggal spesifik (atau null untuk daily)
+    time: weeklyOverride.time || template.time,
+    location: weeklyOverride.location || template.location,
+    
+    // Additional info
+    theme: weeklyOverride.theme || template.template?.defaultTheme || '',
+    announcements: weeklyOverride.announcements || template.template?.announcements || [],
+    
+    // Display formatting
+    scheduleText: generateScheduleText(dayName, worshipDate, weeklyOverride.time || template.time),
+    
+    // Metadata
+    isWeeklyCard: true,
+    weekStartDate: startOfWeek.toISOString().split('T')[0],
+    source: 'weekly-overview'
+  }
+  
+  return card
 }
 
 /**
- * ⭐ Generate recurring schedules untuk tanggal tertentu
- * @param {string} targetDate - Target date (YYYY-MM-DD)
- * @returns {Promise<Array>} Array generated schedules
+ * 📝 Generate readable schedule text
+ * @param {string} dayName - Nama hari (Minggu, Senin, dst)
+ * @param {Date|null} date - Tanggal spesifik
+ * @param {string} time - Waktu (HH:MM)
+ * @returns {string} Text jadwal yang readable
  */
-async function generateRecurringSchedulesForDate(targetDate) {
+function generateScheduleText(dayName, date, time) {
+  if (!date) {
+    // Daily schedule
+    return `${dayName} • ${time}`
+  }
+  
+  // Weekly schedule
+  const day = date.getDate()
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 
+                  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+  const month = months[date.getMonth()]
+  
+  return `${dayName}, ${day} ${month} • ${time}`
+}
+
+/**
+ * 🎯 Get schedules untuk range tanggal (untuk view mingguan/bulanan)
+ * @param {string} startDate - Start date (YYYY-MM-DD) 
+ * @param {string} endDate - End date (YYYY-MM-DD)
+ * @returns {Promise<Array>} Array schedules dalam range
+ */
+export async function getWorshipSchedulesByDateRange(startDate, endDate) {
   try {
-    // 1. Ambil semua recurring schedules yang aktif
-    const recurringSchedules = await getActiveRecurringSchedules()
+    const allSchedules = []
+    const start = new Date(startDate)
+    const end = new Date(endDate)
     
-    // 2. Generate schedules untuk tanggal target
-    const generatedSchedules = []
-    
-    for (const recurring of recurringSchedules) {
-      if (shouldGenerateForDate(recurring, targetDate)) {
-        const schedule = generateScheduleForDate(recurring, targetDate)
-        generatedSchedules.push(schedule)
-      }
+    // Loop setiap tanggal dalam range
+    for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+      const dateString = date.toISOString().split('T')[0]
+      const daySchedules = await getWorshipSchedulesByDate(dateString)
+      allSchedules.push(...daySchedules)
     }
     
-    return generatedSchedules
+    // Sort by date then time
+    allSchedules.sort((a, b) => {
+      if (a.date !== b.date) {
+        return a.date.localeCompare(b.date)
+      }
+      return compareTimeStrings(a.time, b.time)
+    })
+    
+    console.log(`📅 [Worship Service] Found ${allSchedules.length} schedules between ${startDate} and ${endDate}`)
+    return allSchedules
     
   } catch (error) {
-    console.error('❌ [Schedule Service] Error generating recurring schedules:', error)
+    console.error('❌ [Worship Service] Error getting schedules by range:', error)
     return []
   }
 }
 
 /**
- * ⭐ FIXED - Get all active recurring schedules
- * @returns {Promise<Array>} Array recurring schedules
+ * 🎯 Get upcoming schedules (untuk homepage) - FIXED VERSION
+ * @param {number} days - Number of days ke depan
+ * @returns {Promise<Array>} Array upcoming schedules
  */
-async function getActiveRecurringSchedules() {
+export async function getUpcomingWorshipSchedules(days = 7) {
   try {
-    const schedulesRef = collection(db, COLLECTION_NAME)
+    const today = new Date().toISOString().split('T')[0]
+    const endDate = new Date()
+    endDate.setDate(endDate.getDate() + days)
+    const endDateString = endDate.toISOString().split('T')[0]
     
-    // Query menggunakan index yang sudah ada
-    const q = query(
-      schedulesRef,
-      where('isActive', '==', true),
-      where('isRecurring', '==', true),
-      orderBy('createdAt', 'desc')  // ← Pakai index yang ada
-    )
+    console.log(`📅 [Worship Service] Getting upcoming schedules: ${today} to ${endDateString}`)
+    
+    return await getWorshipSchedulesByDateRange(today, endDateString)
+  } catch (error) {
+    console.error('❌ [Worship Service] Error getting upcoming schedules:', error)
+    return []
+  }
+}
+
+/**
+ * 📋 Get semua worship templates (untuk admin)
+ * @returns {Promise<Array>} Array worship templates
+ */
+export async function getWorshipTemplates() {
+  try {
+    const templatesRef = collection(db, COLLECTION_NAME)
+    const q = query(templatesRef, orderBy('dayOfWeek', 'asc'))
     
     const querySnapshot = await getDocs(q)
-    const schedules = []
+    const templates = []
     
     querySnapshot.forEach((doc) => {
-      schedules.push({
+      templates.push({
         id: doc.id,
         ...doc.data()
       })
     })
     
-    console.log(`📅 [Schedule Service] Found ${schedules.length} active recurring schedules`)
-    return schedules
-    
+    console.log(`📋 [Worship Service] Found ${templates.length} worship templates`)
+    return templates
   } catch (error) {
-    console.error('❌ [Schedule Service] Error getting recurring schedules:', error)
+    console.error('❌ [Worship Service] Error getting templates:', error)
     return []
   }
 }
 
 /**
- * ⭐ Check apakah recurring schedule harus generate untuk tanggal tertentu
- * @param {Object} recurring - Recurring schedule data
- * @param {string} targetDate - Target date (YYYY-MM-DD)
- * @returns {boolean} Should generate or not
+ * 🏗️ Generate worship schedule dari template untuk tanggal tertentu
+ * @param {Object} template - Worship template
+ * @param {string} dateString - Target date (YYYY-MM-DD)
+ * @returns {Object} Generated worship schedule
  */
-function shouldGenerateForDate(recurring, targetDate) {
-  const pattern = recurring.recurrencePattern
-  if (!pattern) return false
+function generateWorshipFromTemplate(template, dateString) {
+  // Cek apakah ada weekly override untuk tanggal ini
+  const weeklyOverride = template.weeklyOverrides?.[dateString] || {}
   
-  const targetDateObj = new Date(targetDate)
-  const startDate = new Date(pattern.startDate)
-  
-  // Check if target date is before start date
-  if (targetDateObj < startDate) return false
-  
-  // Check if target date is after end date (if exists)
-  if (pattern.endDate && targetDateObj > new Date(pattern.endDate)) return false
-  
-  // Check recurrence pattern
-  switch (pattern.type) {
-    case 'daily':
-      return shouldGenerateDaily(pattern, startDate, targetDateObj)
-    case 'weekly':
-      return shouldGenerateWeekly(pattern, startDate, targetDateObj)
-    case 'monthly':
-      return shouldGenerateMonthly(pattern, startDate, targetDateObj)
-    default:
-      return false
-  }
-}
-
-/**
- * ⭐ Check daily recurrence
- */
-function shouldGenerateDaily(pattern, startDate, targetDate) {
-  const interval = pattern.interval || 1
-  const daysDiff = Math.floor((targetDate - startDate) / (1000 * 60 * 60 * 24))
-  
-  return daysDiff >= 0 && daysDiff % interval === 0
-}
-
-/**
- * ⭐ Check weekly recurrence
- */
-function shouldGenerateWeekly(pattern, startDate, targetDate) {
-  const interval = pattern.interval || 1
-  const startDayOfWeek = startDate.getDay()
-  const targetDayOfWeek = targetDate.getDay()
-  
-  // Check if same day of week
-  if (startDayOfWeek !== targetDayOfWeek) return false
-  
-  // Check interval
-  const weeksDiff = Math.floor((targetDate - startDate) / (1000 * 60 * 60 * 24 * 7))
-  return weeksDiff >= 0 && weeksDiff % interval === 0
-}
-
-/**
- * ⭐ Check monthly recurrence
- */
-function shouldGenerateMonthly(pattern, startDate, targetDate) {
-  const interval = pattern.interval || 1
-  const startDay = startDate.getDate()
-  const targetDay = targetDate.getDate()
-  
-  // Check if same day of month
-  if (startDay !== targetDay) return false
-  
-  // Check interval (simplified)
-  const monthsDiff = (targetDate.getFullYear() - startDate.getFullYear()) * 12 + 
-                     (targetDate.getMonth() - startDate.getMonth())
-  
-  return monthsDiff >= 0 && monthsDiff % interval === 0
-}
-
-/**
- * ⭐ Generate single schedule dari recurring template untuk tanggal tertentu
- * @param {Object} recurring - Recurring schedule data
- * @param {string} targetDate - Target date (YYYY-MM-DD)
- * @returns {Object} Generated schedule
- */
-function generateScheduleForDate(recurring, targetDate) {
-  // Get daily override jika ada
-  const dailyOverride = recurring.dailyOverrides?.[targetDate] || {}
-  
-  // Apply template dengan override
-  const description = applyTemplate(recurring.template?.description || recurring.description || '', dailyOverride)
-  const defaultInfo = applyTemplate(recurring.template?.defaultInfo || '', dailyOverride)
+  // Apply template variables
+  const processedDescription = applyTemplateVariables(
+    weeklyOverride.description || template.template?.description || template.description,
+    {
+      theme: weeklyOverride.theme || template.template?.defaultTheme || 'Berkat Tuhan',
+      date: formatDateIndonesian(dateString),
+      location: weeklyOverride.location || template.location
+    }
+  )
   
   // Build final schedule
   const schedule = {
-    id: `recurring_${recurring.id}_${targetDate}`, // Unique ID
-    title: recurring.title,
-    date: targetDate,
-    time: recurring.time,
-    location: recurring.location,
-    category: recurring.category,
+    id: `${template.id}_${dateString}`,
+    templateId: template.id,
     
-    // Generated content
-    description: description,
-    additionalInfo: defaultInfo,
+    // Basic info
+    title: weeklyOverride.title || template.title,
+    description: processedDescription,
+    category: template.category,
+    date: dateString,
+    time: weeklyOverride.time || template.time,
+    location: weeklyOverride.location || template.location,
+    
+    // Additional info
+    announcements: weeklyOverride.announcements || template.template?.announcements || [],
+    theme: weeklyOverride.theme || template.template?.defaultTheme || '',
     
     // Metadata
-    recurringId: recurring.id,
     isGenerated: true,
     generatedAt: new Date(),
-    
-    // Merge daily overrides
-    ...dailyOverride
+    source: 'worship-template'
   }
   
   return schedule
 }
 
 /**
- * ⭐ Apply template dengan placeholder replacement
- * @param {string} template - Template string dengan {placeholder}
- * @param {Object} data - Data untuk replace placeholder
- * @returns {string} Processed template
+ * 🔧 Apply template variables ke string
+ * @param {string} template - Template string dengan {variable}
+ * @param {Object} variables - Variables untuk replace
+ * @returns {string} Processed string
  */
-function applyTemplate(template, data) {
+function applyTemplateVariables(template, variables) {
+  if (!template) return ''
+  
   let result = template
   
-  // Replace placeholders like {leader}, {theme}, etc
-  Object.keys(data).forEach(key => {
+  // Replace variables seperti {theme}, {date}, {location}
+  Object.keys(variables).forEach(key => {
     const placeholder = `{${key}}`
-    result = result.replace(new RegExp(placeholder, 'g'), data[key])
+    const value = variables[key] || ''
+    result = result.replace(new RegExp(placeholder, 'g'), value)
   })
   
   // Clean up unreplaced placeholders
@@ -313,278 +316,429 @@ function applyTemplate(template, data) {
 }
 
 /**
- * ⭐ Get upcoming schedules (one-time + recurring)
- * @param {string} fromDate - Start date (YYYY-MM-DD)
- * @param {number} limitCount - Limit results
- * @returns {Promise<Array>} Array upcoming schedules
+ * 📅 Format tanggal ke bahasa Indonesia
+ * @param {string} dateString - Date string (YYYY-MM-DD)
+ * @returns {string} Formatted date
  */
-export async function getUpcomingSchedules(fromDate, limitCount = 5) {
+function formatDateIndonesian(dateString) {
+  const date = new Date(dateString)
+  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+                  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+  
+  const dayName = days[date.getDay()]
+  const day = date.getDate()
+  const month = months[date.getMonth()]
+  const year = date.getFullYear()
+  
+  return `${dayName}, ${day} ${month} ${year}`
+}
+
+/**
+ * ⏰ Compare time strings untuk sorting
+ * @param {string} time1 - Time string (HH:MM)
+ * @param {string} time2 - Time string (HH:MM)
+ * @returns {number} Comparison result
+ */
+function compareTimeStrings(time1, time2) {
+  // Handle range format (HH:MM-HH:MM) - ambil waktu mulai
+  const t1 = (time1 || '00:00').split('-')[0].trim()
+  const t2 = (time2 || '00:00').split('-')[0].trim()
+  
+  return t1.localeCompare(t2)
+}
+
+/**
+ * 🎨 Get thumbnail berdasarkan kategori
+ * @param {string} category - Category name
+ * @returns {string} Thumbnail URL atau default
+ */
+export function getWorshipThumbnail(category) {
+  const thumbnails = {
+    'raya': '/images/thumbnails/ibadah-raya.jpg',
+    'pelprap': '/images/thumbnails/pelprap.jpg',
+    'pelprip': '/images/thumbnails/pelprip.jpg',
+    'pelwap': '/images/thumbnails/pelwap.jpg',
+    'sektor-anugerah': '/images/thumbnails/sektor-anugerah.jpg',
+    'sektor-tesalonika': '/images/thumbnails/sektor-tesalonika.jpg',
+    'pelnap': '/images/thumbnails/pelnap.jpg',
+    'pendalaman-alkitab': '/images/thumbnails/pendalaman-alkitab.jpg',
+    'doa-puasa': '/images/thumbnails/doa-puasa.jpg',
+    'doa-fajar': '/images/thumbnails/doa-fajar.jpg'
+  }
+  
+  return thumbnails[category] || '/images/thumbnails/default-worship.jpg'
+}
+
+// ===========================================
+// 🔧 ADMIN FUNCTIONS - Untuk manage templates
+// ===========================================
+
+/**
+ * 🛠️ Initialize default worship templates (run once)
+ * Fungsi ini akan create 8 worship templates di Firebase
+ */
+export async function initializeDefaultWorshipTemplates() {
   try {
-    if (!fromDate) {
-      throw new Error('From date harus diisi')
-    }
+    console.log('🛠️ [Worship Service] Initializing default templates...')
     
-    console.log(`📅 [Schedule Service] Getting upcoming schedules from: ${fromDate}`)
+    const defaultTemplates = [
+      {
+        id: 'worship_raya',
+        title: 'Ibadah Raya',
+        description: 'Ibadah utama jemaat setiap hari Minggu',
+        category: 'raya',
+        dayOfWeek: 0, // Minggu
+        time: '09:00',
+        location: 'Gedung Gereja Utama',
+        isActive: true,
+        template: {
+          description: 'Ibadah Raya minggu ini dengan tema: {theme}. Mari bersama-sama memuji dan menyembah Tuhan.',
+          defaultTheme: 'Kasih Karunia Tuhan',
+          announcements: []
+        },
+        weeklyOverrides: {}
+      },
+      {
+        id: 'worship_pelprap',
+        title: 'Ibadah PELPRAP',
+        description: 'Persekutuan Lanjut Usia Pria dan Wanita',
+        category: 'pelprap',
+        dayOfWeek: 0, // Minggu
+        time: '07:00',
+        location: 'Ruang PELPRAP',
+        isActive: true,
+        template: {
+          description: 'Persekutuan khusus bagi para lansia dengan tema: {theme}',
+          defaultTheme: 'Hikmat dan Berkat di Masa Senja',
+          announcements: []
+        },
+        weeklyOverrides: {}
+      },
+      {
+        id: 'worship_sektor_anugerah',
+        title: 'Ibadah Sektor Anugerah',
+        description: 'Ibadah persekutuan Sektor Anugerah',
+        category: 'sektor-anugerah',
+        dayOfWeek: 1, // Senin
+        time: '19:00',
+        location: 'Gedung Sektor Anugerah',
+        isActive: true,
+        template: {
+          description: 'Persekutuan Sektor Anugerah dengan tema: {theme}',
+          defaultTheme: 'Anugerah yang Melimpah',
+          announcements: []
+        },
+        weeklyOverrides: {}
+      },
+      {
+        id: 'worship_sektor_tesalonika',
+        title: 'Ibadah Sektor Tesalonika',
+        description: 'Ibadah persekutuan Sektor Tesalonika',
+        category: 'sektor-tesalonika',
+        dayOfWeek: 1, // Senin
+        time: '19:30',
+        location: 'Gedung Sektor Tesalonika',
+        isActive: true,
+        template: {
+          description: 'Persekutuan Sektor Tesalonika dengan tema: {theme}',
+          defaultTheme: 'Pengharapan yang Hidup',
+          announcements: []
+        },
+        weeklyOverrides: {}
+      },
+      {
+        id: 'worship_pelnap',
+        title: 'Ibadah PELNAP',
+        description: 'Persekutuan Lanjut Usia Naposo',
+        category: 'pelnap',
+        dayOfWeek: 3, // Rabu
+        time: '18:00',
+        location: 'Ruang PELNAP',
+        isActive: true,
+        template: {
+          description: 'Persekutuan PELNAP dengan tema: {theme}',
+          defaultTheme: 'Semangat Muda dalam Kristus',
+          announcements: []
+        },
+        weeklyOverrides: {}
+      },
+      {
+        id: 'worship_pendalaman_alkitab',
+        title: 'Pendalaman Alkitab',
+        description: 'Ibadah pendalaman firman Tuhan',
+        category: 'pendalaman-alkitab',
+        dayOfWeek: 4, // Kamis
+        time: '19:00',
+        location: 'Ruang Alkitab',
+        isActive: true,
+        template: {
+          description: 'Pendalaman Alkitab dengan tema: {theme}. Mari menggali firman Tuhan lebih dalam.',
+          defaultTheme: 'Firman yang Hidup',
+          announcements: []
+        },
+        weeklyOverrides: {}
+      },
+      {
+        id: 'worship_doa_puasa',
+        title: 'Doa dan Puasa',
+        description: 'Ibadah doa dan puasa bersama',
+        category: 'doa-puasa',
+        dayOfWeek: 5, // Jumat
+        time: '18:00',
+        location: 'Ruang Doa',
+        isActive: true,
+        template: {
+          description: 'Ibadah doa dan puasa dengan fokus: {theme}',
+          defaultTheme: 'Kuasa Doa dan Puasa',
+          announcements: []
+        },
+        weeklyOverrides: {}
+      },
+      {
+        id: 'worship_pelprip',
+        title: 'Ibadah PELPRIP',
+        description: 'Persekutuan Lanjut Usia Pria',
+        category: 'pelprip',
+        dayOfWeek: 6, // Sabtu
+        time: '17:00',
+        location: 'Ruang PELPRIP',
+        isActive: true,
+        template: {
+          description: 'Persekutuan khusus bagi para pria lanjut usia dengan tema: {theme}',
+          defaultTheme: 'Kekuatan dalam Persekutuan',
+          announcements: []
+        },
+        weeklyOverrides: {}
+      },
+      {
+        id: 'worship_pelwap',
+        title: 'Ibadah PELWAP',
+        description: 'Persekutuan Lanjut Usia Wanita',
+        category: 'pelwap',
+        dayOfWeek: 6, // Sabtu
+        time: '15:00',
+        location: 'Ruang PELWAP',
+        isActive: true,
+        template: {
+          description: 'Persekutuan khusus bagi para wanita lanjut usia dengan tema: {theme}',
+          defaultTheme: 'Kasih dan Kebijaksanaan',
+          announcements: []
+        },
+        weeklyOverrides: {}
+      },
+      {
+        id: 'worship_doa_fajar',
+        title: 'Doa Membangunkan Fajar',
+        description: 'Doa pagi setiap hari',
+        category: 'doa-fajar',
+        dayOfWeek: 'daily', // Setiap hari (special case)
+        time: '05:00',
+        location: 'Gedung Gereja Utama',
+        isActive: true,
+        template: {
+          description: 'Doa membangunkan fajar: {theme}',
+          defaultTheme: 'Memulai Hari Bersama Tuhan',
+          announcements: []
+        },
+        weeklyOverrides: {}
+      }
+    ]
     
-    // Get upcoming untuk beberapa hari ke depan
-    const allUpcoming = []
-    const checkDays = 14 // Check 2 minggu ke depan
-    
-    for (let i = 0; i < checkDays && allUpcoming.length < limitCount; i++) {
-      const checkDate = new Date(fromDate)
-      checkDate.setDate(checkDate.getDate() + i)
-      const dateString = checkDate.toISOString().split('T')[0]
-      
-      const daySchedules = await getSchedulesByDate(dateString)
-      allUpcoming.push(...daySchedules)
-    }
-    
-    // Sort dan limit
-    const sortedUpcoming = allUpcoming
-      .sort((a, b) => {
-        // Sort by date first, then by time
-        if (a.date !== b.date) {
-          return a.date.localeCompare(b.date)
-        }
-        return compareTimeStrings(a.time || '00:00', b.time || '00:00')
+    for (const template of defaultTemplates) {
+      await setDoc(doc(db, COLLECTION_NAME, template.id), {
+        ...template,
+        createdAt: new Date(),
+        updatedAt: new Date()
       })
-      .slice(0, limitCount)
+      console.log(`✅ Created template: ${template.title}`)
+    }
     
-    console.log(`📅 [Schedule Service] Found ${sortedUpcoming.length} upcoming schedules`)
-    return sortedUpcoming
+    console.log('✅ [Worship Service] All default templates initialized!')
+    return true
     
   } catch (error) {
-    console.error('❌ [Schedule Service] Error getting upcoming schedules:', error)
+    console.error('❌ [Worship Service] Error initializing templates:', error)
     throw error
   }
 }
 
 /**
- * ⭐ Get schedules in date range
- * @param {string} startDate - Start date (YYYY-MM-DD)
- * @param {string} endDate - End date (YYYY-MM-DD)
- * @returns {Promise<Array>} Array schedules dalam range
+ * 🛠️ Update worship template (untuk admin)
+ * @param {string} templateId - Template ID
+ * @param {Object} updateData - Data to update
+ * @returns {Promise<boolean>} Success status
  */
-export async function getSchedulesByDateRange(startDate, endDate) {
+export async function updateWorshipTemplate(templateId, updateData) {
   try {
-    if (!startDate || !endDate) {
-      throw new Error('Start date dan end date harus diisi')
-    }
-    
-    const allSchedules = []
-    const start = new Date(startDate)
-    const end = new Date(endDate)
-    
-    // Loop setiap tanggal dalam range
-    for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-      const dateString = date.toISOString().split('T')[0]
-      const daySchedules = await getSchedulesByDate(dateString)
-      allSchedules.push(...daySchedules)
-    }
-    
-    // Sort by date then time
-    const sortedSchedules = allSchedules.sort((a, b) => {
-      if (a.date !== b.date) {
-        return a.date.localeCompare(b.date)
-      }
-      return compareTimeStrings(a.time || '00:00', b.time || '00:00')
+    const templateRef = doc(db, COLLECTION_NAME, templateId)
+    await updateDoc(templateRef, {
+      ...updateData,
+      updatedAt: new Date()
     })
     
-    console.log(`📅 [Schedule Service] Found ${sortedSchedules.length} schedules between ${startDate} and ${endDate}`)
-    return sortedSchedules
-    
+    console.log(`✅ [Worship Service] Template updated: ${templateId}`)
+    return true
   } catch (error) {
-    console.error('❌ [Schedule Service] Error getting schedules by date range:', error)
+    console.error('❌ [Worship Service] Error updating template:', error)
     throw error
   }
 }
 
 /**
- * ⭐ Get schedules berdasarkan kategori
- * @param {string} category - Category filter
- * @param {number} days - Number of days to check
- * @returns {Promise<Array>} Array schedules dengan kategori tertentu
+ * 🛠️ Update weekly override untuk tanggal spesifik (untuk admin)
+ * @param {string} templateId - Template ID
+ * @param {string} date - Date (YYYY-MM-DD)
+ * @param {Object} overrideData - Override data
+ * @returns {Promise<boolean>} Success status
  */
-export async function getSchedulesByCategory(category, days = 30) {
+export async function updateWeeklyOverride(templateId, date, overrideData) {
   try {
-    if (!category) {
-      throw new Error('Kategori harus diisi')
+    const templateRef = doc(db, COLLECTION_NAME, templateId)
+    
+    const updateData = {
+      [`weeklyOverrides.${date}`]: overrideData,
+      updatedAt: new Date()
     }
     
-    const today = new Date().toISOString().split('T')[0]
-    const endDate = new Date()
-    endDate.setDate(endDate.getDate() + days)
-    const endDateString = endDate.toISOString().split('T')[0]
+    await updateDoc(templateRef, updateData)
     
-    // Get all schedules dalam range
-    const allSchedules = await getSchedulesByDateRange(today, endDateString)
-    
-    // Filter by category
-    const filteredSchedules = allSchedules.filter(schedule => 
-      schedule.category?.toLowerCase() === category.toLowerCase()
-    )
-    
-    console.log(`📅 [Schedule Service] Found ${filteredSchedules.length} schedules for category: ${category}`)
-    return filteredSchedules
-    
+    console.log(`✅ [Worship Service] Weekly override updated for ${date}`)
+    return true
   } catch (error) {
-    console.error('❌ [Schedule Service] Error getting schedules by category:', error)
+    console.error('❌ [Worship Service] Error updating weekly override:', error)
     throw error
   }
 }
 
 /**
- * ⭐ IMPROVED - Get schedules dengan error handling yang baik
- * @param {number} limitDays - Number of days to generate
- * @returns {Promise<Array>} Array all schedules
+ * 🎯 Get single worship schedule by ID dan tanggal
+ * @param {string} templateId - Template ID
+ * @param {string} date - Date (YYYY-MM-DD)
+ * @returns {Promise<Object>} Worship schedule
  */
-export async function getSchedules(limitDays = 30) {
+export async function getWorshipSchedule(templateId, date) {
   try {
-    console.log(`📅 [Schedule Service] Getting schedules for ${limitDays} days`)
+    const templates = await getWorshipTemplates()
+    const template = templates.find(t => t.id === templateId)
     
-    const today = new Date().toISOString().split('T')[0]
-    const endDate = new Date()
-    endDate.setDate(endDate.getDate() + limitDays)
-    const endDateString = endDate.toISOString().split('T')[0]
+    if (!template) {
+      throw new Error('Template tidak ditemukan')
+    }
     
-    // Pakai fungsi yang sudah diperbaiki
-    const schedules = await getSchedulesByDateRange(today, endDateString)
+    return generateWorshipFromTemplate(template, date)
+  } catch (error) {
+    console.error('❌ [Worship Service] Error getting worship schedule:', error)
+    throw error
+  }
+}
+
+/**
+ * 🎯 Get worship schedules untuk tanggal tertentu
+ * @param {string} dateString - Target date (YYYY-MM-DD)
+ * @returns {Promise<Array>} Array schedules untuk tanggal tersebut
+ */
+async function getWorshipSchedulesByDate(dateString) {
+  try {
+    // Get all active templates
+    const templates = await getWorshipTemplates()
+    const schedules = []
     
-    console.log(`📅 [Schedule Service] Found ${schedules.length} schedules for ${limitDays} days`)
+    // Generate schedules from each active template
+    for (const template of templates) {
+      if (template.isActive) {
+        // For daily templates (like Doa Fajar)
+        if (template.dayOfWeek === 'daily') {
+          schedules.push(generateWorshipFromTemplate(template, dateString))
+          continue
+        }
+        
+        // For weekly templates, check if it matches the day of week
+        const targetDate = new Date(dateString)
+        if (template.dayOfWeek === targetDate.getDay()) {
+          schedules.push(generateWorshipFromTemplate(template, dateString))
+        }
+      }
+    }
+    
+    // Sort by time
+    schedules.sort((a, b) => compareTimeStrings(a.time, b.time))
+    
+    console.log(`📅 [Worship Service] Found ${schedules.length} schedules for ${dateString}`)
     return schedules
     
   } catch (error) {
-    console.error('❌ [Schedule Service] Error getting schedules:', error)
-    
-    // Fallback: ambil data dengan query paling sederhana
-    console.log('🔄 [Schedule Service] Trying fallback query...')
-    return await getSchedulesSafe(limitDays)
+    console.error('❌ [Worship Service] Error getting schedules by date:', error)
+    return []
   }
 }
 
+// ===========================================
+// 🔄 COMPATIBILITY - Wrapper untuk kode lama  
+// ===========================================
+
 /**
- * ⭐ SAFE FALLBACK - Get schedules dengan query sederhana
- * Fungsi backup yang aman untuk digunakan saat index bermasalah
- * @param {number} limitDays - Number of days to check
+ * 🔄 Wrapper function untuk compatibility dengan kode lama
+ * @param {string|Date} date - Target date
  * @returns {Promise<Array>} Array schedules
  */
-export async function getSchedulesSafe(limitDays = 30) {
+export async function getSchedulesByDate(date) {
   try {
-    console.log(`🔧 [Schedule Service] Using SAFE mode for ${limitDays} days`)
-    
-    const schedulesRef = collection(db, COLLECTION_NAME)
-    
-    // Query paling sederhana - hanya ambil yang terbaru
-    const q = query(
-      schedulesRef,
-      orderBy('createdAt', 'desc'),
-      limit(100)  // Ambil 100 schedule terbaru
-    )
-    
-    const querySnapshot = await getDocs(q)
-    const allSchedules = []
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data()
-      
-      // Filter hanya yang aktif
-      if (data.isActive !== false) {
-        allSchedules.push({
-          id: doc.id,
-          ...data,
-          source: data.isRecurring ? 'recurring' : 'one-time'
-        })
-      }
-    })
-    
-    // Filter schedules yang relevan (dalam range tanggal)
-    const today = new Date()
-    const endDate = new Date()
-    endDate.setDate(endDate.getDate() + limitDays)
-    
-    const relevantSchedules = allSchedules.filter(schedule => {
-      // Untuk one-time schedules, cek tanggalnya
-      if (!schedule.isRecurring && schedule.date) {
-        const scheduleDate = new Date(schedule.date)
-        return scheduleDate >= today && scheduleDate <= endDate
-      }
-      
-      // Untuk recurring schedules, tampilkan semua yang aktif
-      if (schedule.isRecurring) {
-        return true
-      }
-      
-      return false
-    })
-    
-    // Sort berdasarkan tanggal dan waktu
-    relevantSchedules.sort((a, b) => {
-      if (a.date && b.date) {
-        if (a.date !== b.date) {
-          return a.date.localeCompare(b.date)
-        }
-        // Kalau tanggal sama, sort berdasarkan waktu
-        return compareTimeStrings(a.time || '00:00', b.time || '00:00')
-      }
-      
-      // Kalau salah satu tidak ada tanggal, yang ada tanggal didahulukan
-      if (a.date && !b.date) return -1
-      if (!a.date && b.date) return 1
-      
-      // Kalau keduanya tidak ada tanggal, sort berdasarkan createdAt
-      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
-    })
-    
-    console.log(`✅ [Schedule Service] SAFE mode found ${relevantSchedules.length} schedules`)
-    return relevantSchedules
-    
+    // Convert date to YYYY-MM-DD format
+    const dateString = typeof date === 'string' ? date : date.toISOString().split('T')[0]
+    return await getWorshipSchedulesByDate(dateString)
   } catch (error) {
-    console.error('❌ [Schedule Service] SAFE mode failed:', error)
-    return []  // Return empty array jika semua gagal
+    console.error('❌ [Schedule Service] Error in getSchedulesByDate:', error)
+    return []
   }
 }
 
 /**
- * ⭐ Get single schedule by ID
+ * 🔄 Wrapper function untuk getSchedules
+ * @param {number} limitDays - Number of days to look ahead
+ * @returns {Promise<Array} Array schedules
+ */
+export async function getSchedules(limitDays = 7) {
+  try {
+    const today = new Date()
+    const endDate = new Date()
+    endDate.setDate(today.getDate() + limitDays)
+    
+    return await getWorshipSchedulesByDateRange(
+      today.toISOString().split('T')[0],
+      endDate.toISOString().split('T')[0]
+    )
+  } catch (error) {
+    console.error('❌ [Schedule Service] Error in getSchedules:', error)
+    return []
+  }
+}
+
+/**
+ * Get schedules by category
+ * @param {string} category - Category to filter by
+ * @returns {Promise<Array>} Filtered schedules
+ */
+export async function getSchedulesByCategory(category) {
+  try {
+    const schedules = await getWeeklyWorshipOverview()
+    return schedules.filter(schedule => 
+      schedule.category?.toLowerCase() === category.toLowerCase()
+    )
+  } catch (error) {
+    console.error('❌ [Schedule Service] Error getting schedules by category:', error)
+    return []
+  }
+}
+
+/**
+ * Get single schedule by ID
  * @param {string} id - Schedule ID
  * @returns {Promise<Object>} Schedule data
  */
 export async function getSchedule(id) {
   try {
-    if (!id) {
-      throw new Error('ID jadwal harus diisi')
-    }
-    
-    // Check if this is a generated recurring schedule ID
-    if (id.startsWith('recurring_')) {
-      // Parse format: recurring_RECURRING_ID_DATE
-      const parts = id.split('_')
-      if (parts.length >= 3) {
-        const date = parts[parts.length - 1]
-        const daySchedules = await getSchedulesByDate(date)
-        const schedule = daySchedules.find(s => s.id === id)
-        
-        if (!schedule) {
-          throw new Error('Generated schedule tidak ditemukan')
-        }
-        
-        return schedule
-      }
-    }
-    
-    // Regular schedule from database
-    const docRef = doc(db, COLLECTION_NAME, id)
-    const docSnap = await getDoc(docRef)
-    
-    if (!docSnap.exists()) {
-      throw new Error('Jadwal tidak ditemukan')
-    }
-
-    return {
-      id: docSnap.id,
-      source: docSnap.data().isRecurring ? 'recurring-template' : 'one-time',
-      ...docSnap.data()
-    }
+    return await getWorshipSchedule(id)
   } catch (error) {
     console.error('❌ [Schedule Service] Error getting schedule:', error)
     throw error
@@ -592,164 +746,8 @@ export async function getSchedule(id) {
 }
 
 /**
- * ⭐ ADMIN - Create new schedule (one-time atau recurring)
- * @param {Object} scheduleData - Schedule data
- * @returns {Promise<string>} Created schedule ID
+ * Legacy function for compatibility
  */
-export async function addSchedule(scheduleData) {
-  try {
-    if (!scheduleData || typeof scheduleData !== 'object') {
-      throw new Error('Data jadwal tidak valid')
-    }
-
-    if (!scheduleData.title) {
-      throw new Error('Title jadwal harus diisi')
-    }
-
-    if (!scheduleData.time) {
-      throw new Error('Waktu jadwal harus diisi')
-    }
-
-    // Validate based on type
-    if (scheduleData.isRecurring) {
-      if (!scheduleData.recurrencePattern) {
-        throw new Error('Recurrence pattern harus diisi untuk recurring schedule')
-      }
-    } else {
-      if (!scheduleData.date) {
-        throw new Error('Tanggal harus diisi untuk one-time schedule')
-      }
-    }
-
-    // Normalize data
-    const normalizedData = {
-      ...scheduleData,
-      
-      // Default values
-      category: scheduleData.category || 'event',
-      location: scheduleData.location || 'Gedung Gereja',
-      description: scheduleData.description || '',
-      isActive: scheduleData.isActive !== false, // Default true
-      
-      // Initialize fields untuk recurring
-      ...(scheduleData.isRecurring && {
-        template: scheduleData.template || {
-          description: scheduleData.description || '',
-          defaultInfo: '',
-          closing: ''
-        },
-        dailyOverrides: scheduleData.dailyOverrides || {}
-      }),
-      
-      // Metadata
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      createdBy: scheduleData.createdBy || 'admin'
-    }
-    
-    const schedulesRef = collection(db, COLLECTION_NAME)
-    const newDoc = await addDoc(schedulesRef, normalizedData)
-    
-    console.log(`✅ [Schedule Service] ${scheduleData.isRecurring ? 'Recurring' : 'One-time'} schedule created:`, newDoc.id)
-    return newDoc.id
-    
-  } catch (error) {
-    console.error('❌ [Schedule Service] Error adding schedule:', error)
-    throw error
-  }
-}
-
-/**
- * ⭐ ADMIN - Update schedule
- * @param {string} id - Schedule ID
- * @param {Object} updateData - Data to update
- * @returns {Promise<boolean>} Success status
- */
-export async function updateSchedule(id, updateData) {
-  try {
-    if (!id) {
-      throw new Error('ID jadwal harus diisi')
-    }
-
-    if (!updateData || typeof updateData !== 'object') {
-      throw new Error('Data update tidak valid')
-    }
-    
-    const scheduleRef = doc(db, COLLECTION_NAME, id)
-    await updateDoc(scheduleRef, {
-      ...updateData,
-      updatedAt: new Date(),
-      updatedBy: updateData.updatedBy || 'admin'
-    })
-    
-    console.log('✅ [Schedule Service] Schedule updated:', id)
-    return true
-  } catch (error) {
-    console.error('❌ [Schedule Service] Error updating schedule:', error)
-    throw error
-  }
-}
-
-/**
- * ⭐ ADMIN - Update daily override untuk recurring schedule
- * @param {string} recurringId - Recurring schedule ID
- * @param {string} date - Date (YYYY-MM-DD)
- * @param {Object} overrideData - Override data
- * @returns {Promise<boolean>} Success status
- */
-export async function updateDailyOverride(recurringId, date, overrideData) {
-  try {
-    const scheduleRef = doc(db, COLLECTION_NAME, recurringId)
-    
-    // Update daily override untuk tanggal spesifik
-    const updateData = {
-      [`dailyOverrides.${date}`]: overrideData,
-      updatedAt: new Date()
-    }
-    
-    await updateDoc(scheduleRef, updateData)
-    
-    console.log(`✅ [Schedule Service] Updated daily override for ${date}`)
-    return true
-    
-  } catch (error) {
-    console.error('❌ [Schedule Service] Error updating daily override:', error)
-    throw error
-  }
-}
-
-/**
- * ⭐ ADMIN - Delete schedule
- * @param {string} id - Schedule ID
- * @returns {Promise<boolean>} Success status
- */
-export async function deleteSchedule(id) {
-  try {
-    if (!id) {
-      throw new Error('ID jadwal harus diisi')
-    }
-    
-    const scheduleRef = doc(db, COLLECTION_NAME, id)
-    await deleteDoc(scheduleRef)
-    
-    console.log('✅ [Schedule Service] Schedule deleted:', id)
-    return true
-  } catch (error) {
-    console.error('❌ [Schedule Service] Error deleting schedule:', error)
-    throw error
-  }
-}
-
-/**
- * ⭐ UTILITY - Compare time strings untuk sorting
- * @param {string} time1 - Time string (HH:MM atau HH:MM-HH:MM)
- * @param {string} time2 - Time string (HH:MM atau HH:MM-HH:MM)
- * @returns {number} Comparison result
- */
-function compareTimeStrings(time1, time2) {
-  // Extract start time jika format range (HH:MM-HH:MM)
-  const t1 = time1.split('-')[0].trim()
-  const t2 = time2.split('-')[0].trim()
-  
-  return t1.localeCompare(t2)
+export async function getUpcomingSchedules(days = 7) {
+  return await getUpcomingWorshipSchedules(days)
 }

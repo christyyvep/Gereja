@@ -167,9 +167,6 @@ export default {
 
 <style scoped>
 /* ===== ADDITIONAL INFO SECTIONS ===== */
-.bank-info-section {
-  margin-bottom: 32px;
-}
 
 .bank-info-section h3 {
   font-family: 'Inter', sans-serif;

@@ -19,6 +19,7 @@
     <!-- Konten text di kanan -->
     <div class="card-content">
       <h3 class="card-title">{{ schedule.title }}</h3>
+      <p class="card-schedule">{{ schedule.scheduleText || formatSchedule(schedule) }}</p>
     </div>
 
     <!-- Arrow untuk menunjukkan bisa diklik -->
@@ -111,6 +112,28 @@ export default {
     
     onImageLoad() {
       this.imageError = false
+    },
+
+    formatSchedule(schedule) {
+      if (!schedule) return ''
+      
+      // For daily schedules (like Doa Fajar)
+      if (schedule.dayOfWeek === 'daily') {
+        return `${schedule.dayName} • ${schedule.time}`
+      }
+      
+      // For weekly schedules
+      if (schedule.dayName && schedule.date) {
+        const dateObj = new Date(schedule.date)
+        const day = dateObj.getDate()
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 
+                      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+        const month = months[dateObj.getMonth()]
+        return `${schedule.dayName}, ${day} ${month} • ${schedule.time}`
+      }
+      
+      // Fallback
+      return schedule.time || ''
     }
   }
 }
@@ -197,6 +220,13 @@ export default {
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.card-schedule {
+  font-family: 'Inter';
+  font-size: 13px;
+  color: #666;
+  margin: 4px 0 0 0;
 }
 
 /* Arrow section */

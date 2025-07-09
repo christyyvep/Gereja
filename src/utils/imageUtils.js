@@ -233,6 +233,29 @@ export const getThumbnail = (category, item, size = 'large') => {
   }
 }
 
+// ⭐ ABOUT THUMBNAIL
+/**
+ * Get thumbnail for about/profile pages
+ * @param {Object} data - Data object
+ * @param {string} size - Size variant (small/large)
+ * @returns {string} URL of the thumbnail
+ */
+export function getAboutThumbnail(data, size = 'small') {
+  try {
+    // If data has thumbnail URL, use it
+    if (data?.thumbnailUrl) {
+      return data.thumbnailUrl
+    }
+    
+    // Default thumbnail based on size
+    const defaultPath = `/assets/thumbnails/about/${size}/about.png`
+    return defaultPath
+  } catch (error) {
+    console.error('❌ Error getting about thumbnail:', error)
+    return '/assets/thumbnails/about/small/about.png'
+  }
+}
+
 // ⭐ HELPER FUNCTIONS
 const getEmojiForFeature = (iconName) => {
   const emojiMap = {
