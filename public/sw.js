@@ -1,9 +1,16 @@
-// MyRajawali Service Worker
+// MyRajawali Service Worker - Development Friendly
 const CACHE_NAME = 'myrajawali-v1.0.0'
 const STATIC_CACHE = 'myrajawali-static-v1'
 const DYNAMIC_CACHE = 'myrajawali-dynamic-v1'
 
-// Files yang akan di-cache saat install
+// Detect environment
+const isDevelopment = self.location.hostname === 'localhost' || 
+                     self.location.hostname === '127.0.0.1' ||
+                     self.location.port === '8080'
+
+console.log(`🔧 [SW] Running in ${isDevelopment ? 'DEVELOPMENT' : 'PRODUCTION'} mode`)
+
+// Files untuk di-cache (hanya di production)
 const STATIC_FILES = [
   '/',
   '/icons/icon-72.png',
@@ -13,13 +20,24 @@ const STATIC_FILES = [
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap'
 ]
 
-// Halaman offline fallback
-const OFFLINE_PAGE = '/offline.html'
-
 // ===== INSTALL EVENT =====
 self.addEventListener('install', event => {
   console.log('🚀 [SW] Installing MyRajawali Service Worker...')
   
+  // Di development, langsung skip tanpa cache berat
+  if (isDevelopment) {
+    console.log('⚡ [SW] Development mode: minimal caching, quick activation')
+    event.waitUntil(
+      Promise.resolve().then(() => {
+        console.log('✅ [SW] Development install complete')
+        // JANGAN skipWaiting di development untuk hindari reload loop
+        // return self.skipWaiting()
+      })
+    )
+    return
+  }
+  
+  // Di production, cache seperti biasa
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then(cache => {
@@ -28,7 +46,8 @@ self.addEventListener('install', event => {
       })
       .then(() => {
         console.log('✅ [SW] Static files cached successfully')
-        return self.skipWaiting() // Aktifkan SW baru langsung
+        // Di production juga jangan langsung skipWaiting
+        // Biarkan user yang decide kapan mau update
       })
       .catch(error => {
         console.error('❌ [SW] Failed to cache static files:', error)
@@ -42,9 +61,23 @@ self.addEventListener('activate', event => {
   
   event.waitUntil(
     caches.keys().then(cacheNames => {
+      // Di development, minimal cache management
+      if (isDevelopment) {
+        console.log('🧹 [SW] Development: gentle cache cleanup')
+        return Promise.all(
+          cacheNames.map(cacheName => {
+            // Hanya hapus cache yang benar-benar old
+            if (cacheName.includes('old') || cacheName.includes('temp')) {
+              console.log('🗑️ [SW] Removing old cache:', cacheName)
+              return caches.delete(cacheName)
+            }
+          })
+        )
+      }
+      
+      // Di production, hapus cache lama
       return Promise.all(
         cacheNames.map(cacheName => {
-          // Hapus cache lama
           if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
             console.log('🗑️ [SW] Deleting old cache:', cacheName)
             return caches.delete(cacheName)
@@ -53,7 +86,7 @@ self.addEventListener('activate', event => {
       )
     }).then(() => {
       console.log('✅ [SW] Service Worker activated')
-      return self.clients.claim() // Kontrol semua tabs
+      return self.clients.claim()
     })
   )
 })
@@ -65,146 +98,104 @@ self.addEventListener('fetch', event => {
   // Skip non-GET requests
   if (request.method !== 'GET') return
   
-  // Skip Chrome extensions
-  if (request.url.startsWith('chrome-extension://')) return
-  
-  // Skip Firebase requests (let them go to network)
-  if (request.url.includes('firebaseapp.com') || 
-      request.url.includes('googleapis.com') ||
-      request.url.includes('firebase.googleapis.com')) {
+  // Skip Chrome extensions, webpack HMR, dan dev tools
+  if (request.url.includes('chrome-extension://') || 
+      request.url.includes('webpack') ||
+      request.url.includes('hot-update') ||
+      request.url.includes('sockjs-node') ||
+      request.url.includes('__webpack_dev_server__')) {
     return
   }
   
+  // Di development, bypass cache untuk resource tertentu
+  if (isDevelopment) {
+    // Hanya cache asset static yang tidak berubah
+    if (request.url.includes('/icons/') || 
+        request.url.includes('.woff') || 
+        request.url.includes('.woff2')) {
+      event.respondWith(
+        caches.match(request).then(response => {
+          return response || fetch(request)
+        })
+      )
+    }
+    return // Skip caching untuk yang lain di development
+  }
+  
+  // Di production, gunakan cache strategy normal
   event.respondWith(
     caches.match(request)
-      .then(cachedResponse => {
-        // Jika ada di cache, return cache
-        if (cachedResponse) {
-          console.log('📦 [SW] Serving from cache:', request.url)
-          return cachedResponse
-        }
-        
-        // Jika tidak ada, fetch dari network
-        console.log('🌐 [SW] Fetching from network:', request.url)
-        return fetch(request)
-          .then(networkResponse => {
-            // Cache response untuk request selanjutnya
-            if (networkResponse.status === 200) {
-              const responseClone = networkResponse.clone()
-              
-              caches.open(DYNAMIC_CACHE).then(cache => {
-                cache.put(request, responseClone)
-              })
-            }
-            
-            return networkResponse
-          })
-          .catch(error => {
-            console.log('❌ [SW] Network failed:', error)
-            
-            // Jika offline, return halaman offline
-            if (request.destination === 'document') {
-              return caches.match(OFFLINE_PAGE)
-            }
-            
-            // Untuk assets lain, return placeholder jika ada
-            return new Response('Offline content not available', {
-              status: 503,
-              statusText: 'Service Unavailable'
+      .then(response => {
+        return response || fetch(request).then(fetchResponse => {
+          // Cache dynamic content
+          if (fetchResponse.status === 200) {
+            const responseClone = fetchResponse.clone()
+            caches.open(DYNAMIC_CACHE).then(cache => {
+              cache.put(request, responseClone)
             })
-          })
-      })
-  )
-})
-
-// ===== PUSH NOTIFICATION =====
-self.addEventListener('push', event => {
-  console.log('🔔 [SW] Push notification received')
-  
-  let notificationData = {}
-  
-  if (event.data) {
-    notificationData = event.data.json()
-  }
-  
-  const options = {
-    body: notificationData.body || 'Ada informasi baru dari MyRajawali',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-72.png',
-    image: notificationData.image,
-    data: {
-      url: notificationData.url || '/',
-      timestamp: Date.now()
-    },
-    actions: [
-      {
-        action: 'open',
-        title: 'Buka Aplikasi',
-        icon: '/icons/icon-72.png'
-      },
-      {
-        action: 'close',
-        title: 'Tutup'
-      }
-    ],
-    requireInteraction: true,
-    vibrate: [200, 100, 200],
-    tag: 'myrajawali-notification'
-  }
-  
-  event.waitUntil(
-    self.registration.showNotification(
-      notificationData.title || 'MyRajawali',
-      options
-    )
-  )
-})
-
-// ===== NOTIFICATION CLICK =====
-self.addEventListener('notificationclick', event => {
-  console.log('🖱️ [SW] Notification clicked:', event.action)
-  
-  event.notification.close()
-  
-  if (event.action === 'close') {
-    return
-  }
-  
-  const urlToOpen = event.notification.data?.url || '/'
-  
-  event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then(clientList => {
-        // Cari tab yang sudah buka MyRajawali
-        for (const client of clientList) {
-          if (client.url.includes(urlToOpen) && 'focus' in client) {
-            return client.focus()
           }
-        }
-        
-        // Jika tidak ada, buka tab baru
-        if (clients.openWindow) {
-          return clients.openWindow(urlToOpen)
+          return fetchResponse
+        })
+      })
+      .catch(() => {
+        // Fallback untuk offline
+        if (request.destination === 'document') {
+          return caches.match('/') || Response.error()
         }
       })
   )
 })
 
-// ===== BACKGROUND SYNC =====
-self.addEventListener('sync', event => {
-  console.log('🔄 [SW] Background sync triggered:', event.tag)
-  
-  if (event.tag === 'background-sync') {
+// ===== NOTIFICATION & SYNC (hanya di production) =====
+if (!isDevelopment) {
+  // Push notification handler
+  self.addEventListener('push', event => {
+    const notificationData = event.data ? event.data.json() : {}
+    
+    const options = {
+      body: notificationData.body || 'Ada informasi baru dari MyRajawali',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-72.png',
+      tag: 'myrajawali-notification',
+      vibrate: [200, 100, 200],
+      requireInteraction: true
+    }
+    
     event.waitUntil(
-      // Sync data saat koneksi kembali
-      syncData()
+      self.registration.showNotification(
+        notificationData.title || 'MyRajawali',
+        options
+      )
     )
-  }
-})
+  })
 
-// Helper function untuk sync data
+  // Notification click
+  self.addEventListener('notificationclick', event => {
+    event.notification.close()
+    
+    event.waitUntil(
+      clients.matchAll({ type: 'window', includeUncontrolled: true })
+        .then(clientList => {
+          if (clientList.length > 0) {
+            return clientList[0].focus()
+          }
+          return clients.openWindow('/')
+        })
+    )
+  })
+
+  // Background sync
+  self.addEventListener('sync', event => {
+    console.log('🔄 [SW] Background sync triggered:', event.tag)
+    
+    if (event.tag === 'background-sync') {
+      event.waitUntil(syncData())
+    }
+  })
+}
+
+// Helper function
 function syncData() {
   console.log('📊 [SW] Syncing offline data...')
-  // Implementasi sync data offline ke server
   return Promise.resolve()
 }

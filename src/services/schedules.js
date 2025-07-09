@@ -10,7 +10,8 @@ import {
   deleteDoc,
   query, 
   orderBy,
-  where 
+  where,
+  limit 
 } from 'firebase/firestore'
 
 const COLLECTION_NAME = 'schedules'
@@ -66,32 +67,46 @@ export async function getSchedulesByDate(date) {
 }
 
 /**
- * ⭐ Get one-time schedules untuk tanggal tertentu
+ * ⭐ FIXED - Get one-time schedules untuk tanggal tertentu
+ * Menggunakan query yang kompatibel dengan index yang ada
  * @param {string} dateString - Date string (YYYY-MM-DD)
  * @returns {Promise<Array>} Array one-time schedules
  */
 async function getOneTimeSchedulesByDate(dateString) {
   try {
     const schedulesRef = collection(db, COLLECTION_NAME)
+    
+    // Query menggunakan index yang sudah ada: isActive, isRecurring, createdAt
     const q = query(
       schedulesRef,
-      where('isRecurring', '==', false),
-      where('date', '==', dateString),
       where('isActive', '==', true),
-      orderBy('time', 'asc')
+      where('isRecurring', '==', false),
+      orderBy('createdAt', 'desc')  // ← Pakai index yang ada
     )
     
     const querySnapshot = await getDocs(q)
     const schedules = []
     
     querySnapshot.forEach((doc) => {
-      schedules.push({
-        id: doc.id,
-        ...doc.data()
-      })
+      const data = doc.data()
+      
+      // Filter tanggal di JavaScript (bukan di Firebase query)
+      if (data.date === dateString) {
+        schedules.push({
+          id: doc.id,
+          ...data
+        })
+      }
     })
     
+    // Sort berdasarkan time di JavaScript
+    schedules.sort((a, b) => {
+      return compareTimeStrings(a.time || '00:00', b.time || '00:00')
+    })
+    
+    console.log(`📅 [Schedule Service] Found ${schedules.length} one-time schedules for ${dateString}`)
     return schedules
+    
   } catch (error) {
     console.error('❌ [Schedule Service] Error getting one-time schedules:', error)
     return []
@@ -127,17 +142,19 @@ async function generateRecurringSchedulesForDate(targetDate) {
 }
 
 /**
- * ⭐ Get all active recurring schedules
+ * ⭐ FIXED - Get all active recurring schedules
  * @returns {Promise<Array>} Array recurring schedules
  */
 async function getActiveRecurringSchedules() {
   try {
     const schedulesRef = collection(db, COLLECTION_NAME)
+    
+    // Query menggunakan index yang sudah ada
     const q = query(
       schedulesRef,
-      where('isRecurring', '==', true),
       where('isActive', '==', true),
-      orderBy('createdAt', 'asc')
+      where('isRecurring', '==', true),
+      orderBy('createdAt', 'desc')  // ← Pakai index yang ada
     )
     
     const querySnapshot = await getDocs(q)
@@ -150,7 +167,9 @@ async function getActiveRecurringSchedules() {
       })
     })
     
+    console.log(`📅 [Schedule Service] Found ${schedules.length} active recurring schedules`)
     return schedules
+    
   } catch (error) {
     console.error('❌ [Schedule Service] Error getting recurring schedules:', error)
     return []
@@ -415,17 +434,20 @@ export async function getSchedulesByCategory(category, days = 30) {
 }
 
 /**
- * ⭐ Get all schedules (for admin/list view)
+ * ⭐ IMPROVED - Get schedules dengan error handling yang baik
  * @param {number} limitDays - Number of days to generate
  * @returns {Promise<Array>} Array all schedules
  */
 export async function getSchedules(limitDays = 30) {
   try {
+    console.log(`📅 [Schedule Service] Getting schedules for ${limitDays} days`)
+    
     const today = new Date().toISOString().split('T')[0]
     const endDate = new Date()
     endDate.setDate(endDate.getDate() + limitDays)
     const endDateString = endDate.toISOString().split('T')[0]
     
+    // Pakai fungsi yang sudah diperbaiki
     const schedules = await getSchedulesByDateRange(today, endDateString)
     
     console.log(`📅 [Schedule Service] Found ${schedules.length} schedules for ${limitDays} days`)
@@ -433,7 +455,92 @@ export async function getSchedules(limitDays = 30) {
     
   } catch (error) {
     console.error('❌ [Schedule Service] Error getting schedules:', error)
-    throw error
+    
+    // Fallback: ambil data dengan query paling sederhana
+    console.log('🔄 [Schedule Service] Trying fallback query...')
+    return await getSchedulesSafe(limitDays)
+  }
+}
+
+/**
+ * ⭐ SAFE FALLBACK - Get schedules dengan query sederhana
+ * Fungsi backup yang aman untuk digunakan saat index bermasalah
+ * @param {number} limitDays - Number of days to check
+ * @returns {Promise<Array>} Array schedules
+ */
+export async function getSchedulesSafe(limitDays = 30) {
+  try {
+    console.log(`🔧 [Schedule Service] Using SAFE mode for ${limitDays} days`)
+    
+    const schedulesRef = collection(db, COLLECTION_NAME)
+    
+    // Query paling sederhana - hanya ambil yang terbaru
+    const q = query(
+      schedulesRef,
+      orderBy('createdAt', 'desc'),
+      limit(100)  // Ambil 100 schedule terbaru
+    )
+    
+    const querySnapshot = await getDocs(q)
+    const allSchedules = []
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data()
+      
+      // Filter hanya yang aktif
+      if (data.isActive !== false) {
+        allSchedules.push({
+          id: doc.id,
+          ...data,
+          source: data.isRecurring ? 'recurring' : 'one-time'
+        })
+      }
+    })
+    
+    // Filter schedules yang relevan (dalam range tanggal)
+    const today = new Date()
+    const endDate = new Date()
+    endDate.setDate(endDate.getDate() + limitDays)
+    
+    const relevantSchedules = allSchedules.filter(schedule => {
+      // Untuk one-time schedules, cek tanggalnya
+      if (!schedule.isRecurring && schedule.date) {
+        const scheduleDate = new Date(schedule.date)
+        return scheduleDate >= today && scheduleDate <= endDate
+      }
+      
+      // Untuk recurring schedules, tampilkan semua yang aktif
+      if (schedule.isRecurring) {
+        return true
+      }
+      
+      return false
+    })
+    
+    // Sort berdasarkan tanggal dan waktu
+    relevantSchedules.sort((a, b) => {
+      if (a.date && b.date) {
+        if (a.date !== b.date) {
+          return a.date.localeCompare(b.date)
+        }
+        // Kalau tanggal sama, sort berdasarkan waktu
+        return compareTimeStrings(a.time || '00:00', b.time || '00:00')
+      }
+      
+      // Kalau salah satu tidak ada tanggal, yang ada tanggal didahulukan
+      if (a.date && !b.date) return -1
+      if (!a.date && b.date) return 1
+      
+      // Kalau keduanya tidak ada tanggal, sort berdasarkan createdAt
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    })
+    
+    console.log(`✅ [Schedule Service] SAFE mode found ${relevantSchedules.length} schedules`)
+    return relevantSchedules
+    
+  } catch (error) {
+    console.error('❌ [Schedule Service] SAFE mode failed:', error)
+    return []  // Return empty array jika semua gagal
   }
 }
 

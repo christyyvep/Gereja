@@ -21,6 +21,7 @@ import TentangGereja from '../views/TentangGereja.vue'
 import PrayerRequest from '../views/PrayerRequest.vue'
 import AddPrayerReq from '../views/AddPrayerReq.vue'
 import PrayerDetail from '../views/PrayerDetail.vue'
+import GivingPage from '@/views/GivingPage.vue'
 
 
 const routes = [
@@ -131,6 +132,12 @@ const routes = [
     path: '/prayer-request/:id',
     name: 'PrayerDetail',
     component: PrayerDetail,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/giving',
+    name: 'GivingPage',
+    component: GivingPage,
     meta: { requiresAuth: true }
   },
 

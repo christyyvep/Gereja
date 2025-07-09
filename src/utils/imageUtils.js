@@ -138,6 +138,32 @@ export const getDevotionalThumbnail = (devotional, size = 'large') => {
   )
 }
 
+// ⭐ GIVING/PERSEMBAHAN THUMBNAILS - SUPER SIMPLIFIED!
+export const getGivingThumbnail = (giving, size = 'large') => {
+  const extensions = ['png', 'jpg', 'jpeg', 'webp']
+  
+  // LANGSUNG CARI giving.* di folder giving/ (tanpa subfolder large/small)
+  for (const ext of extensions) {
+    try {
+      const givingPath = require(`@/assets/thumbnails/giving/giving.${ext}`)
+      return givingPath
+    } catch (error) {
+      continue
+    }
+  }
+  
+  // Return placeholder jika file tidak ditemukan
+  const width = size === 'small' ? 80 : 400
+  const height = size === 'small' ? 80 : 300
+  
+  return createPlaceholderDataUrl(
+    'GIVING', 
+    width, 
+    height, 
+    getCategoryColor('giving', '#10b981')
+  )
+}
+
 // ⭐ FEATURE ICONS
 export const getFeatureIconUrl = (iconName) => {
   const iconMapping = {
@@ -184,7 +210,7 @@ export const getDailyVerseUrl = (ayatNumber = null) => {
       try {
         const fallbackPath = require(`@/assets/daily-verse/ayat${i}.png`)
         return fallbackPath
-      } catch (fallbackError) {
+      } catch (error) {
         continue
       }
     }
@@ -192,7 +218,7 @@ export const getDailyVerseUrl = (ayatNumber = null) => {
   }
 }
 
-// ⭐ UNIVERSAL THUMBNAIL GETTER
+// ⭐ UNIVERSAL THUMBNAIL GETTER - UPDATED!
 export const getThumbnail = (category, item, size = 'large') => {
   if (category === 'news' || category === 'berita') {
     return getNewsThumbnail(item, size)
@@ -200,6 +226,8 @@ export const getThumbnail = (category, item, size = 'large') => {
     return getScheduleThumbnail(item, size)
   } else if (category === 'devotional' || category === 'renungan') {
     return getDevotionalThumbnail(item, size)
+  } else if (category === 'giving' || category === 'persembahan') {
+    return getGivingThumbnail(item, size)
   } else {
     return getScheduleThumbnail(item, size)
   }
@@ -223,7 +251,8 @@ const getCategoryText = (category, defaultText) => {
     'pengumuman': 'INFO', 'kasih': 'KASIH', 'iman': 'IMAN',
     'pengharapan': 'HARAPAN', 'doa': 'DOA', 'news': 'NEWS',
     'jadwal': 'JADWAL', 'renungan': 'RENUNGAN', 'undangan': 'UNDANGAN',
-    'favoredcamp': 'CAMP', 'camp': 'CAMP', 'perkemahan': 'CAMP'
+    'favoredcamp': 'CAMP', 'camp': 'CAMP', 'perkemahan': 'CAMP',
+    'giving': 'GIVING', 'persembahan': 'GIVING'
   }
   return textMap[category?.toLowerCase()] || defaultText
 }
@@ -235,7 +264,8 @@ const getCategoryColor = (category, defaultColor) => {
     'pengumuman': '#6366f1', 'kasih': '#f43f5e', 'iman': '#06b6d4',
     'pengharapan': '#84cc16', 'doa': '#a855f7', 'news': '#2563eb',
     'jadwal': '#41442A', 'renungan': '#7c3aed', 'undangan': '#8b5cf6',
-    'favoredcamp': '#41442A', 'camp': '#41442A', 'perkemahan': '#41442A'
+    'favoredcamp': '#41442A', 'camp': '#41442A', 'perkemahan': '#41442A',
+    'giving': '#10b981', 'persembahan': '#10b981'
   }
   return colorMap[category?.toLowerCase()] || defaultColor
 }
@@ -285,6 +315,6 @@ const createPlaceholderDataUrl = (text, width, height, bgColor = '#41442A', text
   } catch (error) {
     console.error('Error creating placeholder:', error)
     // Ultimate fallback
-    return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiM0MTQ0MkEiLz48dGV4dCB4PSIyMDAiIHk9IjE1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LWIxZLci0iZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk5FV1M8L3RleHQ+PC9zdmc+'
+    return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiM0MTQ0MkEiLz48dGV4dCB4PSIyMDAiIHk9IjE1MCIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjI0IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TkVXUzwvdGV4dD48L3N2Zz4='
   }
 }

@@ -158,10 +158,11 @@ export default {
   color: white;
 }
 
+/* 🎨 UPDATED: Hover dengan opacity 80% */
 .button-primary:hover:not(:disabled):not(.loading) {
-  background-color: #535738;
+  background-color: rgba(65, 68, 42, 0.8); /* 80% opacity */
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(65, 68, 42, 0.3);
+  box-shadow: 0 4px 12px rgba(65, 68, 42, 0.2);
 }
 
 .button-primary:active:not(:disabled):not(.loading) {
@@ -176,9 +177,12 @@ export default {
   border: 2px solid #41442A;
 }
 
+/* 🎨 UPDATED: Secondary button hover juga pakai opacity 80% */
 .button-secondary:hover:not(:disabled):not(.loading) {
-  background-color: #e9ecef;
+  background-color: rgba(65, 68, 42, 0.8);
+  color: white;
   transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(65, 68, 42, 0.2);
 }
 
 .button-danger {

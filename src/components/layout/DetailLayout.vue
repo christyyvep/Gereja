@@ -12,40 +12,8 @@
         
         <!-- Desktop Detail Content -->
         <div class="desktop-detail-wrapper">
-          <!-- Desktop Back Button -->
-          <button v-if="!hideBackButton" @click="handleBackNavigation" class="desktop-back-button">
-            <ArrowLeft class="back-icon" />
-            <span>{{ backButtonText }}</span>
-          </button>
-
           <!-- Desktop Content Card -->
           <div class="desktop-detail-card">
-            <!-- Desktop Header Section -->
-            <div class="desktop-header-section">
-              <!-- Content Type Badge -->
-              <div v-if="!hideContentBadge" class="desktop-content-badge">
-                <component :is="contentIcon" class="badge-icon" />
-                <span>{{ contentTypeLabel }}</span>
-              </div>
-
-              <!-- Title -->
-              <h1 class="desktop-detail-title">{{ title }}</h1>
-              
-              <!-- Meta Information -->
-              <div v-if="publishDate || author" class="desktop-meta-info">
-                <div class="meta-group">
-                  <div v-if="publishDate" class="meta-item">
-                    <Calendar class="meta-icon" />
-                    <span>{{ publishDate }}</span>
-                  </div>
-                  <div v-if="author" class="meta-item">
-                    <User class="meta-icon" />
-                    <span>{{ author }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <!-- Desktop Image Section -->
             <div class="desktop-image-section">
               <img 
@@ -64,6 +32,11 @@
 
             <!-- Desktop Content Section -->
             <div class="desktop-content-section">
+              <!-- Title moved here -->
+              <div class="content-block">
+                <h1 class="desktop-detail-title">{{ title }}</h1>
+              </div>
+              
               <!-- Main Description -->
               <div class="content-block">
                 <div class="content-text">
@@ -160,9 +133,10 @@ import {
   Share2,
   Newspaper,
   CalendarDays,
-  BookOpen
+  BookOpen,
+  Heart
 } from 'lucide-vue-next'
-import { getNewsThumbnail, getScheduleThumbnail, getDevotionalThumbnail } from '@/utils/imageUtils'
+import { getNewsThumbnail, getScheduleThumbnail, getDevotionalThumbnail, getGivingThumbnail } from '@/utils/imageUtils'
 
 export default {
   name: 'DetailLayout',
@@ -177,7 +151,8 @@ export default {
     Share2,
     Newspaper,
     CalendarDays,
-    BookOpen
+    BookOpen,
+    Heart
   },
   props: {
     // Basic props
@@ -204,7 +179,7 @@ export default {
     contentType: {
       type: String,
       default: '',
-      validator: (value) => ['', 'news', 'schedule', 'devotional', 'jadwal', 'renungan'].includes(value)
+      validator: (value) => ['', 'news', 'schedule', 'devotional', 'jadwal', 'renungan', 'giving'].includes(value)
     },
     closing: {
       type: String,
@@ -261,6 +236,13 @@ export default {
     thumbnailSrc() {
       let detectedType = this.contentType
       
+      console.log('🔍 DetailLayout thumbnailSrc:', {
+        contentType: this.contentType,
+        detectedType,
+        thumbnail: this.thumbnail,
+        category: this.category
+      })
+      
       // Auto-detect dari headerTitle jika contentType kosong
       if (!detectedType && this.headerTitle) {
         if (this.headerTitle.toLowerCase().includes('news') || this.headerTitle.toLowerCase().includes('berita')) {
@@ -269,8 +251,12 @@ export default {
           detectedType = 'schedule'
         } else if (this.headerTitle.toLowerCase().includes('renungan') || this.headerTitle.toLowerCase().includes('devotional')) {
           detectedType = 'devotional'
+        } else if (this.headerTitle.toLowerCase().includes('giving') || this.headerTitle.toLowerCase().includes('persembahan')) {
+          detectedType = 'giving'
         }
       }
+      
+      console.log('🎯 Final detectedType:', detectedType)
       
       // Check if thumbnail is already a valid URL
       if (this.thumbnail) {
@@ -278,6 +264,7 @@ export default {
             this.thumbnail.startsWith('data:') || 
             this.thumbnail.startsWith('blob:') ||
             this.thumbnail.includes('/')) {
+          console.log('📸 Using direct URL:', this.thumbnail)
           return this.thumbnail
         }
       }
@@ -289,20 +276,30 @@ export default {
         title: this.title
       }
       
+      console.log('📦 ItemObject for imageUtils:', itemObject)
+      
       // Use imageUtils for proper file resolution
       switch (detectedType) {
         case 'news': {
+          console.log('📰 Using getNewsThumbnail')
           return getNewsThumbnail(itemObject)
         }
         case 'schedule':
         case 'jadwal': {
+          console.log('📅 Using getScheduleThumbnail')
           return getScheduleThumbnail(itemObject)
         }
         case 'devotional':
         case 'renungan': {
+          console.log('🙏 Using getDevotionalThumbnail')
           return getDevotionalThumbnail(itemObject)
         }
+        case 'giving': {
+          console.log('💝 Using getGivingThumbnail')
+          return getGivingThumbnail(itemObject)
+        }
         default: {
+          console.log('📰 Using default getNewsThumbnail')
           return getNewsThumbnail(itemObject)
         }
       }
@@ -319,6 +316,8 @@ export default {
           return 'schedule'
         } else if (this.headerTitle.toLowerCase().includes('renungan') || this.headerTitle.toLowerCase().includes('devotional')) {
           return 'devotional'
+        } else if (this.headerTitle.toLowerCase().includes('giving') || this.headerTitle.toLowerCase().includes('persembahan')) {
+          return 'giving'
         }
       }
       return 'content'
@@ -329,6 +328,7 @@ export default {
         case 'news': return 'Berita & Pengumuman'
         case 'schedule': case 'jadwal': return 'Jadwal Kegiatan'
         case 'devotional': case 'renungan': return 'Renungan Harian'
+        case 'giving': return 'Persembahan & Persepuluhan'
         default: return 'Konten'
       }
     },
@@ -338,6 +338,7 @@ export default {
         case 'news': return 'Newspaper'
         case 'schedule': case 'jadwal': return 'CalendarDays'
         case 'devotional': case 'renungan': return 'BookOpen'
+        case 'giving': return 'Heart'
         default: return 'Newspaper'
       }
     },
@@ -506,37 +507,6 @@ export default {
   width: 100%;
 }
 
-/* Desktop back button */
-.desktop-back-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: white;
-  border: 1px solid #e0e0e0;
-  padding: 12px 20px;
-  color: #666;
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  align-self: flex-start;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.desktop-back-button:hover {
-  color: #41442A;
-  background: rgba(65, 68, 42, 0.05);
-  border-color: #41442A;
-  transform: translateY(-1px);
-}
-
-.back-icon {
-  width: 18px;
-  height: 18px;
-}
-
 /* Desktop detail card */
 .desktop-detail-card {
   background: white;
@@ -544,64 +514,6 @@ export default {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   overflow: hidden;
   width: 100%;
-}
-
-/* Desktop header section */
-.desktop-header-section {
-  padding: 32px;
-}
-
-.desktop-content-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, #41442A 0%, #5a5d3a 100%);
-  color: white;
-  padding: 10px 18px;
-  border-radius: 20px;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 20px;
-}
-
-.badge-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.desktop-detail-title {
-  font-family: 'Inter', sans-serif;
-  font-size: 28px;
-  font-weight: 700;
-  color: #2d2d2d;
-  line-height: 1.2;
-  margin: 0;
-}
-
-.desktop-meta-info {
-  margin-top: 16px;
-}
-
-.meta-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #666;
-  font-family: 'Inter', sans-serif;
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.meta-icon {
-  width: 18px;
-  height: 18px;
 }
 
 /* Desktop image section */
@@ -660,6 +572,15 @@ export default {
   font-size: 22px;
   font-weight: 700;
   color: #2d2d2d;
+  margin: 0 0 16px 0;
+}
+
+.desktop-detail-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: #2d2d2d;
+  line-height: 1.2;
   margin: 0 0 16px 0;
 }
 
