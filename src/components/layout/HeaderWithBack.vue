@@ -57,8 +57,7 @@ export default {
   justify-content: space-between;
   position: relative;
   min-height: 32px;
-  /* ⭐ TAMBAH padding kiri kanan untuk mobile */
-  padding: 0 16px;
+  /* Padding removed as requested */
 }
 
 .back-button {
@@ -113,10 +112,6 @@ export default {
 
 /* ⭐ MEDIA QUERY UNTUK MOBILE */
 @media (max-width: 360px) {
-  .header-inner {
-    padding: 0 12px;
-  }
-  
   .header-title {
     font-size: 16px;
     max-width: calc(100% - 88px);
@@ -124,10 +119,6 @@ export default {
 }
 
 @media (max-width: 320px) {
-  .header-inner {
-    padding: 0 8px;
-  }
-  
   .header-title {
     font-size: 14px;
     max-width: calc(100% - 80px);

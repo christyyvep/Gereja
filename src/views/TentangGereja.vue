@@ -1,148 +1,6 @@
 <!-- src/views/TentangGereja.vue - Responsive Desktop Version -->
 <template>
   <div class="tentang-gereja-container">
-    
-    <!-- Mobile Layout -->
-    <div class="mobile-layout">
-      <!-- Header dengan tombol back -->
-      <HeaderWithBack title="Tentang Gereja" />
-
-      <!-- Loading state -->
-      <div v-if="loading" class="loading-container">
-        <p>Memuat informasi gereja...</p>
-      </div>
-
-      <!-- Error state -->
-      <div v-else-if="error" class="error-container">
-        <p class="error-text">{{ error }}</p>
-        <ButtonPrimary @click="fetchChurchInfo">Coba Lagi</ButtonPrimary>
-      </div>
-
-      <!-- Mobile Content -->
-      <div v-else class="mobile-content">
-        <!-- Hero Section -->
-        <div class="hero-section">
-          <div class="hero-placeholder">
-            <h1 class="church-name">Gereja Rajawali</h1>
-            <p class="church-subtitle">Melayani dengan Kasih Kristus</p>
-          </div>
-        </div>
-
-        <!-- Mobile Sections -->
-        <div class="mobile-sections">
-          <!-- Sejarah -->
-          <div class="info-section">
-            <div class="section-header">
-              <History class="section-icon" />
-              <h2 class="section-title">Sejarah Singkat</h2>
-            </div>
-            <div class="section-content">
-              <p class="history-text">{{ churchInfo.sejarah }}</p>
-              <div class="milestone-item">
-                <span class="milestone-year">{{ churchInfo.tahunBerdiri }}</span>
-                <span class="milestone-desc">Gereja Rajawali didirikan</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Visi & Misi -->
-          <div class="info-section">
-            <div class="section-header">
-              <Target class="section-icon" />
-              <h2 class="section-title">Visi & Misi</h2>
-            </div>
-            <div class="section-content">
-              <div class="visi-misi-block">
-                <h3 class="visi-title">🎯 Visi</h3>
-                <p class="visi-text">{{ churchInfo.visi }}</p>
-              </div>
-              <div class="visi-misi-block">
-                <h3 class="misi-title">🎯 Misi</h3>
-                <ul class="misi-list">
-                  <li v-for="misi in churchInfo.misi" :key="misi">{{ misi }}</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <!-- Kontak -->
-          <div class="info-section">
-            <div class="section-header">
-              <MapPin class="section-icon" />
-              <h2 class="section-title">Kontak & Lokasi</h2>
-            </div>
-            <div class="section-content">
-              <div class="contact-item">
-                <Building class="contact-icon" />
-                <span>{{ churchInfo.alamat }}</span>
-              </div>
-              <div class="contact-item">
-                <Phone class="contact-icon" />
-                <span>{{ churchInfo.telepon }}</span>
-              </div>
-              <div class="contact-item">
-                <Mail class="contact-icon" />
-                <span>{{ churchInfo.email }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Jadwal -->
-          <div class="info-section">
-            <div class="section-header">
-              <Clock class="section-icon" />
-              <h2 class="section-title">Jadwal Ibadah</h2>
-            </div>
-            <div class="section-content">
-              <div class="schedule-item">
-                <strong>Ibadah Minggu:</strong> {{ churchInfo.jadwalMinggu }}
-              </div>
-              <div class="schedule-item">
-                <strong>Persekutuan Doa:</strong> {{ churchInfo.jadwalPelprap }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Fasilitas -->
-          <div class="info-section">
-            <div class="section-header">
-              <Building class="section-icon" />
-              <h2 class="section-title">Fasilitas</h2>
-            </div>
-            <div class="section-content">
-              <div class="facilities-grid">
-                <div v-for="facility in facilitiesList" :key="facility.name" class="facility-item">
-                  <span class="facility-icon">{{ facility.icon }}</span>
-                  <span class="facility-name">{{ facility.name }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Pengurus -->
-          <div class="info-section">
-            <div class="section-header">
-              <Users class="section-icon" />
-              <h2 class="section-title">Pengurus Gereja</h2>
-            </div>
-            <div class="section-content">
-              <div class="leadership-grid">
-                <div v-for="pengurus in leadershipList" :key="pengurus.name" class="leadership-item">
-                  <div class="leadership-avatar">
-                    <span class="avatar-initials">{{ getInitials(pengurus.name) }}</span>
-                  </div>
-                  <div class="leadership-info">
-                    <h4 class="leadership-name">{{ pengurus.name }}</h4>
-                    <p class="leadership-position">{{ pengurus.position }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Desktop Layout -->
     <div class="desktop-layout">
       <!-- Desktop Navbar -->
@@ -335,6 +193,147 @@
           </div>
         </div>
       </main>
+    </div>
+    
+    <!-- Mobile Layout -->
+    <div class="mobile-layout">
+      <!-- Header dengan tombol back -->
+      <HeaderWithBack title="Tentang Gereja" />
+
+      <!-- Loading state -->
+      <div v-if="loading" class="loading-container">
+        <p>Memuat informasi gereja...</p>
+      </div>
+
+      <!-- Error state -->
+      <div v-else-if="error" class="error-container">
+        <p class="error-text">{{ error }}</p>
+        <ButtonPrimary @click="fetchChurchInfo">Coba Lagi</ButtonPrimary>
+      </div>
+
+      <!-- Mobile Content -->
+      <div v-else class="mobile-content">
+        <!-- Hero Section -->
+        <div class="hero-section">
+          <div class="hero-placeholder">
+            <h1 class="church-name">Gereja Rajawali</h1>
+            <p class="church-subtitle">Melayani dengan Kasih Kristus</p>
+          </div>
+        </div>
+
+        <!-- Mobile Sections -->
+        <div class="mobile-sections">
+          <!-- Sejarah -->
+          <div class="info-section">
+            <div class="section-header">
+              <History class="section-icon" />
+              <h2 class="section-title">Sejarah Singkat</h2>
+            </div>
+            <div class="section-content">
+              <p class="history-text">{{ churchInfo.sejarah }}</p>
+              <div class="milestone-item">
+                <span class="milestone-year">{{ churchInfo.tahunBerdiri }}</span>
+                <span class="milestone-desc">Gereja Rajawali didirikan</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Visi & Misi -->
+          <div class="info-section">
+            <div class="section-header">
+              <Target class="section-icon" />
+              <h2 class="section-title">Visi & Misi</h2>
+            </div>
+            <div class="section-content">
+              <div class="visi-misi-block">
+                <h3 class="visi-title">🎯 Visi</h3>
+                <p class="visi-text">{{ churchInfo.visi }}</p>
+              </div>
+              <div class="visi-misi-block">
+                <h3 class="misi-title">🎯 Misi</h3>
+                <ul class="misi-list">
+                  <li v-for="misi in churchInfo.misi" :key="misi">{{ misi }}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kontak -->
+          <div class="info-section">
+            <div class="section-header">
+              <MapPin class="section-icon" />
+              <h2 class="section-title">Kontak & Lokasi</h2>
+            </div>
+            <div class="section-content">
+              <div class="contact-item">
+                <Building class="contact-icon" />
+                <span>{{ churchInfo.alamat }}</span>
+              </div>
+              <div class="contact-item">
+                <Phone class="contact-icon" />
+                <span>{{ churchInfo.telepon }}</span>
+              </div>
+              <div class="contact-item">
+                <Mail class="contact-icon" />
+                <span>{{ churchInfo.email }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Jadwal -->
+          <div class="info-section">
+            <div class="section-header">
+              <Clock class="section-icon" />
+              <h2 class="section-title">Jadwal Ibadah</h2>
+            </div>
+            <div class="section-content">
+              <div class="schedule-item">
+                <strong>Ibadah Minggu:</strong> {{ churchInfo.jadwalMinggu }}
+              </div>
+              <div class="schedule-item">
+                <strong>Persekutuan Doa:</strong> {{ churchInfo.jadwalPelprap }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Fasilitas -->
+          <div class="info-section">
+            <div class="section-header">
+              <Building class="section-icon" />
+              <h2 class="section-title">Fasilitas</h2>
+            </div>
+            <div class="section-content">
+              <div class="facilities-grid">
+                <div v-for="facility in facilitiesList" :key="facility.name" class="facility-item">
+                  <span class="facility-icon">{{ facility.icon }}</span>
+                  <span class="facility-name">{{ facility.name }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pengurus -->
+          <div class="info-section">
+            <div class="section-header">
+              <Users class="section-icon" />
+              <h2 class="section-title">Pengurus Gereja</h2>
+            </div>
+            <div class="section-content">
+              <div class="leadership-grid">
+                <div v-for="pengurus in leadershipList" :key="pengurus.name" class="leadership-item">
+                  <div class="leadership-avatar">
+                    <span class="avatar-initials">{{ getInitials(pengurus.name) }}</span>
+                  </div>
+                  <div class="leadership-info">
+                    <h4 class="leadership-name">{{ pengurus.name }}</h4>
+                    <p class="leadership-position">{{ pengurus.position }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>

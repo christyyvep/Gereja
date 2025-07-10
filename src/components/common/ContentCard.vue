@@ -16,7 +16,7 @@
         
         <!-- Category Badge (kalau ada) - ONLY FOR DESKTOP -->
         <span 
-          v-if="categoryLabel && layout === 'desktop-grid'" 
+          v-if="categoryLabel && layout === 'desktop-grid' && !hideCategory" 
           :class="['category-badge', `category-${item.category || 'default'}`]"
         >
           {{ categoryLabel }}
@@ -49,7 +49,7 @@
           class="desktop-footer"
         >
           <!-- Date -->
-          <span v-if="formattedDate" class="footer-date">
+          <span v-if="formattedDate && !hideDate" class="footer-date">
             <Calendar class="date-icon" />
             {{ formattedDate }}
           </span>
@@ -117,6 +117,17 @@
       onClick: {
         type: Function,
         default: null
+      },
+
+      // New props for hiding elements
+      hideCategory: {
+        type: Boolean,
+        default: false
+      },
+      
+      hideDate: {
+        type: Boolean,
+        default: false
       }
     },
     

@@ -1,6 +1,7 @@
 <template>
   <div class="renungan-container">
-    <div class="renungan-wrapper">
+    <!-- Desktop Layout -->
+    <div class="desktop-layout">
       <!-- Header dengan tombol back dan bookmark icon -->
       <div class="custom-header">
         <HeaderWithBack title="Renungan" />
@@ -39,6 +40,52 @@
           <h3>Belum Ada Renungan</h3>
           <p>Saat ini belum ada renungan harian yang tersedia.</p>
           <ButtonPrimary @click="fetchDevotionals">Refresh</ButtonPrimary>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Layout -->
+    <div class="mobile-layout">
+      <!-- Header dengan tombol back dan bookmark icon -->
+      <div class="custom-header">
+        <HeaderWithBack title="Renungan" />
+        <button class="bookmark-nav-btn" @click="goToBookmarks" aria-label="Lihat Bookmark">
+          <Bookmark class="bookmark-nav-icon" />
+        </button>
+      </div>
+
+      <div class="renungan-wrapper">
+        <!-- Loading state -->
+        <div v-if="loading" class="loading-container">
+          <p>Memuat renungan harian...</p>
+        </div>
+
+        <!-- Error state -->
+        <div v-else-if="error" class="error-container">
+          <p class="error-text">{{ error }}</p>
+          <ButtonPrimary @click="fetchDevotionals">Coba Lagi</ButtonPrimary>
+        </div>
+
+        <!-- Content ketika ada data -->
+        <div v-else-if="devotionals.length > 0" class="devotionals-content">  
+          <!-- Daftar renungan dalam bentuk cards -->
+          <div class="devotionals-list">
+            <ScheduleCard 
+              v-for="devotional in devotionals" 
+              :key="devotional.id"
+              :schedule="devotional"
+            />
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div v-else class="empty-container">
+          <div class="empty-content">
+            <BookOpen class="empty-icon" />
+            <h3>Belum Ada Renungan</h3>
+            <p>Saat ini belum ada renungan harian yang tersedia.</p>
+            <ButtonPrimary @click="fetchDevotionals">Refresh</ButtonPrimary>
+          </div>
         </div>
       </div>
     </div>
