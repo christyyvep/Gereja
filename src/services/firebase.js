@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import { getFirestore, collection, getDocs } from 'firebase/firestore'
 
 // Konfigurasi Firebase
 const firebaseConfig = {
@@ -19,5 +19,29 @@ const app = initializeApp(firebaseConfig)
 // Initialize Firebase services
 const auth = getAuth(app)
 const db = getFirestore(app)
+
+// Ensure collections exist
+async function ensureCollectionsExist() {
+  try {
+    console.log('🔍 [Firebase] Checking required collections...')
+    
+    // Check streaks collection
+    const streaksRef = collection(db, 'streaks')
+    const streaksSnapshot = await getDocs(streaksRef)
+    
+    if (streaksSnapshot.empty) {
+      console.log('📝 [Firebase] Creating streaks collection...')
+      // Collection will be created automatically when first document is added
+    } else {
+      console.log('✅ [Firebase] Streaks collection exists')
+    }
+    
+  } catch (error) {
+    console.error('❌ [Firebase] Error checking collections:', error)
+  }
+}
+
+// Run collection check
+ensureCollectionsExist()
 
 export { app, auth, db }

@@ -2,8 +2,8 @@
 <template>
     <div class="header">
       <p class="greeting">{{ greeting }}</p>
-      <div class="streak">
-        <span>{{ streakCount }}</span>
+      <div class="streak" v-if="streakCount > 0">
+        <span>{{ displayStreak }}</span>
         <Flame class="icon-flame" />
       </div>
     </div>
@@ -24,12 +24,15 @@
       },
       streakCount: {
         type: Number,
-        default: 0
+        default: 1
       }
     },
     computed: {
       greeting() {
         return `Halo, ${this.namaUser}!`
+      },
+      displayStreak() {
+        return Math.max(this.streakCount || 1, 1)
       }
     }
   }
@@ -64,6 +67,7 @@
     gap: 6px;
     font-weight: bold;
     font-size: 14px;
+    color: #41442A;
   }
   
   .icon-flame {

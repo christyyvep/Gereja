@@ -122,6 +122,7 @@ import FeatureBox from '@/components/FeatureBox.vue'
 import BottomNavbar from '@/components/BottomNavbar.vue'
 import AnnouncementCard from '@/components/AnnouncementCard.vue'
 import { useUserStore } from '@/stores/userStore'
+import { useStreakStore } from '@/stores/streakStore'
 import { getDailyVerseUrl } from '@/utils/imageUtils'
 import { getCurrentJemaat } from '@/services/auth'
 import { getUnifiedAnnouncements } from '@/services/announcements'
@@ -138,10 +139,39 @@ export default {
     AnnouncementCard
   },
   
+  computed: {
+    userStore() {
+      return useUserStore()
+    },
+    
+    streakStore() {
+      return useStreakStore()
+    },
+    
+    currentUserId() {
+      return this.userStore.userId
+    },
+
+    streakCount() {
+      if (!this.currentUserId) return 1  // ✅ PERBAIKAN: Return 1 bukan 0
+      const streak = this.streakStore.currentStreak(this.currentUserId)
+      return Math.max(streak || 1, 1) // ✅ PERBAIKAN: Pastikan minimal 1
+    },
+
+    totalLogins() {
+      if (!this.currentUserId) return 1  // ✅ PERBAIKAN: Return 1 bukan 0
+      return Math.max(this.streakStore.totalLogins(this.currentUserId) || 1, 1)
+    },
+
+    longestStreak() {
+      if (!this.currentUserId) return 1  // ✅ PERBAIKAN: Return 1 bukan 0
+      return Math.max(this.streakStore.longestStreak(this.currentUserId) || 1, 1)
+    }
+  },
+
   data() {
     return {
       namaUser: 'Jemaat',
-      streakCount: 0,
       ayatGambar: null,
       featureList: [
         { name: "News", icon: "news" },
@@ -151,41 +181,41 @@ export default {
         { name: "Renungan", icon: "renungan" },
         { name: "Prayer Request", icon: "prayer" }
       ],
-      announcementList: [],
-      currentUserId: null
+      announcementList: []
     }
   },
 
-  async created() {
-    await this.initializePageData()
+  async mounted() {
+    console.log('🏠 [HomePage] Component mounted')
+    await this.loadAllData()
   },
 
   methods: {
-    async initializePageData() {
+    async loadAllData() {
       try {
-        await this.loadUserData()
-        this.loadDailyVerse()
-        this.loadUserStreak()
-        await this.loadUnifiedAnnouncements()
+        await Promise.all([
+          this.loadUserData(),
+          this.loadStreakData(),
+          this.loadUnifiedAnnouncements(),
+          this.loadDailyVerse()
+        ])
+        
+        console.log('✅ [HomePage] All data loaded successfully')
       } catch (error) {
-        console.error('❌ [HomePage] Failed to initialize page data:', error)
+        console.error('❌ [HomePage] Error loading data:', error)
       }
     },
 
     async loadUserData() {
       try {
-        const userStore = useUserStore()
-        
-        if (userStore.nama) {
-          this.namaUser = userStore.nama
-          this.currentUserId = userStore.id
+        if (this.userStore.nama) {
+          this.namaUser = this.userStore.nama
           return
         }
 
         const currentUser = await getCurrentJemaat()
         if (currentUser?.id) {
           this.namaUser = currentUser.nama || 'Jemaat'
-          this.currentUserId = currentUser.id
         }
       } catch (error) {
         console.error('❌ [HomePage] Error loading user data:', error)
@@ -196,44 +226,40 @@ export default {
       this.ayatGambar = getDailyVerseUrl()
     },
 
-    loadUserStreak() {
-      if (!this.currentUserId) {
-        this.streakCount = 1
-        return
-      }
-
+    async loadStreakData() {
       try {
-        const userStreakKey = `streakData_${this.currentUserId}`
-        const savedStreak = localStorage.getItem(userStreakKey)
+        console.log('🔥 [HomePage] Loading streak data...')
         
-        if (savedStreak) {
-          const streakData = JSON.parse(savedStreak)
-          this.streakCount = streakData.streakCount || 1
-        } else {
-          this.streakCount = 1
-          this.initializeUserStreak()
+        if (!this.currentUserId) {
+          console.log('❌ [HomePage] No user ID for streak')
+          return
         }
+
+        if (this.streakCount === 0) {
+          await this.streakStore.loadUserStreak(this.currentUserId)
+        }
+        
+        console.log(`✅ [HomePage] Streak: ${this.streakCount} days`)
+        
       } catch (error) {
         console.error('❌ [HomePage] Error loading streak:', error)
-        this.streakCount = 1
       }
     },
 
-    initializeUserStreak() {
-      if (!this.currentUserId) return
-
-      const today = new Date().toDateString()
-      const userStreakKey = `streakData_${this.currentUserId}`
-      
-      const streakData = {
-        lastLoginDate: today,
-        streakCount: 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        updatedBy: 'HomePage_FirstTime'
+    navigateToFeature(feature) {
+      const routeMap = {
+        'News': '/news',
+        'Jadwal': '/jadwal',
+        'Giving': '/giving',
+        'Tentang Gereja': '/tentang-gereja',
+        'Renungan': '/renungan',
+        'Prayer Request': '/prayer-request'
       }
       
-      localStorage.setItem(userStreakKey, JSON.stringify(streakData))
+      const route = routeMap[feature.name]
+      if (route) {
+        this.$router.push(route)
+      }
     },
 
     async loadUnifiedAnnouncements() {
@@ -282,22 +308,6 @@ export default {
           sourceCollection: 'schedules'
         }
       ]
-    },
-
-    navigateToFeature(feature) {
-      const routeMap = {
-        'News': '/news',
-        'Jadwal': '/jadwal',
-        'Giving': '/giving',
-        'Tentang Gereja': '/tentang-gereja',
-        'Renungan': '/renungan',
-        'Prayer Request': '/prayer-request'
-      }
-      
-      const route = routeMap[feature.name]
-      if (route) {
-        this.$router.push(route)
-      }
     },
 
     navigateToAnnouncement(item) {

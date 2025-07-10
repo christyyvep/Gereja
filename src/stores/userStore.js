@@ -97,7 +97,7 @@ export const useUserStore = defineStore('user', {
         localStorage.setItem('user', JSON.stringify(userData))
         
         // Initialize user-specific data
-        this.initializeUserData(userData.id || userData.nama)
+        await this.initializeUserData(userData.id || userData.nama)
         
         return userData
       } catch (error) {
@@ -173,7 +173,7 @@ export const useUserStore = defineStore('user', {
     },
     
     /**
-     * Check and restore login status from localStorage
+     * Check and restore login status from localStorage (UPDATED)
      * @returns {boolean} Login status
      */
     async checkLoginStatus() {
@@ -186,6 +186,10 @@ export const useUserStore = defineStore('user', {
         if (savedUser && savedUser.nama) {
           if (this.validateUserData(savedUser)) {
             this.setUser(savedUser)
+            
+            // Initialize streak data saat restore session
+            await this.initializeUserData(savedUser.id || savedUser.nama)
+            
             console.log('✅ [UserStore] Current session restored')
             return true
           }
@@ -199,6 +203,10 @@ export const useUserStore = defineStore('user', {
             // Auto-login with remembered user
             const autoLoginData = await autoLoginRememberedUser(rememberedUser)
             this.setUser(autoLoginData)
+            
+            // Initialize streak data untuk auto-login
+            await this.initializeUserData(autoLoginData.id || autoLoginData.nama)
+            
             console.log('✅ [UserStore] Auto-login successful with remembered user')
             return true
           } catch (error) {
@@ -273,14 +281,27 @@ export const useUserStore = defineStore('user', {
      * Initialize user-specific data
      * @param {string} userId - User ID
      */
-    initializeUserData(userId) {
+    async initializeUserData(userId) {
       if (!userId) return
       
-      console.log('🚀 [UserStore] Initializing user-specific data...')
-      
-      // Initialize streak data for this user
-      const streakStore = useStreakStore()
-      streakStore.loadUserStreak(userId)
+      try {
+        console.log('🚀 [UserStore] Initializing user data for:', userId)
+        
+        const streakStore = useStreakStore()
+        
+        // Force clear cache dulu untuk memastikan data fresh
+        streakStore.clearUserStreak(userId)
+        
+        // Load & check streak
+        await streakStore.loadUserStreak(userId)
+        const currentStreak = await streakStore.checkStreak(userId)
+        
+        console.log(`✅ [UserStore] User data initialized. Streak: ${currentStreak}`)
+        
+      } catch (error) {
+        console.error('❌ [UserStore] Error initializing user data:', error)
+        // Don't throw, let login continue
+      }
     },
     
     /**

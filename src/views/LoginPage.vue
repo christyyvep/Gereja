@@ -108,6 +108,7 @@ import FormInput from '@/components/common/FormInput.vue'
 import PasswordInput from '@/components/common/PasswordInput.vue'
 import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
 import { useUserStore } from '@/stores/userStore'
+import { useStreakStore } from '@/stores/streakStore'
 
 export default {
   name: 'LoginPage',
@@ -194,7 +195,7 @@ export default {
         this.handleRememberMe(userData)
         
         // Update streak for returning user
-        this.updateStreakForReturningUser(userData)
+        await this.updateStreakForReturningUser(userData)
         
         // Success notification (optional)
         this.showSuccessMessage(`Selamat datang, ${userData.nama}!`)
@@ -259,18 +260,23 @@ export default {
     /**
      * Update streak for returning user
      */
-    updateStreakForReturningUser(userData) {
-      // Implementation for streak update
-      console.log('📊 Updating streak for user:', userData.nama)
-      
+    async updateStreakForReturningUser(userData) {
       try {
-        // Update user streak if they have remember me enabled
-        if (userData.rememberMe || userData.autoLoggedIn) {
-          console.log('🔥 Processing streak for remembered user')
-          // Streak logic implementation would go here
-        }
+        console.log('📊 [LoginPage] Processing streak for user:', userData.nama)
+        
+        const streakStore = useStreakStore()
+        const userId = userData.id || userData.nama
+        
+        // Force refresh streak data
+        await streakStore.refreshStreak(userId)
+        
+        // Check & update streak
+        const currentStreak = await streakStore.checkStreak(userId)
+        console.log(`✅ [LoginPage] Streak updated: ${currentStreak}`)
+        
       } catch (error) {
-        console.error('Error updating streak:', error)
+        console.error('❌ [LoginPage] Error updating streak:', error)
+        // Don't block login if streak update fails
       }
     },
     

@@ -1,20 +1,32 @@
+// src/stores/streakStore.js
 import { defineStore } from 'pinia'
+import { 
+  saveStreakToFirestore, 
+  getStreakFromFirestore, 
+  checkAndUpdateStreak 
+} from '@/services/streakService'
 
 export const useStreakStore = defineStore('streak', {
   state: () => ({
-    streakData: {},
-    migrationCompleted: false
+    streakData: {}, // Cache di memory untuk performa
+    migrationCompleted: false,
+    isLoading: false
   }),
   
   getters: {
     /**
-     * Get current streak count for a user
+     * ✅ PERBAIKAN: Get current streak count - default 1, bukan 0
      * @param {string} userId - User ID
      * @returns {number} Current streak count
      */
     currentStreak: (state) => (userId) => {
-      if (!userId) return 0
-      return state.streakData[userId]?.streakCount || 0
+      if (!userId) return 1  // ✅ PERBAIKAN: Default 1
+      
+      const userStreak = state.streakData[userId]
+      if (!userStreak) return 1  // ✅ PERBAIKAN: Default 1 jika belum ada data
+      
+      // ✅ PERBAIKAN: Pastikan minimal 1
+      return Math.max(userStreak.streakCount || 1, 1)
     },
 
     /**
@@ -25,146 +37,143 @@ export const useStreakStore = defineStore('streak', {
     lastLoginDate: (state) => (userId) => {
       if (!userId) return null
       return state.streakData[userId]?.lastLoginDate || null
+    },
+
+    /**
+     * Get total logins for a user
+     * @param {string} userId - User ID
+     * @returns {number} Total login count
+     */
+    totalLogins: (state) => (userId) => {
+      if (!userId) return 0
+      return state.streakData[userId]?.totalLogins || 0
+    },
+
+    /**
+     * Get longest streak for a user
+     * @param {string} userId - User ID
+     * @returns {number} Longest streak achieved
+     */
+    longestStreak: (state) => (userId) => {
+      if (!userId) return 1  // ✅ PERBAIKAN: Default 1
+      return Math.max(state.streakData[userId]?.longestStreak || 1, 1)
     }
   },
   
   actions: {
     /**
-     * Migrate old streak data format to new user-specific format
-     * This handles backward compatibility for existing users
-     */
-    migrateOldStreakData() {
-      // Check if migration already completed
-      const migrationFlag = localStorage.getItem('streakMigrationCompleted')
-      if (migrationFlag === 'true') {
-        this.migrationCompleted = true
-        return
-      }
-      
-      // Check for old streak data
-      const oldStreakData = localStorage.getItem('streakData')
-      
-      if (oldStreakData) {
-        try {
-          const parsedOldData = JSON.parse(oldStreakData)
-          
-          // Check for current user to migrate data
-          const currentUserData = localStorage.getItem('user')
-          
-          if (currentUserData) {
-            const userData = JSON.parse(currentUserData)
-            const userId = userData.id || userData.nama
-            
-            if (userId) {
-              const newStreakKey = `streakData_${userId}`
-              const existingNewData = localStorage.getItem(newStreakKey)
-              
-              if (!existingNewData) {
-                // Migrate old data to new format
-                localStorage.setItem(newStreakKey, JSON.stringify(parsedOldData))
-              }
-            }
-          } else {
-            // Save as backup if no current user
-            localStorage.setItem('streakData_backup', oldStreakData)
-          }
-          
-          // Optional: Remove old data (uncomment if needed)
-          // localStorage.removeItem('streakData')
-          
-        } catch (error) {
-          console.error('Error during streak data migration:', error)
-        }
-      }
-      
-      // Mark migration as completed
-      localStorage.setItem('streakMigrationCompleted', 'true')
-      this.migrationCompleted = true
-    },
-    
-    /**
-     * Load streak data for a specific user
+     * Load streak data from Firestore untuk user tertentu
      * @param {string} userId - User ID
      */
-    loadUserStreak(userId) {
+    async loadUserStreak(userId) {
       if (!userId) return
       
-      // Run migration if not completed
-      if (!this.migrationCompleted) {
-        this.migrateOldStreakData()
-      }
-      
-      // Load user-specific streak data
-      const userStreakKey = `streakData_${userId}`
-      const savedStreak = localStorage.getItem(userStreakKey)
-      
-      if (savedStreak) {
-        try {
-          this.streakData[userId] = JSON.parse(savedStreak)
-        } catch (error) {
-          console.error('Error parsing streak data:', error)
+      try {
+        this.isLoading = true
+        console.log('📥 [StreakStore] Loading streak for user:', userId)
+        
+        // Ambil dari Firestore
+        const firestoreData = await getStreakFromFirestore(userId)
+        
+        if (firestoreData) {
+          // ✅ PERBAIKAN: Pastikan streakCount minimal 1
+          const sanitizedData = {
+            ...firestoreData,
+            streakCount: Math.max(firestoreData.streakCount || 1, 1),
+            totalLogins: firestoreData.totalLogins || 1,
+            longestStreak: Math.max(firestoreData.longestStreak || 1, 1)
+          }
+          
+          this.streakData[userId] = sanitizedData
+          console.log('✅ [StreakStore] Streak loaded from Firestore:', sanitizedData)
+        } else {
+          // Jika belum ada data di Firestore, set default sementara
           this.streakData[userId] = this.getDefaultStreakData()
+          console.log('📝 [StreakStore] No Firestore data, using default')
         }
-      } else {
+        
+      } catch (error) {
+        console.error('❌ [StreakStore] Error loading streak:', error)
+        // Fallback ke default data
         this.streakData[userId] = this.getDefaultStreakData()
+      } finally {
+        this.isLoading = false
       }
     },
     
     /**
-     * Check and update streak for a user
+     * ✅ PERBAIKAN: Check dan update streak (fungsi utama)
      * @param {string} userId - User ID
      * @returns {number} Updated streak count
      */
-    checkStreak(userId) {
+    async checkStreak(userId) {
       if (!userId) {
-        console.error('No userId provided for checkStreak')
-        return 0
+        console.error('❌ [StreakStore] No userId provided for checkStreak')
+        return 1  // ✅ PERBAIKAN: Return 1, bukan 0
       }
       
-      // Ensure user data is loaded
-      if (!this.streakData[userId]) {
-        this.loadUserStreak(userId)
+      try {
+        this.isLoading = true
+        console.log('🔍 [StreakStore] Checking streak for user:', userId)
+        
+        // Gunakan service untuk check dan update di Firestore
+        const newStreakCount = await checkAndUpdateStreak(userId)
+        
+        // ✅ PERBAIKAN: Pastikan minimal 1
+        const finalStreakCount = Math.max(newStreakCount || 1, 1)
+        
+        // Update cache di memory
+        await this.loadUserStreak(userId)
+        
+        console.log(`🔥 [StreakStore] Final streak count: ${finalStreakCount}`)
+        return finalStreakCount
+        
+      } catch (error) {
+        console.error('❌ [StreakStore] Error checking streak:', error)
+        return 1  // ✅ PERBAIKAN: Return 1 sebagai fallback
+      } finally {
+        this.isLoading = false
       }
-      
-      const today = new Date().toDateString()
-      const userStreak = this.streakData[userId]
-      
-      // Same day login - no change
-      if (userStreak.lastLoginDate === today) {
-        return userStreak.streakCount
-      }
-      
-      // Check if consecutive day
-      const yesterday = new Date()
-      yesterday.setDate(yesterday.getDate() - 1)
-      const yesterdayStr = yesterday.toDateString()
-      
-      if (userStreak.lastLoginDate === yesterdayStr) {
-        // Consecutive day - increment streak
-        userStreak.streakCount++
-      } else {
-        // Gap detected - reset to 1
-        userStreak.streakCount = 1
-      }
-      
-      userStreak.lastLoginDate = today
-      userStreak.updatedAt = new Date().toISOString()
-      
-      // Save to localStorage
-      this.saveUserStreak(userId)
-      
-      return userStreak.streakCount
     },
-    
+
     /**
-     * Save user streak data to localStorage
+     * Migrasi data dari localStorage ke Firestore (one-time)
      * @param {string} userId - User ID
      */
-    saveUserStreak(userId) {
-      if (!userId || !this.streakData[userId]) return
-      
-      const userStreakKey = `streakData_${userId}`
-      localStorage.setItem(userStreakKey, JSON.stringify(this.streakData[userId]))
+    async migrateFromLocalStorage(userId) {
+      try {
+        console.log('🔄 [StreakStore] Checking for localStorage migration...')
+        
+        // Cek data lama di localStorage
+        const userStreakKey = `streakData_${userId}`
+        const oldData = localStorage.getItem(userStreakKey)
+        
+        if (oldData) {
+          const parsedData = JSON.parse(oldData)
+          console.log('📦 [StreakStore] Found old localStorage data:', parsedData)
+          
+          // ✅ PERBAIKAN: Sanitize data sebelum migrasi
+          const sanitizedData = {
+            ...parsedData,
+            streakCount: Math.max(parsedData.streakCount || 1, 1),
+            totalLogins: parsedData.totalLogins || 1,
+            longestStreak: Math.max(parsedData.longestStreak || parsedData.streakCount || 1, 1)
+          }
+          
+          // Migrasi ke Firestore
+          await saveStreakToFirestore(userId, sanitizedData)
+          
+          // Update cache
+          this.streakData[userId] = sanitizedData
+          
+          console.log('✅ [StreakStore] Migration completed with sanitized data')
+        } else {
+          console.log('📝 [StreakStore] No old data found')
+        }
+        
+      } catch (error) {
+        console.error('❌ [StreakStore] Migration error:', error)
+      }
     },
     
     /**
@@ -176,6 +185,7 @@ export const useStreakStore = defineStore('streak', {
       
       if (this.streakData[userId]) {
         delete this.streakData[userId]
+        console.log('🗑️ [StreakStore] Cleared user streak from memory')
       }
     },
     
@@ -184,29 +194,34 @@ export const useStreakStore = defineStore('streak', {
      */
     clearAllStreaks() {
       this.streakData = {}
+      console.log('🗑️ [StreakStore] Cleared all streaks from memory')
     },
 
     /**
-     * Get default streak data structure
+     * ✅ PERBAIKAN: Get default streak data - default = 1
      * @returns {Object} Default streak data
      */
     getDefaultStreakData() {
       return {
         lastLoginDate: '',
-        streakCount: 0,
+        streakCount: 1,  // ✅ PERBAIKAN: Default = 1, bukan 0
+        totalLogins: 1,  // ✅ PERBAIKAN: Default = 1
+        longestStreak: 1,  // ✅ PERBAIKAN: Default = 1
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
     },
 
     /**
-     * Manual data recovery - force migration again
-     * Use this if streak data seems corrupted
+     * Force refresh streak data from Firestore
+     * @param {string} userId - User ID
      */
-    forceDataRecovery() {
-      localStorage.removeItem('streakMigrationCompleted')
-      this.migrationCompleted = false
-      this.migrateOldStreakData()
+    async refreshStreak(userId) {
+      if (!userId) return
+      
+      // Clear cache dan load ulang
+      this.clearUserStreak(userId)
+      await this.loadUserStreak(userId)
     }
   }
 })
