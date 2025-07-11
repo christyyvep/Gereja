@@ -6,17 +6,21 @@
       <span :class="textClasses('/home')">Home</span>
     </router-link>
     
-    <!-- Kalender/Jadwal -->
+    <!-- Kalender/Jadwal - HIDDEN TEMPORARILY -->
+    <!-- 
     <router-link to="/calendar" class="nav-item" aria-label="Kalender">
       <Calendar :class="iconClasses('/calendar')" />
       <span :class="textClasses('/calendar')">Kalender</span>
     </router-link>
+    -->
     
-    <!-- Notifikasi -->
+    <!-- Notifikasi - HIDDEN TEMPORARILY -->
+    <!-- 
     <router-link to="/notifikasi" class="nav-item" aria-label="Notifikasi">
       <Bell :class="iconClasses('/notifikasi')" />
       <span :class="textClasses('/notifikasi')">Notifikasi</span>
     </router-link>
+    -->
     
     <!-- Profile/Account -->
     <router-link to="/account" class="nav-item" aria-label="Profile">
@@ -101,7 +105,7 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 25%;
+  width: 50%; /* ✅ Changed from 25% to 50% since we now have 2 items instead of 4 */
   height: 64px;
   text-align: center;
   font-size: 12px;

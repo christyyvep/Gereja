@@ -45,8 +45,8 @@
       menuItems() {
         return [
           { path: '/home', label: 'Home', exact: false }, // ✅ UBAH ke false biar jadwal juga active
-          { path: '/calendar', label: 'Kalender', exact: false }, // ✅ UBAH ke /calendar
-          { path: '/notifikasi', label: 'Notifikasi', exact: false },
+          // { path: '/calendar', label: 'Kalender', exact: false }, // ✅ HIDDEN TEMPORARILY
+          // { path: '/notifikasi', label: 'Notifikasi', exact: false }, // ✅ HIDDEN TEMPORARILY
           { path: '/account', label: 'Profile', exact: false }
         ]
       }
