@@ -1,12 +1,148 @@
-<!-- src/views/AddPrayerRequestPage.vue - WITH SUCCESS POPUP -->
+<!-- src/views/AddPrayerRequestPage.vue - RESPONSIVE DESIGN -->
 <template>
   <div class="add-prayer-container">
-    <div class="add-prayer-wrapper">
-      <!-- Header dengan tombol back -->
-      <HeaderWithBack title="Permintaan Doa Baru" />
+    <!-- Desktop Layout -->
+    <div class="desktop-layout">
+      <!-- Desktop Navbar -->
+      <DesktopNavbar />
 
-      <!-- Form container -->
-      <div class="form-container">
+      <!-- Desktop Content -->
+      <main class="desktop-content">
+        <!-- Breadcrumb -->
+        <BreadcrumbDesktop :items="breadcrumbItems" />
+        
+        <div class="page-header">
+          <h1 class="page-title">Permintaan Doa Baru</h1>
+        </div>
+
+        <!-- Desktop Form -->
+        <div class="desktop-form-container">
+          <div class="form-card">
+            <form @submit.prevent="submitPrayerRequest" class="prayer-form desktop-form">
+              
+              <!-- Two Column Layout -->
+              <div class="form-columns">
+                <!-- Left Column: Category, Mode Anonim, Urgent -->
+                <div class="left-column">
+                  <!-- Kategori dropdown -->
+                  <SelectDropdown
+                    id="prayer-category"
+                    label="Kategori"
+                    placeholder="Pilih kategori permintaan doa"
+                    v-model="formData.category"
+                    :options="categoryOptions"
+                    :error="errors.category"
+                    :required="true"
+                  />
+
+                  <!-- Toggle mode anonim -->
+                  <div class="form-group">
+                    <div class="toggle-section">
+                      <div class="toggle-info">
+                        <label class="toggle-label">Mode Anonim</label>
+                        <p class="toggle-desc">
+                          Sembunyikan identitas Anda dalam permintaan doa ini
+                        </p>
+                      </div>
+                      
+                      <div class="toggle-container">
+                        <input 
+                          type="checkbox" 
+                          id="anonymous-toggle-desktop"
+                          v-model="formData.isAnonymous"
+                          class="toggle-input"
+                        />
+                        <label for="anonymous-toggle-desktop" class="toggle-switch">
+                          <div class="toggle-slider"></div>
+                        </label>
+                      </div>
+                    </div>
+                    
+                    <!-- Anonymous info -->
+                    <div v-if="formData.isAnonymous" class="anonymous-info">
+                      <EyeOff class="anonymous-icon" />
+                      <span>Permintaan ini akan ditampilkan sebagai "Anonim"</span>
+                    </div>
+                  </div>
+
+                  <!-- Checkbox urgent (optional) -->
+                  <div class="form-group">
+                    <div class="checkbox-container">
+                      <input 
+                        type="checkbox" 
+                        id="urgent-prayer-desktop"
+                        v-model="formData.isUrgent"
+                        class="checkbox-input"
+                      />
+                      <label for="urgent-prayer-desktop" class="checkbox-label">
+                        <div class="checkbox-box">
+                          <Check v-if="formData.isUrgent" class="check-icon" />
+                        </div>
+                        <span class="checkbox-text">Ini adalah permintaan doa yang mendesak</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Right Column: Prayer Text -->
+                <div class="right-column">
+                  <!-- Textarea permintaan doa -->
+                  <div class="form-group">
+                    <label for="prayer-text-desktop" class="form-label">
+                      Permintaan Doa <span class="required">*</span>
+                    </label>
+                    <textarea
+                      id="prayer-text-desktop"
+                      v-model="formData.prayerText"
+                      placeholder="Tulis permintaan doa Anda di sini..."
+                      class="prayer-textarea desktop-textarea"
+                      :class="{ 'error': errors.prayerText }"
+                      rows="12"
+                      maxlength="1000"
+                    ></textarea>
+                    
+                    <!-- Character counter -->
+                    <div class="char-counter">
+                      <span :class="{ 'warning': charCount > 900, 'error': charCount > 1000 }">
+                        {{ charCount }}/1000 karakter
+                      </span>
+                    </div>
+                    
+                    <!-- Error message -->
+                    <p v-if="errors.prayerText" class="error-text">{{ errors.prayerText }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Submit buttons - dalam container yang sama -->
+              <div class="form-actions">
+                <button type="button" @click="goBack" class="cancel-button">
+                  Batal
+                </button>
+                <ButtonPrimary 
+                  type="submit" 
+                  :disabled="!canSubmit || isSubmitting"
+                  :loading="isSubmitting"
+                >
+                  <Send class="btn-icon" />
+                  {{ isSubmitting ? 'Mengirim...' : 'Kirim Permintaan Doa' }}
+                </ButtonPrimary>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <!-- Mobile Layout -->
+    <div class="mobile-layout">
+      <div class="add-prayer-wrapper">
+        <!-- Header dengan tombol back -->
+        <HeaderWithBack title="Permintaan Doa Baru" />
+
+        <!-- Form container -->
+        <div class="form-container">
 
         <!-- Form fields -->
         <form @submit.prevent="submitPrayerRequest" class="prayer-form">
@@ -109,6 +245,7 @@
           </div>
 
         </form>
+        </div>
       </div>
     </div>
 
@@ -163,6 +300,9 @@
 import HeaderWithBack from '@/components/layout/HeaderWithBack.vue'
 import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
 import SelectDropdown from '@/components/common/SelectDropdown.vue'
+// Desktop Layout Components
+import DesktopNavbar from '@/components/layout/DesktopNavbar.vue'
+import BreadcrumbDesktop from '@/components/common/BreadcrumbDesktop.vue'
 import { EyeOff, Check, Send, Zap, ArrowLeft } from 'lucide-vue-next'
 import { addPrayerRequest, getPrayerCategories } from '@/services/prayerRequests.js'
 import { useUserStore } from '@/stores/userStore.js'
@@ -173,6 +313,8 @@ export default {
     HeaderWithBack,
     ButtonPrimary,
     SelectDropdown,
+    DesktopNavbar,
+    BreadcrumbDesktop,
     EyeOff,
     Check,
     Send,
@@ -199,7 +341,22 @@ export default {
 
       // ⭐ NEW: Success popup state
       showSuccessPopup: false,
-      submittedPrayerId: null
+      submittedPrayerId: null,
+      
+      // Breadcrumb data
+      breadcrumbItems: [
+        {
+          text: 'Home',
+          to: '/'
+        },
+        {
+          text: 'Prayer Request',
+          to: '/prayer-request'
+        },
+        {
+          text: 'Permintaan Doa Baru'
+        }
+      ]
     }
   },
   
@@ -296,10 +453,7 @@ export default {
 
     // ⭐ NEW: Get success message berdasarkan kondisi
     getSuccessMessage() {
-      const anonymousText = this.formData.isAnonymous ? ' secara anonim' : ''
-      const urgentText = this.formData.isUrgent ? ' dan telah ditandai sebagai mendesak' : ''
-      
-      return `Permintaan doa Anda telah berhasil dikirim${anonymousText}${urgentText}. Jemaat akan mendoakan Anda. Terima kasih telah berbagi pergumulan.`
+      return 'Permintaan doa Anda telah berhasil dikirim. Gembala akan mendoakan Anda. Tetap andalkan dan berserah kepada Tuhan Yesus selalu.'
     },
 
     // ⭐ NEW: Get category label
@@ -322,6 +476,11 @@ export default {
     goToPrayerRequestPage() {
       console.log('🚀 [AddPrayer] Redirecting to prayer request page...')
       this.$router.push('/prayer-request')
+    },
+
+    // ⭐ NEW: Go back to previous page
+    goBack() {
+      this.$router.go(-1)
     },
     
     validateForm() {
@@ -376,6 +535,147 @@ export default {
   min-height: 100vh;
 }
 
+/* =================
+   DESKTOP LAYOUT 
+   ================= */
+.desktop-layout {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .desktop-layout {
+    display: block;
+  }
+  
+  .mobile-layout {
+    display: none;
+  }
+}
+
+.desktop-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  padding-top: 40px; /* Space for fixed navbar - sama dengan PrayerRequest */
+}
+
+/* Page Header */
+.page-header {
+  margin-bottom: 32px;
+}
+
+.page-title {
+  font-family: 'Inter';
+  font-size: 32px;
+  font-weight: 700;
+  color: #41442A;
+  margin: 0;
+}
+
+/* Desktop Form Container */
+.desktop-form-container {
+  display: flex;
+  justify-content: center;
+}
+
+.form-card {
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 900px;
+}
+
+.desktop-form {
+  gap: 24px;
+}
+
+/* Two Column Layout */
+.form-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 1024px) {
+  .form-columns {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  
+  .desktop-textarea {
+    min-height: 200px;
+  }
+}
+
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.right-column {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.right-column .form-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.desktop-textarea {
+  flex: 1;
+  min-height: 300px;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+/* Form Actions - dalam container yang sama */
+.form-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: flex-end;
+  padding-top: 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.cancel-button {
+  padding: 12px 24px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+  color: #6b7280;
+  font-family: 'Inter';
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-button:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+/* =================
+   MOBILE LAYOUT 
+   ================= */
+.mobile-layout {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .mobile-layout {
+    display: none;
+  }
+}
+
 .add-prayer-wrapper {
   padding: 16px;
   max-width: 360px;
@@ -414,6 +714,10 @@ export default {
 .prayer-form {
   display: flex;
   flex-direction: column;
+  gap: 20px;
+}
+
+.mobile-form {
   gap: 20px;
 }
 
@@ -684,6 +988,13 @@ export default {
   animation: slideInScale 0.4s ease;
 }
 
+@media (min-width: 768px) {
+  .success-modal {
+    max-width: 480px;
+    padding: 40px 32px 32px 32px;
+  }
+}
+
 @keyframes slideInScale {
   from {
     opacity: 0;
@@ -747,12 +1058,24 @@ export default {
   line-height: 1.3;
 }
 
+@media (min-width: 768px) {
+  .success-title {
+    font-size: 24px;
+  }
+}
+
 .success-message {
   font-family: 'Inter';
   font-size: 14px;
   color: #666;
   line-height: 1.5;
   margin: 0 0 20px 0;
+}
+
+@media (min-width: 768px) {
+  .success-message {
+    font-size: 16px;
+  }
 }
 
 /* Prayer Info */
@@ -770,6 +1093,12 @@ export default {
   margin-bottom: 8px;
   font-family: 'Inter';
   font-size: 13px;
+}
+
+@media (min-width: 768px) {
+  .info-item {
+    font-size: 14px;
+  }
 }
 
 .info-item:last-child {
