@@ -65,13 +65,13 @@ export async function checkAndUpdateStreak(userId) {
       return streakData.streakCount  // Return 1
     }
 
-    // ✅ PERBAIKAN: Jika login hari yang sama, return streak yang ada
+    // ✅ PERBAIKAN: Jika sudah check hari ini, return streak yang ada tanpa update database
     if (streakData.lastLoginDate === today) {
-      console.log('📅 [StreakService] Same day login, streak remains:', streakData.streakCount)
+      console.log('📅 [StreakService] Already checked today, streak remains:', streakData.streakCount)
       return streakData.streakCount
     }
 
-    // Cek apakah login berturut-turut
+    // Cek apakah akses berturut-turut (consecutive days)
     const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
     const yesterdayStr = yesterday.toDateString()
@@ -79,9 +79,9 @@ export async function checkAndUpdateStreak(userId) {
     let newStreakCount
     
     if (streakData.lastLoginDate === yesterdayStr) {
-      // Login berturut-turut - tambah streak
+      // Akses berturut-turut - tambah streak
       newStreakCount = (streakData.streakCount || 1) + 1
-      console.log(`🔥 [StreakService] Consecutive login! ${streakData.streakCount} → ${newStreakCount}`)
+      console.log(`🔥 [StreakService] Consecutive access! ${streakData.streakCount} → ${newStreakCount}`)
     } else {
       // Ada gap - reset streak ke 1 (bukan 0!)
       newStreakCount = 1
@@ -96,6 +96,66 @@ export async function checkAndUpdateStreak(userId) {
   } catch (error) {
     console.error('❌ [StreakService] Error in checkAndUpdateStreak:', error)
     return 1  // ✅ PERBAIKAN: Return 1 sebagai fallback, bukan 0
+  }
+}
+
+/**
+ * ✅ BARU: Force check streak (untuk testing atau reset manual)
+ * @param {string} userId - ID user
+ * @returns {number} Streak count terbaru
+ */
+export async function forceCheckStreak(userId) {
+  try {
+    if (!userId) {
+      console.error('❌ [StreakService] No userId provided for force check')
+      return 1
+    }
+
+    console.log('🔄 [StreakService] FORCE checking streak for user:', userId)
+
+    const today = new Date().toDateString()
+    
+    // Ambil data streak dari Firestore
+    let streakData = await getStreakFromFirestore(userId)
+    
+    if (!streakData) {
+      console.log('📝 [StreakService] Force check - First time, creating streak = 1')
+      streakData = await createNewStreakInFirestore(userId)
+      return streakData.streakCount
+    }
+
+    // Force update tanpa cek tanggal
+    const currentStreak = streakData.streakCount || 1
+    
+    // Cek apakah berturut-turut dari hari sebelumnya
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = yesterday.toDateString()
+
+    let newStreakCount
+    
+    if (streakData.lastLoginDate === yesterdayStr) {
+      // Berturut-turut - tambah
+      newStreakCount = currentStreak + 1
+      console.log(`🔥 [StreakService] FORCE - Consecutive! ${currentStreak} → ${newStreakCount}`)
+    } else if (streakData.lastLoginDate === today) {
+      // Sama hari - tambah 1 anyway untuk testing
+      newStreakCount = currentStreak + 1
+      console.log(`🧪 [StreakService] FORCE - Same day test! ${currentStreak} → ${newStreakCount}`)
+    } else {
+      // Gap - reset ke 1
+      newStreakCount = 1
+      console.log(`💔 [StreakService] FORCE - Gap detected, reset to 1`)
+    }
+
+    // Update ke Firestore
+    await updateStreakInFirestore(userId, newStreakCount, today)
+    
+    return newStreakCount
+    
+  } catch (error) {
+    console.error('❌ [StreakService] Error in force check streak:', error)
+    return 1
   }
 }
 

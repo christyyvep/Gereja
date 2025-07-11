@@ -110,11 +110,77 @@ if (isDevelopment) {
     sessionStorage.clear()
     console.log('🔄 [PWA] Complete PWA reset done. Refresh page manually.')
   }
+
+  // ✅ BARU: Debug tools untuk testing streak
+  window.debugStreak = {
+    async checkCurrent() {
+      const { useUserStore } = await import('./stores/userStore')
+      const { useStreakStore } = await import('./stores/streakStore')
+      const userStore = useUserStore()
+      const streakStore = useStreakStore()
+      const userId = userStore.user?.id || userStore.user?.nama
+      if (userId) {
+        const current = streakStore.currentStreak(userId)
+        console.log('🔥 [Debug] Current streak:', current)
+        return current
+      }
+      console.log('❌ [Debug] No user logged in')
+      return 0
+    },
+    
+    async forceCheck() {
+      const { useUserStore } = await import('./stores/userStore')
+      const { useStreakStore } = await import('./stores/streakStore')
+      const { forceCheckStreak } = await import('./services/streakService')
+      const userStore = useUserStore()
+      const userId = userStore.user?.id || userStore.user?.nama
+      if (userId) {
+        console.log('🔄 [Debug] Force checking streak...')
+        const result = await forceCheckStreak(userId)
+        console.log('✅ [Debug] Force check result:', result)
+        // Refresh store
+        const streakStore = useStreakStore()
+        await streakStore.loadUserStreak(userId)
+        return result
+      }
+      console.log('❌ [Debug] No user logged in')
+      return 0
+    },
+    
+    async resetToOne() {
+      const { useUserStore } = await import('./stores/userStore')
+      const { saveStreakToFirestore } = await import('./services/streakService')
+      const userStore = useUserStore()
+      const userId = userStore.user?.id || userStore.user?.nama
+      if (userId) {
+        const resetData = {
+          userId: userId,
+          streakCount: 1,
+          lastLoginDate: '',
+          totalLogins: 1,
+          longestStreak: 1,
+          updatedAt: new Date().toISOString()
+        }
+        await saveStreakToFirestore(userId, resetData)
+        console.log('🔄 [Debug] Streak reset to 1')
+        // Refresh store
+        const { useStreakStore } = await import('./stores/streakStore')
+        const streakStore = useStreakStore()
+        await streakStore.loadUserStreak(userId)
+        return 1
+      }
+      console.log('❌ [Debug] No user logged in')
+      return 0
+    }
+  }
   
   console.log('🧪 [PWA] Development helpers loaded:')
   console.log('   🗑️ unregisterSW() - Remove Service Worker')
   console.log('   🧹 clearSWCache() - Clear all caches')  
   console.log('   🔄 resetPWA() - Complete reset')
+  console.log('   🔥 debugStreak.checkCurrent() - Check current streak')
+  console.log('   🔄 debugStreak.forceCheck() - Force check streak')
+  console.log('   ⚡ debugStreak.resetToOne() - Reset streak to 1')
 }
 
 // ===== MAIN APP INITIALIZATION =====

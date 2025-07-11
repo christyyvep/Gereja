@@ -235,11 +235,10 @@ export default {
           return
         }
 
-        if (this.streakCount === 0) {
-          await this.streakStore.loadUserStreak(this.currentUserId)
-        }
+        // ✅ PERBAIKAN: Gunakan checkDailyStreak untuk update otomatis
+        await this.streakStore.checkDailyStreak(this.currentUserId)
         
-        console.log(`✅ [HomePage] Streak: ${this.streakCount} days`)
+        console.log(`✅ [HomePage] Streak updated: ${this.streakCount} days`)
         
       } catch (error) {
         console.error('❌ [HomePage] Error loading streak:', error)

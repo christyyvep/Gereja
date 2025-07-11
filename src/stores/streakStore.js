@@ -137,6 +137,44 @@ export const useStreakStore = defineStore('streak', {
     },
 
     /**
+     * ✅ BARU: Check streak harian setiap kali aplikasi dibuka
+     * @param {string} userId - User ID
+     * @returns {number} Updated streak count
+     */
+    async checkDailyStreak(userId) {
+      if (!userId) {
+        console.error('❌ [StreakStore] No userId provided for checkDailyStreak')
+        return 1
+      }
+      
+      try {
+        this.isLoading = true
+        console.log('📅 [StreakStore] Checking daily streak for user:', userId)
+        
+        // Load data terbaru dari Firestore
+        await this.loadUserStreak(userId)
+        
+        // Check dan update streak
+        const newStreakCount = await checkAndUpdateStreak(userId)
+        
+        // Pastikan minimal 1
+        const finalStreakCount = Math.max(newStreakCount || 1, 1)
+        
+        // Refresh cache setelah update
+        await this.loadUserStreak(userId)
+        
+        console.log(`🔥 [StreakStore] Daily streak result: ${finalStreakCount}`)
+        return finalStreakCount
+        
+      } catch (error) {
+        console.error('❌ [StreakStore] Error checking daily streak:', error)
+        return 1
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    /**
      * Migrasi data dari localStorage ke Firestore (one-time)
      * @param {string} userId - User ID
      */

@@ -4,12 +4,30 @@
 
 <script>
 import { useUserStore } from '@/stores/userStore'
+import { useStreakStore } from '@/stores/streakStore'
 
 export default {
   name: 'App',
-  created() {
+  async created() {
     const userStore = useUserStore()
-    userStore.checkLoginStatus()
+    const streakStore = useStreakStore()
+    
+    // Check login status terlebih dahulu
+    const isLoggedIn = await userStore.checkLoginStatus()
+    
+    // Jika user login, check streak setiap kali app dibuka
+    if (isLoggedIn && userStore.user) {
+      const userId = userStore.user.id || userStore.user.nama
+      if (userId) {
+        try {
+          console.log('🔥 [App] Checking daily streak for user:', userId)
+          const currentStreak = await streakStore.checkDailyStreak(userId)
+          console.log('✅ [App] Daily streak checked:', currentStreak)
+        } catch (error) {
+          console.error('❌ [App] Error checking daily streak:', error)
+        }
+      }
+    }
   }
 }
 </script>
