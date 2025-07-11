@@ -9,6 +9,9 @@ module.exports = defineConfig({
     hot: true,
     liveReload: true,
     
+    // ⭐ FIX: History API fallback untuk SPA routing
+    historyApiFallback: true,
+    
     // Headers untuk development
     headers: {
       'Service-Worker-Allowed': '/'

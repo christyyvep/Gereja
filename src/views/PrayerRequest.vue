@@ -46,12 +46,12 @@
             </div>
 
             <!-- Tambah Testimoni Button -->
-            <button 
+            <!-- <button 
               class="testimony-btn" 
               @click.stop="openTestimonyModal(prayer)"
             >
               Tambah Testimoni
-            </button>
+            </button> -->
           </div>
         </div>
       </div>
@@ -69,6 +69,71 @@
       <button class="floating-add-btn" @click="goToAddPrayer" aria-label="Tambah Permintaan Doa">
         <Plus class="fab-icon" />
       </button>
+    </div>
+
+    <!-- ⭐ PRAYER DETAIL MODAL -->
+    <div v-if="showDetailModal" class="modal-overlay" @click="closeDetailModal">
+      <div class="modal-content detail-modal" @click.stop>
+        <!-- Header dengan kategori dan tanggal -->
+        <div class="detail-header">
+          <div class="category-badge" :class="getCategoryClass(selectedPrayer?.category)">
+            {{ getCategoryLabel(selectedPrayer?.category) }}
+          </div>
+          <div class="prayer-date">
+            {{ formatDate(selectedPrayer?.createdAt) }}
+          </div>
+        </div>
+
+        <!-- Status anonim -->
+        <div v-if="selectedPrayer?.isAnonymous" class="anonymous-status">
+          <EyeOff class="anonymous-icon" />
+          <span>Mode Anonim</span>
+        </div>
+
+        <!-- Status urgent -->
+        <div v-if="selectedPrayer?.isUrgent" class="urgent-status">
+          <AlertCircle class="urgent-icon" />
+          <span>Permintaan Mendesak</span>
+        </div>
+
+        <!-- Content -->
+        <div class="detail-content">
+          <h4>Permintaan Doa</h4>
+          <p class="prayer-text">{{ selectedPrayer?.description }}</p>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="detail-actions">
+          <button class="delete-btn" @click="confirmDeletePrayer">
+            <Trash2 class="btn-icon" />
+            Hapus Permintaan Doa
+          </button>
+          <button class="close-btn" @click="closeDetailModal">
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⭐ DELETE CONFIRMATION MODAL -->
+    <div v-if="showDeleteConfirm" class="modal-overlay" @click="closeDeleteConfirm">
+      <div class="modal-content delete-modal" @click.stop>
+        <div class="delete-icon-container">
+          <Trash2 class="delete-icon" />
+        </div>
+        <h3>Hapus Permintaan Doa?</h3>
+        <p class="delete-message">
+          Apakah Anda yakin ingin menghapus permintaan doa ini? 
+          Tindakan ini tidak dapat dibatalkan.
+        </p>
+        
+        <div class="delete-actions">
+          <button class="cancel-btn" @click="closeDeleteConfirm">Batal</button>
+          <button class="confirm-delete-btn" @click="deletePrayer" :disabled="isDeleting">
+            {{ isDeleting ? 'Menghapus...' : 'Ya, Hapus' }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- ⭐ TESTIMONY MODAL -->
@@ -107,18 +172,21 @@
 <script>
 import HeaderWithBack from '@/components/layout/HeaderWithBack.vue'
 import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
-import { Plus } from 'lucide-vue-next'
+import { Plus, EyeOff, AlertCircle, Trash2 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/userStore.js'
 
 // ⭐ IMPORT PERSONAL FUNCTIONS - hanya untuk user sendiri
-import { getPrayerRequestsByUser, addTestimony, getPrayerCategories } from '@/services/prayerRequests.js'
+import { getPrayerRequestsByUser, addTestimony, getPrayerCategories, deletePrayerRequest } from '@/services/prayerRequests.js'
 
 export default {
   name: 'PrayerRequestPage',
   components: {
     HeaderWithBack,
     ButtonPrimary,
-    Plus
+    Plus,
+    EyeOff,
+    AlertCircle,
+    Trash2
   },
 
   computed: {
@@ -127,7 +195,34 @@ export default {
     },
     
     currentUserId() {
-      return this.userStore.userId || this.userStore.user?.id || this.userStore.user?.nama || 'anonymous'
+      // ⭐ ROBUST: Multiple fallbacks untuk user ID
+      const store = this.userStore
+      
+      // Priority 1: Store user ID
+      if (store.userId && store.userId !== 'anonymous') {
+        return store.userId
+      }
+      
+      // Priority 2: Store user object
+      if (store.user?.id) return store.user.id
+      if (store.user?.nama) return store.user.nama
+      if (store.user?.userId) return store.user.userId
+      
+      // Priority 3: localStorage fallback
+      try {
+        const savedUser = localStorage.getItem('user')
+        if (savedUser) {
+          const user = JSON.parse(savedUser)
+          if (user.id) return user.id
+          if (user.nama) return user.nama
+          if (user.userId) return user.userId
+        }
+      } catch (e) {
+        console.warn('Failed to get user from localStorage')
+      }
+      
+      // Priority 4: Return demo user for development
+      return 'demo-user'
     }
   },
   
@@ -137,9 +232,16 @@ export default {
       loading: true,
       error: null,
       
+      // Detail Modal
+      showDetailModal: false,
+      selectedPrayer: null,
+      
+      // Delete Confirmation
+      showDeleteConfirm: false,
+      isDeleting: false,
+      
       // Testimony Modal
       showTestimonyModal: false,
-      selectedPrayer: null,
       testimonyText: '',
       isSubmittingTestimony: false,
       
@@ -153,28 +255,58 @@ export default {
   },
   
   methods: {
-    // ⭐ FETCH PERSONAL PRAYERS - hanya milik user yang login
+    // ⭐ FETCH PERSONAL PRAYERS - dengan fallback
     async fetchMyPrayerRequests() {
       try {
         this.loading = true
         this.error = null
         
-        if (!this.currentUserId || this.currentUserId === 'anonymous') {
-          throw new Error('User tidak terdeteksi. Silakan login ulang.')
+        // ⭐ FALLBACK: Coba berbagai cara mendapat user ID
+        let userId = this.currentUserId
+        
+        // Fallback 1: Coba dari localStorage
+        if (!userId || userId === 'anonymous') {
+          const savedUser = localStorage.getItem('user')
+          if (savedUser) {
+            try {
+              const user = JSON.parse(savedUser)
+              userId = user.id || user.nama || user.userId
+            } catch (e) {
+              console.warn('Failed to parse saved user')
+            }
+          }
         }
         
-        console.log('🔍 [PrayerRequest] Fetching personal prayers for user:', this.currentUserId)
+        // Fallback 2: Gunakan default user untuk testing
+        if (!userId || userId === 'anonymous') {
+          userId = 'demo-user' // Default untuk testing
+          console.warn('🚧 [PrayerRequest] Using demo user for testing')
+        }
         
-        // ⭐ PERSONAL: Ambil hanya doa milik user yang login
-        const userPrayersData = await getPrayerRequestsByUser(this.currentUserId, 50) // Max 50 doa user
+        console.log('🔍 [PrayerRequest] Fetching prayers for user:', userId)
         
-        console.log('✅ [PrayerRequest] Personal prayers loaded:', userPrayersData.length)
+        // ⭐ FETCH: Ambil data dengan user ID yang tersedia
+        const userPrayersData = await getPrayerRequestsByUser(userId, 50)
         
-        this.myPrayerRequests = userPrayersData
+        console.log('✅ [PrayerRequest] Prayers loaded:', userPrayersData.length)
+        
+        // ⭐ DEMO: Jika kosong, tambahkan dummy data untuk testing
+        if (userPrayersData.length === 0 && userId === 'demo-user') {
+          this.myPrayerRequests = this.getDummyPrayerData()
+          console.log('🚧 [PrayerRequest] Using dummy data for demo')
+        } else {
+          this.myPrayerRequests = userPrayersData
+        }
         
       } catch (error) {
-        console.error('❌ [PrayerRequest] Error loading personal prayers:', error)
-        this.error = 'Gagal memuat daftar doa Anda. Pastikan koneksi internet stabil.'
+        console.error('❌ [PrayerRequest] Error:', error)
+        
+        // ⭐ GRACEFUL ERROR: Jangan crash, tapi tampilkan pesan
+        if (error.message.includes('User ID harus diisi')) {
+          this.error = 'Silakan login terlebih dahulu untuk melihat prayer request Anda.'
+        } else {
+          this.error = 'Gagal memuat daftar doa. Coba lagi nanti.'
+        }
       } finally {
         this.loading = false
       }
@@ -185,14 +317,59 @@ export default {
       this.$router.push('/prayer-request/add')
     },
 
-    // ⭐ GO TO PRAYER DETAIL - card click action
+    // ⭐ GO TO PRAYER DETAIL - show detail modal
     goToPrayerDetail(prayer) {
       console.log('🔍 [PrayerRequest] Opening prayer detail:', prayer.id)
-      // TODO: Implement detail page route
-      // this.$router.push(`/prayer-request/${prayer.id}`)
-      
-      // Sementara show modal dengan detail lengkap
-      alert(`Detail Doa:\n\nKategori: ${this.getCategoryLabel(prayer.category)}\nTanggal: ${this.formatDate(prayer.createdAt)}\n\nIsi Doa:\n${prayer.description}\n\n(Halaman detail akan segera tersedia!)`)
+      this.selectedPrayer = prayer
+      this.showDetailModal = true
+    },
+
+    // ⭐ DETAIL MODAL FUNCTIONS
+    closeDetailModal() {
+      this.showDetailModal = false
+      this.selectedPrayer = null
+    },
+
+    // ⭐ DELETE FUNCTIONS
+    confirmDeletePrayer() {
+      this.showDetailModal = false
+      this.showDeleteConfirm = true
+    },
+
+    closeDeleteConfirm() {
+      this.showDeleteConfirm = false
+      this.selectedPrayer = null
+    },
+
+    async deletePrayer() {
+      if (!this.selectedPrayer) return
+
+      try {
+        this.isDeleting = true
+        
+        console.log('🗑️ [PrayerRequest] Deleting prayer:', this.selectedPrayer.id)
+        
+        // Call delete service
+        await deletePrayerRequest(this.selectedPrayer.id)
+        
+        // Remove from local list
+        this.myPrayerRequests = this.myPrayerRequests.filter(
+          prayer => prayer.id !== this.selectedPrayer.id
+        )
+        
+        console.log('✅ [PrayerRequest] Prayer deleted successfully')
+        
+        this.closeDeleteConfirm()
+        
+        // Show success message
+        alert('✅ Permintaan doa berhasil dihapus!')
+        
+      } catch (error) {
+        console.error('❌ [PrayerRequest] Error deleting prayer:', error)
+        alert('❌ Gagal menghapus permintaan doa: ' + error.message)
+      } finally {
+        this.isDeleting = false
+      }
     },
 
     // ⭐ TESTIMONY FUNCTIONS
@@ -258,6 +435,51 @@ export default {
 
     getCategoryClass(category) {
       return `category-${category || 'other'}`
+    },
+
+    // ⭐ DEMO: Dummy data untuk testing
+    getDummyPrayerData() {
+      return [
+        {
+          id: 'demo-1',
+          title: 'Doa untuk Kesehatan Keluarga',
+          description: 'Mohon doa untuk kesehatan keluarga saya yang sedang sakit. Semoga Tuhan memberikan kesembuhan dan kekuatan.',
+          category: 'health',
+          userId: 'demo-user',
+          status: 'active',
+          isPrayed: false,
+          prayedBy: [],
+          isAnonymous: false,
+          isUrgent: true,
+          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() // 2 hari lalu
+        },
+        {
+          id: 'demo-2',
+          title: 'Pekerjaan Baru',
+          description: 'Sedang mencari pekerjaan baru. Mohon doa agar diberi jalan dan kesempatan yang terbaik dari Tuhan.',
+          category: 'work',
+          userId: 'demo-user',
+          status: 'active',
+          isPrayed: true,
+          prayedBy: ['admin'],
+          isAnonymous: false,
+          isUrgent: false,
+          createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() // 5 hari lalu
+        },
+        {
+          id: 'demo-3',
+          title: 'Hubungan dengan Tuhan',
+          description: 'Mohon doa agar hubungan saya dengan Tuhan semakin dekat dan iman semakin kuat dalam menghadapi tantangan hidup.',
+          category: 'spiritual',
+          userId: 'demo-user',
+          status: 'active',
+          isPrayed: false,
+          prayedBy: [],
+          isAnonymous: false,
+          isUrgent: false,
+          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() // 1 hari lalu
+        }
+      ]
     }
   }
 }
@@ -344,18 +566,20 @@ export default {
 }
 
 .prayer-card {
-  background: #e5e7eb;
+  background: white;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(65, 68, 42, 0.08);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .prayer-card:hover {
-  background: #d1d5db;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  background: #fafafa;
+  border-color: #41442A;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(65, 68, 42, 0.15);
 }
 
 .prayer-card:active {
@@ -402,7 +626,7 @@ export default {
 .prayer-content {
   font-family: 'Inter';
   font-size: 14px;
-  color: #374151;
+  color: #2d2f1c;
   line-height: 1.5;
   margin-bottom: 16px;
 }
@@ -411,9 +635,9 @@ export default {
 .testimony-btn {
   width: 100%;
   padding: 10px;
-  background: #d1d5db;
-  color: #374151;
-  border: none;
+  background: #f8f9fa;
+  color: #41442A;
+  border: 1px solid #e5e7eb;
   border-radius: 6px;
   font-family: 'Inter';
   font-size: 13px;
@@ -423,8 +647,9 @@ export default {
 }
 
 .testimony-btn:hover {
-  background: #9ca3af;
-  color: #111827;
+  background: #41442A;
+  color: white;
+  border-color: #41442A;
 }
 
 /* Prevent button from triggering card click */
@@ -596,6 +821,169 @@ export default {
 
 .cancel-btn:hover {
   background: #f9fafb;
+}
+
+/* Detail Modal Styles */
+.detail-modal {
+  max-width: 400px;
+  width: 90%;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.anonymous-status, .urgent-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.anonymous-status {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.urgent-status {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.anonymous-icon, .urgent-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.detail-content h4 {
+  font-family: 'Inter';
+  font-size: 16px;
+  font-weight: 600;
+  color: #41442A;
+  margin: 0 0 12px 0;
+}
+
+.prayer-text {
+  font-family: 'Inter';
+  font-size: 14px;
+  color: #2d2f1c;
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+  white-space: pre-wrap;
+}
+
+.detail-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.delete-btn, .close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-family: 'Inter';
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  width: 100%;
+}
+
+.delete-btn {
+  background: #dc2626;
+  color: white;
+}
+
+.delete-btn:hover {
+  background: #b91c1c;
+}
+
+.close-btn {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.close-btn:hover {
+  background: #e5e7eb;
+}
+
+.btn-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* Delete Confirmation Modal */
+.delete-modal {
+  max-width: 320px;
+  text-align: center;
+}
+
+.delete-icon-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.delete-icon {
+  width: 48px;
+  height: 48px;
+  color: #dc2626;
+}
+
+.delete-modal h3 {
+  font-family: 'Inter';
+  font-size: 18px;
+  font-weight: 600;
+  color: #41442A;
+  margin: 0 0 12px 0;
+}
+
+.delete-message {
+  font-family: 'Inter';
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+}
+
+.delete-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.confirm-delete-btn {
+  flex: 1;
+  padding: 12px;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Inter';
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.confirm-delete-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.confirm-delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Responsive */

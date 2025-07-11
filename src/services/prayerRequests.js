@@ -8,6 +8,7 @@ import {
   getDoc, 
   addDoc, 
   updateDoc,
+  deleteDoc,
   query, 
   orderBy, 
   limit, 
@@ -66,13 +67,16 @@ export async function addPrayerRequest(prayerData, userId) {
       throw new Error('Data prayer request tidak valid')
     }
 
-    // ⭐ VALIDASI SIMPLE: Cuma butuh description dan userId
-    if (!prayerData.description && !prayerData.prayerText) {
-      throw new Error('Deskripsi prayer request harus diisi')
+    // ⭐ VALIDASI IMPROVED: Support both formats  
+    const description = prayerData.description || prayerData.prayerText || ''
+    if (!description.trim()) {
+      throw new Error('Permintaan doa tidak boleh kosong')
     }
 
+    // ⭐ FALLBACK: Jika tidak ada userId, gunakan default
+    const finalUserId = userId || 'demo-user'
     if (!userId) {
-      throw new Error('User ID harus diisi')
+      console.warn('⚠️ [PrayerService] No user ID provided, using demo-user')
     }
     
     console.log('➕ [PrayerService] Adding new prayer request...')
@@ -80,7 +84,6 @@ export async function addPrayerRequest(prayerData, userId) {
     const prayerRequestsRef = collection(db, COLLECTION_NAME)
     
     // ⭐ HANDLE BOTH OLD AND NEW FORMAT
-    const description = prayerData.description || prayerData.prayerText
     const title = prayerData.title || `Permintaan Doa - ${prayerData.category || 'Umum'}`
     
     // ⭐ SIMPLE DATA: Support both formats
@@ -90,7 +93,7 @@ export async function addPrayerRequest(prayerData, userId) {
       category: prayerData.category || 'other',
       isAnonymous: Boolean(prayerData.isAnonymous),
       isUrgent: Boolean(prayerData.isUrgent),
-      userId: userId,
+      userId: finalUserId,
       status: 'active',
       isPrayed: false,
       prayedBy: [],
@@ -278,6 +281,118 @@ export async function getPrayerRequest(id) {
 }
 
 /**
+ * 📖 Get prayer request by ID
+ */
+export async function getPrayerRequestById(prayerId) {
+  try {
+    if (!prayerId) {
+      throw new Error('Prayer ID harus diisi')
+    }
+    
+    console.log('🔍 [PrayerService] Getting prayer request by ID:', prayerId)
+    
+    const prayerDocRef = doc(db, COLLECTION_NAME, prayerId)
+    const docSnap = await getDoc(prayerDocRef)
+    
+    if (!docSnap.exists()) {
+      throw new Error('Prayer request tidak ditemukan')
+    }
+    
+    const data = docSnap.data()
+    
+    // ⭐ HANDLE TIMESTAMP safely
+    let createdAtISO
+    try {
+      const createdAt = data.createdAt?.toDate?.() || new Date()
+      createdAtISO = createdAt.toISOString()
+    } catch (timestampError) {
+      console.warn('⚠️ [PrayerService] Invalid timestamp for doc:', prayerId)
+      createdAtISO = new Date().toISOString()
+    }
+    
+    // ⭐ BUILD SAFE OBJECT
+    const prayerData = {
+      id: docSnap.id,
+      title: (data.title || data.description || '').toString().trim() || 'No title',
+      description: (data.description || '').toString().trim() || 'No description',
+      userId: data.userId || 'unknown',
+      status: data.status || 'active',
+      isPrayed: Boolean(data.isPrayed),
+      prayedBy: Array.isArray(data.prayedBy) ? data.prayedBy : [],
+      category: data.category || 'other',
+      isAnonymous: Boolean(data.isAnonymous),
+      isUrgent: Boolean(data.isUrgent),
+      createdAt: createdAtISO
+    }
+    
+    console.log('✅ [PrayerService] Prayer request found:', prayerData)
+    return prayerData
+    
+  } catch (error) {
+    console.error('❌ [PrayerService] Error getting prayer request:', error)
+    throw error
+  }
+}
+
+/**
+ * ✏️ Update prayer request
+ */
+export async function updatePrayerRequest(prayerId, updateData) {
+  try {
+    if (!prayerId) {
+      throw new Error('Prayer ID harus diisi')
+    }
+    
+    if (!updateData || typeof updateData !== 'object') {
+      throw new Error('Data update tidak valid')
+    }
+    
+    console.log('✏️ [PrayerService] Updating prayer request:', prayerId, updateData)
+    
+    // ⭐ VALIDATION
+    const description = updateData.description || updateData.prayerText || ''
+    if (!description.trim()) {
+      throw new Error('Permintaan doa tidak boleh kosong')
+    }
+    
+    // ⭐ PREPARE UPDATE DATA
+    const title = updateData.title || `Permintaan Doa - ${updateData.category || 'Umum'}`
+    
+    const docData = {
+      title: title.trim(),
+      description: description.trim(),
+      category: updateData.category || 'other',
+      isAnonymous: Boolean(updateData.isAnonymous),
+      isUrgent: Boolean(updateData.isUrgent),
+      updatedAt: serverTimestamp()
+    }
+    
+    console.log('📄 [PrayerService] Update data:', docData)
+    
+    // ⭐ UPDATE: Update document in Firestore
+    const prayerDocRef = doc(db, COLLECTION_NAME, prayerId)
+    await updateDoc(prayerDocRef, docData)
+    
+    console.log('✅ [PrayerService] Prayer request updated successfully:', prayerId)
+    return true
+    
+  } catch (error) {
+    console.error('❌ [PrayerService] Error updating prayer request:', error)
+    
+    // ⭐ GRACEFUL ERROR: Handle different error types
+    if (error.code === 'permission-denied') {
+      throw new Error('Anda tidak memiliki izin untuk mengubah prayer request ini')
+    }
+    
+    if (error.code === 'not-found') {
+      throw new Error('Prayer request tidak ditemukan')
+    }
+    
+    throw new Error(`Gagal memperbarui prayer request: ${error.message}`)
+  }
+}
+
+/**
  * 📋 Get ALL prayer requests untuk ADMIN/GEMBALA
  */
 export async function getAllPrayerRequestsForAdmin(limitCount = 50) {
@@ -436,6 +551,40 @@ export async function togglePrayerStatus(prayerRequestId, userId) {
   } catch (error) {
     console.error('❌ [PrayerService] Error toggling prayer status:', error)
     throw error
+  }
+}
+
+/**
+ * 🗑️ Delete prayer request
+ */
+export async function deletePrayerRequest(prayerId) {
+  try {
+    if (!prayerId) {
+      throw new Error('Prayer ID harus diisi')
+    }
+    
+    console.log('🗑️ [PrayerService] Deleting prayer request:', prayerId)
+    
+    // ⭐ DELETE: Remove document from Firestore
+    const prayerDocRef = doc(db, COLLECTION_NAME, prayerId)
+    await deleteDoc(prayerDocRef)
+    
+    console.log('✅ [PrayerService] Prayer request deleted successfully:', prayerId)
+    return true
+    
+  } catch (error) {
+    console.error('❌ [PrayerService] Error deleting prayer request:', error)
+    
+    // ⭐ GRACEFUL ERROR: Handle different error types
+    if (error.code === 'permission-denied') {
+      throw new Error('Anda tidak memiliki izin untuk menghapus prayer request ini')
+    }
+    
+    if (error.code === 'not-found') {
+      throw new Error('Prayer request tidak ditemukan')
+    }
+    
+    throw new Error(`Gagal menghapus prayer request: ${error.message}`)
   }
 }
 

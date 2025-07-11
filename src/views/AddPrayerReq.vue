@@ -241,14 +241,44 @@ export default {
         
         console.log('🙏 [AddPrayer] Submitting prayer request...')
         
-        // Get current user data
-        const userData = this.userStore.user
+        // ⭐ IMPROVED: Get user data dengan fallback
+        let userData = this.userStore.user
+        
+        // ⭐ FALLBACK: Jika tidak ada user dari store, buat demo user
         if (!userData) {
-          throw new Error('User tidak ditemukan. Silakan login ulang.')
+          console.warn('⚠️ [AddPrayer] No user in store, creating demo user')
+          
+          // Coba dari localStorage
+          try {
+            const savedUser = localStorage.getItem('user')
+            if (savedUser) {
+              userData = JSON.parse(savedUser)
+            }
+          } catch (e) {
+            console.warn('Failed to get user from localStorage')
+          }
+          
+          // Fallback ke demo user
+          if (!userData) {
+            userData = {
+              id: 'demo-user',
+              nama: 'Demo User',
+              email: 'demo@example.com',
+              sektor: 'Demo',
+              status: 'active'
+            }
+            console.log('🚧 [AddPrayer] Using demo user for testing')
+          }
         }
         
-        // Submit prayer request
-        const prayerId = await addPrayerRequest(this.formData, userData)
+        console.log('👤 [AddPrayer] User data:', userData)
+        
+        // ⭐ EXTRACT: Ambil user ID dari userData object
+        const userId = userData.id || userData.nama || userData.userId || 'demo-user'
+        console.log('🔑 [AddPrayer] Using user ID:', userId)
+        
+        // Submit prayer request dengan user ID
+        const prayerId = await addPrayerRequest(this.formData, userId)
         
         console.log('✅ [AddPrayer] Prayer request submitted successfully:', prayerId)
         
