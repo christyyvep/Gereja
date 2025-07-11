@@ -441,7 +441,7 @@
     font-family: 'Inter', sans-serif;
     font-size: 16px;
     font-weight: 600;
-    color: #41442A;
+    color: #1a1a1a;
     margin: 0;
     line-height: 1.3;
     display: -webkit-box;
@@ -634,12 +634,12 @@
   ========================================= */
   /* Schedule specific styles */
   .type-schedule .card-title {
-    color: #41442A;
+    color: #1a1a1a;
   }
   
   /* Devotional specific styles */
   .type-devotional .card-title {
-    color: #8B7355;
+    color: #1a1a1a;
   }
   
   .type-devotional .category-badge {

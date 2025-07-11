@@ -16,7 +16,7 @@ import {
 const COLLECTION_NAME = 'devotionals'
 
 /**
- * Mendapatkan semua devotionals, diurutkan dari tanggal terlama ke terbaru
+ * Mendapatkan semua devotionals, diurutkan dari tanggal terbaru ke terlama
  * @param {number} limitCount - Jumlah maksimal devotionals yang diambil
  * @returns {Promise<Array>} Array devotionals
  */
@@ -25,7 +25,7 @@ export async function getDevotionals(limitCount = 10) {
     const devotionalsRef = collection(db, COLLECTION_NAME)
     const q = query(
       devotionalsRef, 
-      orderBy('date', 'asc'),
+      orderBy('date', 'desc'), // Changed to desc for newest first
       limit(limitCount)
     )
     

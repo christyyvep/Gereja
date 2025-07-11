@@ -1,69 +1,60 @@
 <template>
   <div v-if="loading" class="loading-container">
+    <div class="loading-spinner"></div>
     <p>Memuat detail renungan...</p>
   </div>
   
   <div v-else-if="error" class="error-container">
     <HeaderWithBack title="Detail Renungan" />
     <div class="error-content">
+      <div class="error-icon">⚠️</div>
+      <h3>Terjadi Kesalahan</h3>
       <p class="error-text">{{ error }}</p>
       <ButtonPrimary @click="fetchDevotionalDetail">Coba Lagi</ButtonPrimary>
     </div>
   </div>
   
-  <!-- CUSTOM LAYOUT - TIDAK PAKAI DetailLayout -->
-  <div v-else-if="devotional" class="detail-container">
-    <div class="detail-wrapper">
-      <!-- Header dengan tombol back -->
-      <HeaderWithBack title="Detail Renungan" />
+  <DetailLayout
+    v-else-if="devotional"
+    header-title="Detail Renungan"
+    :title="devotional.title || 'Renungan Tanpa Judul'"
+    :description="devotional.content || 'Tidak ada konten'"
+    :thumbnail="thumbnailSrc"
+    :category="devotional.category"
+    content-type="devotional"
+    :breadcrumb-items="breadcrumbItems"
+    :hide-back-button="false"
+    :hide-content-badge="true"
+  >
+    <!-- Mobile-specific Title Section (tanpa bookmark button) -->
+    <template #mobile-title-section>
+      <div class="mobile-title-section">
+        <h1 class="detail-title">{{ devotional.title }}</h1>
+      </div>
+    </template>
 
-      <!-- Thumbnail besar -->
-      <div class="detail-thumbnail">
-        <img 
-          v-if="thumbnailSrc && !imageError" 
-          :src="thumbnailSrc" 
-          :alt="devotional.title"
-          class="thumbnail-img"
-          @error="onImageError"
-        />
-        <!-- Fallback jika gambar tidak ada -->
-        <div v-else class="thumbnail-placeholder">
-          <span>{{ devotional.title.charAt(0) }}</span>
-        </div>
+    <!-- Bacaan Alkitab dan Button Save -->
+    <template #additional-info>
+      <!-- Bible Reading Section -->
+      <div class="bible-reading-section">
+        <p class="bible-reading-title">BACAAN ALKITAB HARI INI</p>
+        <p class="bible-verse">{{ devotional.verse || 'Yohanes 3:16' }}</p>
       </div>
 
-      <!-- Content area -->
-      <div class="detail-content">
-        <!-- Title dengan Bookmark Button -->
-        <div class="title-section">
-          <h1 class="detail-title">{{ devotional.title }}</h1>
-          <button class="bookmark-btn" @click="toggleBookmark" :class="{ 'bookmarked': isBookmarked }">
-            <Bookmark class="bookmark-icon" :fill="isBookmarked ? '#41442A' : 'none'" />
-          </button>
-        </div>
-
-        <!-- BACAAN ALKITAB HARI INI - DIPINDAH KE ATAS -->
-        <div class="bible-reading-section">
-          <p class="bible-reading-title">BACAAN ALKITAB HARI INI</p>
-          <p class="bible-verse">{{ devotional.verse || 'Yohanes 3:16' }}</p>
-        </div>
-
-        <!-- Description/Content -->
-        <div class="detail-description">
-          <p>{{ devotional.content }}</p>
-        </div>
-
-        <!-- Closing message -->
-        <div class="detail-closing">
-          <p>{{ getClosingMessage() }}</p>
-        </div>
+      <!-- Button Save - Centered -->
+      <div class="save-button-section">
+        <ButtonPrimary @click="toggleBookmark" :class="{ 'bookmarked': isBookmarked }">
+          <Bookmark class="bookmark-icon" :fill="isBookmarked ? 'white' : 'none'" />
+          {{ isBookmarked ? 'Tersimpan' : 'Simpan' }}
+        </ButtonPrimary>
       </div>
-    </div>
-  </div>
+    </template>
+  </DetailLayout>
 </template>
 
 <script>
 import HeaderWithBack from '@/components/layout/HeaderWithBack.vue'
+import DetailLayout from '@/components/layout/DetailLayout.vue'
 import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
 import { Bookmark } from 'lucide-vue-next'
 import { getDevotional } from '@/services/devotionals'
@@ -73,6 +64,7 @@ export default {
   name: 'DetailRenungan',
   components: {
     HeaderWithBack,
+    DetailLayout,
     ButtonPrimary,
     Bookmark
   },
@@ -82,7 +74,16 @@ export default {
       loading: true,
       error: null,
       imageError: false,
-      isBookmarked: false
+      isBookmarked: false,
+      breadcrumbItems: [
+        {
+          text: 'Renungan Harian',
+          to: '/renungan'
+        },
+        {
+          text: this.devotional?.title || 'Detail Renungan'
+        }
+      ]
     }
   },
   computed: {
@@ -124,24 +125,6 @@ export default {
       }
     },
     
-    getClosingMessage() {
-      if (!this.devotional) return ''
-      
-      // Pesan penutup untuk renungan
-      switch (this.devotional.category) {
-        case 'kasih':
-          return 'Kiranya kasih Tuhan menyertai hidup kita setiap hari. Amin.'
-        case 'pengharapan':
-          return 'Tetaplah berharap dalam Tuhan, Dia tidak pernah mengecewakan. Amin.'
-        case 'iman':
-          return 'Teruslah beriman dan percaya pada rencana-Nya yang indah. Amin.'
-        case 'doa':
-          return 'Mari selalu mendekatkan diri kepada Tuhan melalui doa. Amin.'
-        default:
-          return 'Tuhan Yesus memberkati setiap langkah hidup kita. Amin.'
-      }
-    },
-
     onImageError() {
       console.log('🖼️ Image failed to load, showing placeholder')
       this.imageError = true
@@ -183,12 +166,28 @@ export default {
 /* Loading state */
 .loading-container {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
   background: #fcfcf7;
   font-family: 'Inter';
   color: #666;
+  gap: 16px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f0f0f0;
+  border-top: 4px solid #41442A;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* Error state */
@@ -208,73 +207,34 @@ export default {
   margin: 0 auto;
 }
 
+.error-icon {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.error-content h3 {
+  font-family: 'Inter';
+  font-size: 18px;
+  color: #333;
+  margin: 0;
+}
+
 .error-text {
   color: #d32f2f;
   font-family: 'Inter';
   font-size: 14px;
   margin: 0;
+  line-height: 1.5;
 }
 
-/* CUSTOM LAYOUT - MIRIP DetailLayout */
-.detail-container {
-  background: #fcfcf7;
-  min-height: 100vh;
+/* ===== MOBILE SPECIFIC STYLES ===== */
+
+/* Mobile Title Section (simple, no bookmark) */
+.mobile-title-section {
+  margin-bottom: 16px;
 }
 
-.detail-wrapper {
-  padding: 16px;
-  max-width: 360px;
-  margin: 0 auto;
-}
-
-/* Thumbnail besar */
-.detail-thumbnail {
-  width: 100%;
-  height: 200px;
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 20px;
-  background-color: #f5f5f5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.thumbnail-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.thumbnail-placeholder {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #41442A, #5a5e3d);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: bold;
-  font-size: 48px;
-}
-
-/* Content area */
-.detail-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* Title Section dengan Bookmark */
-.title-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center; /* ⭐ UBAH dari flex-start ke center */
-  gap: 12px;
-}
-
-.detail-title {
-  flex: 1;
+.mobile-title-section .detail-title {
   font-size: 24px;
   font-weight: 600;
   color: #41442A;
@@ -283,48 +243,13 @@ export default {
   line-height: 1.3;
 }
 
-/* Bookmark Button */
-.bookmark-btn {
-  width: 40px;
-  height: 40px;
-  border: none;
-  background: white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
+/* ===== SHARED STYLES (Mobile & Desktop) ===== */
 
-.bookmark-btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.bookmark-btn:active {
-  transform: scale(0.95);
-}
-
-.bookmark-btn.bookmarked {
-  background: #f0f8ff;
-  border: 2px solid #41442A;
-}
-
-.bookmark-icon {
-  width: 20px;
-  height: 20px;
-  color: #41442A;
-  transition: all 0.2s ease;
-}
-
-/* Bible Reading Section - REDESIGN SIMPLE */
+/* Bible Reading Section */
 .bible-reading-section {
   background: transparent;
   padding: 0;
-  margin: 8px 0 16px 0;
+  margin: 24px 0;
   border: none;
   box-shadow: none;
 }
@@ -332,72 +257,96 @@ export default {
 .bible-reading-title {
   font-family: 'Inter';
   font-size: 14px;
-  font-weight: 400;
+  font-weight: 600;
   color: #666;
-  margin: 0 0 6px 0;
-  text-align: left;
+  margin: 0 0 8px 0;
+  text-align: center;
   letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 .bible-verse {
   font-family: 'Inter';
   font-size: 16px;
-  font-weight: 400;
+  font-weight: 500;
   color: #41442A;
   line-height: 1.5;
-  margin: 0 0 16px 0;
-  text-align: left;
-  font-style: normal;
-}
-
-.detail-description {
-  font-family: 'Inter';
-  font-size: 14px;
-  line-height: 1.6;
-  color: #333;
-}
-
-.detail-description p {
-  margin: 0 0 12px 0;
-}
-
-/* Closing message */
-.detail-closing {
-  font-family: 'Inter';
-  font-size: 14px;
-  line-height: 1.6;
-  color: #333;
-  font-style: italic;
+  margin: 0 0 24px 0;
   text-align: center;
-  margin-top: 20px;
+  font-style: italic;
 }
 
-.detail-closing p {
-  margin: 0;
+/* Save Button Section - Centered */
+.save-button-section {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0;
 }
 
-/* Responsive */
-@media (max-width: 360px) {
-  .detail-wrapper {
-    padding: 12px;
-  }
-  
-  .detail-thumbnail {
-    height: 180px;
-  }
-  
-  .detail-title {
+.save-button-section .bookmark-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+}
+
+/* ButtonPrimary when bookmarked */
+.save-button-section .bookmarked {
+  background-color: #41442A !important;
+  border-color: #41442A !important;
+}
+
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .mobile-title-section .detail-title {
     font-size: 20px;
   }
 
-  .bookmark-btn {
-    width: 36px;
-    height: 36px;
+  .bible-reading-title {
+    font-size: 12px;
   }
 
-  .bookmark-icon {
-    width: 18px;
-    height: 18px;
+  .bible-verse {
+    font-size: 14px;
+  }
+
+  .save-button-section {
+    margin: 20px 0;
+  }
+}
+
+@media (max-width: 360px) {
+  .mobile-title-section .detail-title {
+    font-size: 18px;
+  }
+
+  .bible-reading-title {
+    font-size: 11px;
+  }
+
+  .bible-verse {
+    font-size: 13px;
+  }
+}
+
+/* Desktop adjustments */
+@media (min-width: 769px) {
+  .bible-reading-section {
+    margin: 32px 0;
+  }
+
+  .bible-reading-title {
+    font-size: 16px;
+  }
+
+  .bible-verse {
+    font-size: 18px;
+    margin-bottom: 32px;
+  }
+
+  .save-button-section {
+    margin: 32px 0;
   }
 }
 </style>
