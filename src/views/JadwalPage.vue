@@ -110,10 +110,8 @@
 </template>
 
 <script>
-// Import komponen yang kita butuhkan (seperti import library di coding)
 import HeaderWithBack from '@/components/layout/HeaderWithBack.vue'
 import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
-// ✅ KOMPONEN DESKTOP: Komponen baru untuk desktop
 import DesktopNavbar from '@/components/layout/DesktopNavbar.vue'
 import BreadcrumbDesktop from '@/components/common/BreadcrumbDesktop.vue'
 import ContentCard from '@/components/common/ContentCard.vue'
@@ -131,9 +129,9 @@ export default {
   components: {
     HeaderWithBack,
     ButtonPrimary,
-    DesktopNavbar,        // ✅ Navbar untuk desktop
-    BreadcrumbDesktop,    // ✅ Breadcrumb untuk navigasi
-    ContentCard,          // ✅ Card universal untuk jadwal
+    DesktopNavbar,        
+    BreadcrumbDesktop,    
+    ContentCard,          
     CalendarDays,
     RefreshCw,
     AlertCircle
@@ -146,14 +144,9 @@ export default {
       loading: true,          // Status loading
       error: null,           // Pesan error jika ada
       
-      // ✅ BREADCRUMB DATA: Petunjuk navigasi
       breadcrumbItems: [
         {
-          text: 'Kalender',
-          to: '/calendar'
-        },
-        {
-          text: 'Jadwal Kegiatan'  // Halaman saat ini
+          text: 'Jadwal Ibadah'  // Halaman saat ini
         }
       ]
     }

@@ -1,9 +1,11 @@
 <template>
+  <!-- Loading State -->
   <div v-if="loading" class="loading-container">
     <div class="loading-spinner"></div>
     <p>Memuat detail jadwal...</p>
   </div>
   
+  <!-- Error State -->
   <div v-else-if="error" class="error-container">
     <HeaderWithBack 
       title="Detail Jadwal" 
@@ -17,72 +19,72 @@
     </div>
   </div>
   
+  <!-- Main Content -->
   <DetailLayout
     v-else-if="schedule"
     header-title="Detail Jadwal"
-    :title="schedule.title"
-    :description="schedule.description"
+    :title="schedule.title || 'Jadwal Tanpa Judul'"
+    :description="schedule.description || 'Tidak ada deskripsi'"
     :thumbnail="schedule.thumbnail"
     :category="schedule.category"
-    :content-type="'schedule'"
-    :show-schedule-info="true"
-    :date="schedule.date"
-    :time="schedule.time"
-    :location="schedule.location"
+    content-type="schedule"
     :closing="getClosingMessage()"
-    :customBackAction="handleBackNavigation"
-    :isRecurring="schedule.isRecurring || schedule.source === 'recurring'"
-    :recurrencePattern="schedule.recurrencePattern"
-    :source="schedule.source"
+    :custom-back-action="handleBackNavigation"
+    :breadcrumb-items="breadcrumbItems"
+    :hide-back-button="true"
+    :hide-content-badge="true"
   >
-    <!-- Additional Slots for Schedule-specific content -->
     <template #additional-info>
-      <!-- Recurring Info -->
-      <div v-if="schedule.isRecurring || schedule.source === 'recurring'" class="recurring-info-section">
-        <h3>Jadwal Berulang</h3>
-        <div class="recurring-details">
-          <div v-if="schedule.recurrencePattern" class="recurrence-pattern">
-            <p><strong>Pola:</strong> {{ formatRecurrencePattern(schedule.recurrencePattern) }}</p>
-            <p v-if="schedule.recurrencePattern.startDate">
-              <strong>Dimulai:</strong> {{ formatDate(schedule.recurrencePattern.startDate) }}
-            </p>
-            <p v-if="schedule.recurrencePattern.endDate">
-              <strong>Berakhir:</strong> {{ formatDate(schedule.recurrencePattern.endDate) }}
-            </p>
-            <p v-else>
-              <strong>Berakhir:</strong> Tidak terbatas
-            </p>
+      <div class="schedule-meta-section">
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-label">📅 Jadwal:</span>
+            <span class="meta-value">{{ formatScheduleDay(schedule) }}</span>
           </div>
           
-          <div v-if="schedule.source === 'recurring'" class="generated-info">
-            <p class="info-note">
-              🔄 Ini adalah jadwal yang dihasilkan dari template berulang.
-            </p>
+          <div v-if="schedule.time || schedule.defaultTime || schedule.staticInfo?.defaultTime" class="meta-item">
+            <span class="meta-label">🕐 Waktu:</span>
+            <span class="meta-value">{{ schedule.time || schedule.defaultTime || schedule.staticInfo?.defaultTime }} WIB</span>
+          </div>
+          
+          <div v-if="schedule.location || schedule.staticInfo?.location" class="meta-item">
+            <span class="meta-label">📍 Lokasi:</span>
+            <span class="meta-value">{{ schedule.location || schedule.staticInfo?.location }}</span>
+          </div>
+          
+          <div v-if="schedule.theme" class="meta-item">
+            <span class="meta-label">🎯 Tema:</span>
+            <span class="meta-value">{{ schedule.theme }}</span>
+          </div>
+
+          <div v-if="schedule.speaker || (schedule.speakers && schedule.speakers.length > 0)" class="meta-item">
+            <span class="meta-label">👨‍🏫 Pembicara:</span>
+            <span class="meta-value">{{ schedule.speaker || (schedule.speakers && schedule.speakers.join(', ')) || 'Belum ditentukan' }}</span>
           </div>
         </div>
       </div>
 
-      <!-- Additional Info untuk generated schedules -->
-      <div v-if="schedule.additionalInfo" class="additional-info-section">
-        <h3>Informasi Tambahan</h3>
-        <div class="additional-content" v-html="formatDescription(schedule.additionalInfo)"></div>
+      <div v-if="schedule.announcements && schedule.announcements.length > 0" class="announcements-section">
+        <h3>Pengumuman</h3>
+        <div class="announcements-list">
+          <div 
+            v-for="(announcement, index) in schedule.announcements" 
+            :key="index"
+            class="announcement-item"
+          >
+            {{ announcement }}
+          </div>
+        </div>
+      </div>
+
+      <div v-if="schedule.specialNotes" class="notes-section">
+        <h3>Catatan Khusus</h3>
+        <div class="notes-content">
+          {{ schedule.specialNotes }}
+        </div>
       </div>
     </template>
 
-    <!-- Action Buttons Slot -->
-    <template #action-buttons>
-      <div class="schedule-actions">
-        <ButtonPrimary @click="addToCalendar" class="calendar-btn">
-          📅 Tambah ke Kalender
-        </ButtonPrimary>
-        
-        <ButtonPrimary @click="shareSchedule" class="share-btn secondary">
-          📤 Bagikan
-        </ButtonPrimary>
-      </div>
-    </template>
-
-    <!-- Related Content Slot -->
     <template #related-content>
       <div v-if="relatedSchedules.length > 0" class="related-schedules">
         <h3>Jadwal Terkait</h3>
@@ -93,9 +95,13 @@
             class="related-item"
             @click="navigateToSchedule(related.id)"
           >
+            <div class="related-thumbnail" v-if="related.thumbnail">
+              <img :src="related.thumbnail" :alt="related.title" />
+            </div>
             <div class="related-content">
               <h4>{{ related.title }}</h4>
-              <p>{{ formatDate(related.date) }} • {{ related.time }}</p>
+              <p>{{ formatDate(related.date) }}</p>
+              <p class="related-summary">{{ truncateText(related.description, 60) }}</p>
             </div>
             <div class="related-arrow">→</div>
           </div>
@@ -103,13 +109,6 @@
       </div>
     </template>
   </DetailLayout>
-
-  <!-- Debug info (development only) -->
-  <div v-if="isDevelopment && navigationSource" class="debug-info">
-    <p><strong>Navigated from:</strong> {{ navigationSource }}</p>
-    <p><strong>Schedule ID:</strong> {{ scheduleId }}</p>
-    <p><strong>Source:</strong> {{ schedule?.source }}</p>
-  </div>
 </template>
 
 <script>
@@ -120,12 +119,13 @@ import { getSchedulesByCategory, getWorshipSchedule } from '@/services/schedules
 
 export default {
   name: 'DetailJadwal',
+  
   components: {
     DetailLayout,
     HeaderWithBack,
     ButtonPrimary
-    // ButtonSecondary // Commented out - tidak ada
   },
+  
   data() {
     return {
       schedule: null,
@@ -134,23 +134,39 @@ export default {
       relatedSchedules: []
     }
   },
+  
   computed: {
     scheduleId() {
       return this.$route.params.id
     },
+    
     navigationSource() {
       return this.$route.query.from || 'direct'
     },
-    isDevelopment() {
-      return process.env.NODE_ENV === 'development'
+    
+    breadcrumbItems() {
+      if (!this.schedule || !this.schedule.title) {
+        return [
+          { text: 'Jadwal', to: '/jadwal' },
+          { text: 'Loading...' }
+        ]
+      }
+      
+      return [
+        { text: 'Jadwal', to: '/jadwal' },
+        { text: this.schedule.title }
+      ]
     }
   },
+  
   async created() {
     console.log(`📄 [DetailJadwal] Component created for ID: ${this.scheduleId}`)
     console.log(`🧭 [DetailJadwal] Navigation source: ${this.navigationSource}`)
     await this.fetchScheduleDetail()
   },
+  
   methods: {
+    
     async fetchScheduleDetail() {
       try {
         this.loading = true
@@ -159,23 +175,34 @@ export default {
         const scheduleId = this.scheduleId
         
         if (!scheduleId) {
-          throw new Error('ID jadwal tidak ditemukan')
+          throw new Error('ID template tidak ditemukan')
         }
         
-        // Parse schedule ID format: templateId_date
-        const [templateId, date] = scheduleId.split('_')
+        console.log(`📄 [DetailJadwal] Loading schedule: ${scheduleId}`)
         
-        console.log(`📄 [DetailJadwal] Fetching schedule: template=${templateId}, date=${date}`)
+        let templateId, date
+        
+        const parts = scheduleId.split('_')
+        
+        if (parts.length >= 3 && parts[parts.length - 1].match(/^\d{4}-\d{2}-\d{2}$/)) {
+          date = parts.pop()
+          templateId = parts.join('_')
+        } else {
+          templateId = scheduleId
+          date = new Date().toISOString().split('T')[0]
+        }
+        
+        console.log(`📄 [DetailJadwal] Parsed - Template: ${templateId}, Date: ${date}`)
         
         const scheduleData = await getWorshipSchedule(templateId, date)
+        
         this.schedule = {
           ...scheduleData,
-          id: scheduleId // Preserve the combined ID
+          id: scheduleId
         }
         
         console.log(`✅ [DetailJadwal] Schedule loaded:`, scheduleData)
         
-        // Fetch related schedules
         if (scheduleData.category) {
           await this.fetchRelatedSchedules(scheduleData.category, scheduleId)
         }
@@ -192,9 +219,8 @@ export default {
       try {
         console.log(`🔗 [DetailJadwal] Fetching related schedules for category: ${category}`)
         
-        const related = await getSchedulesByCategory(category, 7) // 7 hari ke depan
+        const related = await getSchedulesByCategory(category)
         
-        // Exclude current schedule dan limit 3
         this.relatedSchedules = related
           .filter(s => s.id !== excludeId)
           .slice(0, 3)
@@ -203,11 +229,11 @@ export default {
         
       } catch (err) {
         console.error('❌ [DetailJadwal] Error fetching related schedules:', err)
-        // Tidak error, just empty related
         this.relatedSchedules = []
       }
     },
 
+    
     handleError(error) {
       if (error.message.includes('tidak ditemukan')) {
         this.error = 'Jadwal yang Anda cari tidak ditemukan. Mungkin sudah dihapus atau ID tidak valid.'
@@ -218,41 +244,32 @@ export default {
       }
     },
 
-    /**
-     * ⭐ Handle smart back navigation
-     */
-     handleBackNavigation() {
+    
+    handleBackNavigation() {
       const source = this.navigationSource
       
-      console.log(`🔙 [DetailJadwal] Back navigation from: ${source}`)
-      
-      // Smart back navigation berdasarkan source
       switch (source) {
         case 'announcement':
         case 'homepage': {
-          this.$router.push('/home')  // ← FIX: ke /home
+          this.$router.push('/home')
           break
         }
-        case 'jadwal':
-        case 'schedules': {
-          this.$router.push('/jadwal')
+        case 'calendar':
+        case 'jadwal': {
+          this.$router.push('/calendar')
           break
         }
         default: {
-          // Fallback: check if can go back in history
           if (window.history.length > 1) {
             this.$router.back()
           } else {
-            this.$router.push('/home')  // ← FIX: ke /home
+            this.$router.push('/home')
           }
           break
         }
       }
     },
 
-    /**
-     * Navigate to another schedule
-     */
     navigateToSchedule(id) {
       this.$router.push({
         path: `/jadwal/${id}`,
@@ -260,100 +277,70 @@ export default {
       })
     },
 
-    /**
-     * ⭐ Add to calendar
-     */
-    addToCalendar() {
-      if (!this.schedule) return
+    formatScheduleDay(schedule) {
+      const dayOfWeek = schedule.dayOfWeek || schedule.staticInfo?.dayOfWeek
       
-      try {
-        // Generate Google Calendar URL
-        const startDate = new Date(`${this.schedule.date}T${this.schedule.time || '08:00'}`)
-        const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000) // +2 hours
-        
-        const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(this.schedule.title)}&dates=${startDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}/${endDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}&details=${encodeURIComponent(this.schedule.description || '')}&location=${encodeURIComponent(this.schedule.location || '')}`
-        
-        window.open(calendarUrl, '_blank')
-        
-        console.log('📅 [DetailJadwal] Calendar event created')
-        
-      } catch (err) {
-        console.error('❌ [DetailJadwal] Error creating calendar event:', err)
-        alert('Gagal menambahkan ke kalender')
+      if (dayOfWeek === 'daily') {
+        return 'Setiap Hari'
       }
+      
+      const dayNames = [
+        'Hari Minggu',
+        'Hari Senin',
+        'Hari Selasa',
+        'Hari Rabu',
+        'Hari Kamis',
+        'Hari Jumat',
+        'Hari Sabtu'
+      ]
+      
+      return dayNames[dayOfWeek] || 'Hari Tidak Diketahui'
     },
 
-    /**
-     * ⭐ Share schedule
-     */
-    shareSchedule() {
-      if (!this.schedule) return
+    formatCategory(category) {
+      if (!category) return 'Umum'
       
-      try {
-        const shareText = `${this.schedule.title}\n📅 ${this.formatDate(this.schedule.date)} ${this.schedule.time || ''}\n📍 ${this.schedule.location || ''}\n\n${this.schedule.description || ''}`
-        
-        if (navigator.share) {
-          // Native sharing (mobile)
-          navigator.share({
-            title: this.schedule.title,
-            text: shareText,
-            url: window.location.href
-          })
-        } else {
-          // Fallback: copy to clipboard
-          navigator.clipboard.writeText(shareText).then(() => {
-            alert('Jadwal berhasil disalin ke clipboard!')
-          })
-        }
-        
-        console.log('📤 [DetailJadwal] Schedule shared')
-        
-      } catch (err) {
-        console.error('❌ [DetailJadwal] Error sharing schedule:', err)
-        alert('Gagal membagikan jadwal')
+      const categoryMap = {
+        'doa-fajar': 'Doa Fajar',
+        'ibadah-minggu': 'Ibadah Minggu',
+        'pemahaman-alkitab': 'Pemahaman Alkitab',
+        'doa-puasa': 'Doa & Puasa',
+        'pelprip': 'PELPRIP',
+        'pelwap': 'PELWAP',
+        'ibadah-umum': 'Ibadah Umum'
       }
+      
+      return categoryMap[category.toLowerCase()] || category
     },
 
     getClosingMessage() {
       if (!this.schedule) return ''
       
-      // Jika ada closing message dari data, gunakan itu
       if (this.schedule.closing) {
         return this.schedule.closing
       }
       
-      // Fallback: pesan berdasarkan kategori jadwal
       switch (this.schedule.category?.toLowerCase()) {
-        case 'ibadah':
-        case 'worship': {
+        case 'doa-fajar':
+          return 'Mari memulai hari dengan doa bersama. Tuhan Yesus memberkati!'
+        case 'ibadah-minggu':
           return 'Mari bersama-sama memuji dan menyembah Tuhan. Tuhan Yesus memberkati!'
-        }
-        case 'pelatar':
-        case 'training': {
-          return 'Semoga pelatihan ini memberkati dan menguatkan iman kita. Tuhan Yesus memberkati!'
-        }
-        case 'pelprap': {
-          return 'Mari berdoa bersama untuk kemajuan pelayanan gereja. Tuhan Yesus memberkati!'
-        }
-        case 'event':
-        case 'acara': {
-          return 'Terima kasih atas partisipasi Anda. Tuhan Yesus memberkati!'
-        }
-        default: {
-          return 'Sampai jumpa di acara ini. Tuhan Yesus memberkati!'
-        }
+        case 'pemahaman-alkitab':
+          return 'Semoga firman Tuhan menguatkan iman kita. Tuhan Yesus memberkati!'
+        case 'doa-puasa':
+          return 'Mari berdoa bersama dengan tekun. Tuhan Yesus memberkati!'
+        case 'pelprip':
+        case 'pelwap':
+          return 'Terima kasih atas persekutuan yang diberkati. Tuhan Yesus memberkati!'
+        default:
+          return 'Sampai jumpa di kegiatan ini. Tuhan Yesus memberkati!'
       }
     },
 
-    // ===== UTILITY FUNCTIONS =====
-
-    /**
-     * Format date untuk display
-     */
-    formatDate(date) {
-      if (!date) return ''
+    formatDate(dateValue) {
+      if (!dateValue) return ''
       
-      const dateObj = new Date(date.seconds ? date.seconds * 1000 : date)
+      const dateObj = new Date(dateValue.seconds ? dateValue.seconds * 1000 : dateValue)
       
       return new Intl.DateTimeFormat('id-ID', {
         weekday: 'long',
@@ -363,48 +350,22 @@ export default {
       }).format(dateObj)
     },
 
-    /**
-     * Format description dengan line breaks
-     */
-    formatDescription(description) {
-      if (!description) return ''
+    truncateText(text, maxLength) {
+      if (!text) return ''
       
-      return description
-        .replace(/\n/g, '<br>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    },
-
-    /**
-     * Format recurrence pattern untuk display
-     */
-    formatRecurrencePattern(pattern) {
-      if (!pattern) return ''
+      if (text.length <= maxLength) return text
       
-      const { type, interval, dayOfWeek } = pattern
-      
-      switch (type) {
-        case 'daily': {
-          return interval === 1 ? 'Setiap hari' : `Setiap ${interval} hari`
-        }
-        case 'weekly': {
-          const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-          const dayName = days[parseInt(dayOfWeek)] || 'Minggu'
-          return interval === 1 ? `Setiap ${dayName}` : `Setiap ${interval} minggu (${dayName})`
-        }
-        case 'monthly': {
-          return interval === 1 ? 'Setiap bulan' : `Setiap ${interval} bulan`
-        }
-        default: {
-          return 'Pola berulang'
-        }
-      }
+      return text.substring(0, maxLength).trim() + '...'
     }
   }
 }
 </script>
 
 <style scoped>
+/* ========================================
+   LOADING & ERROR STATES
+========================================= */
+
 /* Loading state */
 .loading-container {
   display: flex;
@@ -475,9 +436,7 @@ export default {
   margin: 0;
 }
 
-/* ===== SCHEDULE-SPECIFIC STYLES ===== */
-.recurring-info-section,
-.additional-info-section {
+.schedule-meta-section {
   background: white;
   padding: 20px;
   border-radius: 12px;
@@ -485,69 +444,115 @@ export default {
   border: 1px solid #e5e7eb;
 }
 
-.recurring-info-section h3,
-.additional-info-section h3 {
+.meta-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.meta-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 13px;
+}
+
+.meta-item:last-child {
+  border-bottom: none;
+}
+
+.meta-label {
+  color: #6b7280;
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.meta-value {
+  color: #374151;
+  font-weight: 600;
+  font-size: 16px;
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  .meta-label {
+    font-size: 14px;
+  }
+  
+  .meta-value {
+    font-size: 14px;
+  }
+}
+
+/* ========================================
+   ANNOUNCEMENTS
+========================================= */
+
+.announcements-section {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #e5e7eb;
+}
+
+.announcements-section h3 {
   font-size: 16px;
   font-weight: 600;
   color: #1f2937;
   margin: 0 0 12px 0;
 }
 
-.recurring-details {
-  font-size: 14px;
+.announcements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.announcement-item {
+  background: #f8f9fa;
   color: #374151;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  border-left: 4px solid #41442A;
 }
 
-.recurrence-pattern p {
-  margin: 0 0 8px 0;
+/* ========================================
+   SPECIAL NOTES
+========================================= */
+
+.notes-section {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #e5e7eb;
 }
 
-.generated-info {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
+.notes-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 12px 0;
 }
 
-.info-note {
-  font-size: 13px;
-  color: #6b7280;
-  font-style: italic;
-  margin: 0;
-}
-
-.additional-content {
+.notes-content {
+  color: #374151;
   font-size: 14px;
   line-height: 1.6;
-  color: #374151;
+  background: #fef3c7;
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 4px solid #f59e0b;
 }
 
-/* ===== ACTION BUTTONS ===== */
-.schedule-actions {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
+/* ========================================
+   RELATED SCHEDULES
+========================================= */
 
-.calendar-btn,
-.share-btn {
-  flex: 1;
-  min-width: 140px;
-}
-
-/* Secondary button style */
-.share-btn.secondary {
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
-}
-
-.share-btn.secondary:hover {
-  background: #e5e7eb;
-  color: #111827;
-}
-
-/* ===== RELATED SCHEDULES ===== */
 .related-schedules {
   background: white;
   padding: 20px;
@@ -566,13 +571,13 @@ export default {
 .related-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .related-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
   padding: 12px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -585,23 +590,50 @@ export default {
   border-color: #3b82f6;
 }
 
+.related-thumbnail {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.related-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.related-content {
+  flex: 1;
+  min-width: 0;
+}
+
 .related-content h4 {
   font-size: 14px;
   font-weight: 600;
   color: #1f2937;
   margin: 0 0 4px 0;
+  line-height: 1.3;
 }
 
 .related-content p {
   font-size: 12px;
   color: #6b7280;
   margin: 0;
+  line-height: 1.3;
+}
+
+.related-summary {
+  margin-top: 4px !important;
+  color: #9ca3af !important;
 }
 
 .related-arrow {
   color: #9ca3af;
   font-weight: bold;
   transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
 .related-item:hover .related-arrow {
@@ -609,36 +641,26 @@ export default {
   color: #3b82f6;
 }
 
-/* ===== DEBUG INFO ===== */
-.debug-info {
-  background: #1f2937;
-  color: #f9fafb;
-  padding: 12px;
-  border-radius: 8px;
-  margin: 16px;
-  font-size: 12px;
-  font-family: monospace;
-}
+/* ========================================
+   RESPONSIVE
+========================================= */
 
-.debug-info p {
-  margin: 0 0 4px 0;
-}
-
-/* Responsive */
 @media (max-width: 640px) {
-  .schedule-actions {
-    flex-direction: column;
-  }
-  
-  .calendar-btn,
-  .share-btn {
-    flex: none;
-  }
-  
-  .recurring-info-section,
-  .additional-info-section,
+  .schedule-meta-section,
+  .announcements-section,
+  .notes-section,
   .related-schedules {
     padding: 16px;
+  }
+  
+  .related-item {
+    gap: 8px;
+    padding: 8px;
+  }
+  
+  .related-thumbnail {
+    width: 50px;
+    height: 50px;
   }
   
   .error-content {
@@ -660,7 +682,10 @@ export default {
   }
 }
 
-/* Accessibility */
+/* ========================================
+   ACCESSIBILITY
+========================================= */
+
 @media (prefers-reduced-motion: reduce) {
   .loading-spinner {
     animation: none;
@@ -669,52 +694,6 @@ export default {
   
   .related-item:hover .related-arrow {
     transform: none;
-  }
-}
-
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  .recurring-info-section,
-  .additional-info-section,
-  .related-schedules {
-    background: #1f2937;
-    border-color: #374151;
-  }
-  
-  .recurring-info-section h3,
-  .additional-info-section h3,
-  .related-schedules h3 {
-    color: #f9fafb;
-  }
-  
-  .recurring-details,
-  .additional-content {
-    color: #e5e7eb;
-  }
-  
-  .related-item {
-    border-color: #374151;
-  }
-  
-  .related-item:hover {
-    background: #374151;
-    border-color: #60a5fa;
-  }
-  
-  .related-content h4 {
-    color: #f9fafb;
-  }
-  
-  .related-content p {
-    color: #d1d5db;
-  }
-  
-  .related-arrow {
-    color: #6b7280;
-  }
-  
-  .related-item:hover .related-arrow {
-    color: #60a5fa;
   }
 }
 </style>
