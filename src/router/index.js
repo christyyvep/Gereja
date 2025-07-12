@@ -189,6 +189,12 @@ const routes = [
       requiresAuth: true,
       requiresAdmin: true 
     }
+  },
+  {
+    path: '/lapor-bantuan',
+    name: 'LaporBantuanPage',
+    component: () => import('@/views/LaporBantuanPage.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 

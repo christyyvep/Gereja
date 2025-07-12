@@ -243,7 +243,7 @@ export default {
      * Saat ini masih dalam pengembangan
      */
     goToReportsHelp() {
-      this.showNotification('Fitur Laporan dan Bantuan sedang dalam pengembangan', 'info')
+      this.$router.push('/lapor-bantuan')
     },
 
     // === LOGOUT METHODS ===
