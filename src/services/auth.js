@@ -284,24 +284,43 @@ export async function logoutJemaat(forgetMe = false) {
  */
 export function getRememberedUser() {
   try {
-    const rememberedUser = localStorage.getItem('rememberedUser')
-    if (!rememberedUser) return null
-    
-    const userData = JSON.parse(rememberedUser)
-    
-    // Check if remember period is still valid
-    const now = new Date().getTime()
-    if (userData.rememberExpiry && now < userData.rememberExpiry) {
-      console.log('✅ [Auth] Found valid remembered user:', userData.nama)
-      return userData
-    } else {
-      // Remember period expired
-      console.log('⏰ [Auth] Remember period expired, clearing data')
-      localStorage.removeItem('rememberedUser')
-      return null
+    // First check main user storage (from LoginPage)
+    const mainUser = localStorage.getItem('user')
+    if (mainUser) {
+      const userData = JSON.parse(mainUser)
+      
+      // Check if this user has remember me enabled and not expired
+      if (userData.rememberMe && userData.rememberExpiry) {
+        const now = new Date().getTime()
+        if (now < userData.rememberExpiry) {
+          console.log('✅ [Auth] Found valid remembered user in main storage:', userData.nama)
+          return userData
+        } else {
+          console.log('⏰ [Auth] Remember period expired for main user, clearing data')
+          localStorage.removeItem('user')
+        }
+      }
     }
+    
+    // Fallback: check separate rememberedUser storage (legacy)
+    const rememberedUser = localStorage.getItem('rememberedUser')
+    if (rememberedUser) {
+      const userData = JSON.parse(rememberedUser)
+      
+      const now = new Date().getTime()
+      if (userData.rememberExpiry && now < userData.rememberExpiry) {
+        console.log('✅ [Auth] Found valid remembered user in legacy storage:', userData.nama)
+        return userData
+      } else {
+        console.log('⏰ [Auth] Remember period expired for legacy user, clearing data')
+        localStorage.removeItem('rememberedUser')
+      }
+    }
+    
+    return null
   } catch (error) {
     console.error('❌ [Auth] Error getting remembered user:', error)
+    localStorage.removeItem('user')
     localStorage.removeItem('rememberedUser')
     return null
   }
@@ -363,9 +382,20 @@ export async function getCurrentJemaat() {
       return null
     }
     
+    // Check if user data has expired (untuk yang tidak remember me)
+    if (userData.rememberExpiry) {
+      const now = new Date().getTime()
+      if (now >= userData.rememberExpiry) {
+        console.log('⏰ [Auth] User session expired, clearing data')
+        localStorage.removeItem('user')
+        return null
+      }
+    }
+    
+    console.log('✅ [Auth] Current user valid:', userData.nama, userData.rememberMe ? '(remembered)' : '(session)')
     return userData
   } catch (error) {
-    console.error('Error getting current jemaat:', error)
+    console.error('❌ [Auth] Error getting current jemaat:', error)
     localStorage.removeItem('user') // Clear corrupted data
     return null
   }

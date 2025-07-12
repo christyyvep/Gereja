@@ -154,16 +154,13 @@ export const useUserStore = defineStore('user', {
       return true
     },
     
-    getSavedUserData() {
+    async getSavedUserData() {
       try {
-        // Check localStorage directly
-        const userDataString = localStorage.getItem('user')
-        if (userDataString) {
-          const userData = JSON.parse(userDataString)
-          if (userData && userData.nama) {
-            console.log('📋 [UserStore] Found saved user:', userData.nama)
-            return userData
-          }
+        // Use getCurrentJemaat for consistency
+        const userData = await getCurrentJemaat()
+        if (userData && userData.nama) {
+          console.log('📋 [UserStore] Found saved user:', userData.nama)
+          return userData
         }
         return null
       } catch (error) {
@@ -173,15 +170,15 @@ export const useUserStore = defineStore('user', {
     },
     
     /**
-     * Check and restore login status from localStorage (UPDATED)
+     * Check and restore login status from localStorage (ENHANCED)
      * @returns {boolean} Login status
      */
     async checkLoginStatus() {
       try {
         console.log('🔍 [UserStore] Checking login status...')
         
-        // First check current session
-        const savedUser = getCurrentJemaat()
+        // First check current session - this includes remembered users
+        const savedUser = await getCurrentJemaat()
         
         if (savedUser && savedUser.nama) {
           if (this.validateUserData(savedUser)) {
@@ -190,16 +187,19 @@ export const useUserStore = defineStore('user', {
             // Initialize streak data saat restore session
             await this.initializeUserData(savedUser.id || savedUser.nama)
             
-            console.log('✅ [UserStore] Current session restored')
+            const loginType = savedUser.rememberMe ? 'remembered user' : 'session user'
+            console.log(`✅ [UserStore] ${loginType} restored:`, savedUser.nama)
             return true
           }
         }
         
-        // If no current session, check for remembered user
+        // If no current session, check for legacy remembered user (fallback)
         const rememberedUser = getRememberedUser()
         
-        if (rememberedUser) {
+        if (rememberedUser && rememberedUser.nama !== savedUser?.nama) {
           try {
+            console.log('🔄 [UserStore] Found legacy remembered user, migrating...')
+            
             // Auto-login with remembered user
             const autoLoginData = await autoLoginRememberedUser(rememberedUser)
             this.setUser(autoLoginData)
@@ -207,7 +207,7 @@ export const useUserStore = defineStore('user', {
             // Initialize streak data untuk auto-login
             await this.initializeUserData(autoLoginData.id || autoLoginData.nama)
             
-            console.log('✅ [UserStore] Auto-login successful with remembered user')
+            console.log('✅ [UserStore] Legacy auto-login successful with remembered user')
             return true
           } catch (error) {
             console.error('❌ [UserStore] Auto-login failed:', error)
@@ -335,14 +335,34 @@ export const useUserStore = defineStore('user', {
      */
     validateUserData(userData) {
       if (!userData || typeof userData !== 'object') {
+        console.warn('❌ [UserStore] User data is not an object')
         return false
       }
       
       // Check required fields
-      if (!userData.nama || !userData.sektor) {
-        console.warn('❌ [UserStore] Missing required fields (nama, sektor)')
+      if (!userData.nama) {
+        console.warn('❌ [UserStore] Missing required field: nama')
         return false
       }
+      
+      // Sektor tidak wajib, bisa kosong
+      if (!Object.prototype.hasOwnProperty.call(userData, 'sektor')) {
+        console.warn('⚠️ [UserStore] Missing sektor field, setting default')
+        userData.sektor = ''
+      }
+      
+      // Pastikan ada ID atau gunakan nama sebagai fallback
+      if (!userData.id && userData.nama) {
+        console.log('🔧 [UserStore] No ID found, using nama as ID')
+        userData.id = userData.nama
+      }
+      
+      console.log('✅ [UserStore] User data validation passed:', {
+        nama: userData.nama,
+        id: userData.id,
+        sektor: userData.sektor || '(kosong)',
+        role: userData.role || 'jemaat'
+      })
       
       return true
     },
@@ -369,6 +389,218 @@ export const useUserStore = defineStore('user', {
     debugUser() {
       console.log('🧪 [UserStore] === USER DEBUG INFO ===')
       console.table(this.getDebugInfo())
-    }
+    },
+
+    /**
+     * Development helper: Set user manually for testing
+     * @param {string} nama - Nama user
+     * @returns {Promise<boolean>} Success status
+     */
+    async setUserManually(nama) {
+      try {
+        console.log('🛠️ [UserStore] Manually setting user:', nama)
+        
+        // Import auth functions
+        const { checkJemaatExists, getJemaatDocId } = await import('@/services/auth')
+        const { doc, getDoc } = await import('firebase/firestore')
+        const { db } = await import('@/services/firebase')
+        
+        // Check if user exists in database
+        const exists = await checkJemaatExists(nama)
+        if (!exists) {
+          console.error('❌ [UserStore] User not found in database:', nama)
+          return false
+        }
+        
+        // Get user data from database
+        const docId = await getJemaatDocId(nama)
+        const userRef = doc(db, 'jemaat', docId)
+        const userDoc = await getDoc(userRef)
+        
+        if (!userDoc.exists()) {
+          console.error('❌ [UserStore] User document not found:', nama)
+          return false
+        }
+        
+        const userData = userDoc.data()
+        
+        // Remove password for security
+        delete userData.password
+        
+        // Set ID and ensure required fields
+        userData.id = docId
+        userData.role = userData.role || 'jemaat'
+        userData.isRegistered = userData.isRegistered || false
+        
+        // Set user data
+        this.setUser(userData)
+        
+        // Save to localStorage
+        localStorage.setItem('user', JSON.stringify(userData))
+        
+        console.log('✅ [UserStore] User manually set successfully:', {
+          nama: userData.nama,
+          id: userData.id,
+          role: userData.role,
+          isRegistered: userData.isRegistered
+        })
+        
+        return true
+        
+      } catch (error) {
+        console.error('❌ [UserStore] Error setting user manually:', error)
+        return false
+      }
+    },
+
+    /**
+     * Development helper: Check user data in database
+     * @param {string} nama - Nama user
+     * @returns {Promise<Object|null>} User data or null
+     */
+    async checkUserInDatabase(nama) {
+      try {
+        console.log('🔍 [UserStore] Checking user in database:', nama)
+        
+        // Import auth functions
+        const { checkJemaatExists, getJemaatDocId } = await import('@/services/auth')
+        const { doc, getDoc } = await import('firebase/firestore')
+        const { db } = await import('@/services/firebase')
+        
+        // Check if user exists
+        const exists = await checkJemaatExists(nama)
+        console.log('User exists:', exists)
+        
+        if (!exists) {
+          return null
+        }
+        
+        // Get user data
+        const docId = await getJemaatDocId(nama)
+        const userRef = doc(db, 'jemaat', docId)
+        const userDoc = await getDoc(userRef)
+        
+        if (!userDoc.exists()) {
+          return null
+        }
+        
+        const userData = userDoc.data()
+        delete userData.password // Remove password for security
+        
+        console.log('📊 [UserStore] User data from database:', {
+          nama: userData.nama,
+          id: docId,
+          role: userData.role || '(no role)',
+          isRegistered: userData.isRegistered || false,
+          sektor: userData.sektor || '(no sektor)',
+          status: userData.status || '(no status)'
+        })
+        
+        return { id: docId, ...userData }
+        
+      } catch (error) {
+        console.error('❌ [UserStore] Error checking user in database:', error)
+        return null
+      }
+    },
+
+    /**
+     * Refresh user data from database (tanpa logout)
+     * Berguna untuk mendapat konten terbaru tanpa login ulang
+     * @returns {Promise<boolean>} Success status
+     */
+    async refreshUserData() {
+      try {
+        if (!this.user || !this.user.nama) {
+          console.warn('⚠️ [UserStore] No user to refresh')
+          return false
+        }
+        
+        console.log('🔄 [UserStore] Refreshing user data from database...')
+        
+        // Import auth functions
+        const { checkJemaatExists, getJemaatDocId } = await import('@/services/auth')
+        const { doc, getDoc } = await import('firebase/firestore')
+        const { db } = await import('@/services/firebase')
+        
+        // Get fresh user data from database
+        const exists = await checkJemaatExists(this.user.nama)
+        if (!exists) {
+          console.error('❌ [UserStore] User no longer exists in database')
+          return false
+        }
+        
+        const docId = await getJemaatDocId(this.user.nama)
+        const userRef = doc(db, 'jemaat', docId)
+        const userDoc = await getDoc(userRef)
+        
+        if (!userDoc.exists()) {
+          console.error('❌ [UserStore] User document not found')
+          return false
+        }
+        
+        const freshUserData = userDoc.data()
+        delete freshUserData.password // Remove password for security
+        
+        // Preserve remember me settings and expiry
+        const updatedUserData = {
+          ...freshUserData,
+          id: docId,
+          rememberMe: this.user.rememberMe || false,
+          rememberExpiry: this.user.rememberExpiry,
+          autoLoggedIn: this.user.autoLoggedIn,
+          autoLoginAt: this.user.autoLoginAt,
+          refreshedAt: new Date().getTime()
+        }
+        
+        // Update store
+        this.user = updatedUserData
+        
+        // Update localStorage
+        localStorage.setItem('user', JSON.stringify(updatedUserData))
+        
+        console.log('✅ [UserStore] User data refreshed successfully:', {
+          nama: updatedUserData.nama,
+          role: updatedUserData.role || 'jemaat',
+          refreshedAt: new Date(updatedUserData.refreshedAt).toLocaleString()
+        })
+        
+        return true
+        
+      } catch (error) {
+        console.error('❌ [UserStore] Error refreshing user data:', error)
+        return false
+      }
+    },
+
+    /**
+     * Check if user needs data refresh (setiap 30 menit)
+     * @returns {boolean} True jika perlu refresh
+     */
+    needsDataRefresh() {
+      if (!this.user || !this.user.refreshedAt) {
+        return true // Belum pernah refresh
+      }
+      
+      const now = new Date().getTime()
+      const lastRefresh = this.user.refreshedAt
+      const thirtyMinutes = 30 * 60 * 1000 // 30 menit dalam milliseconds
+      
+      return (now - lastRefresh) > thirtyMinutes
+    },
+
+    /**
+     * Auto refresh user data jika diperlukan
+     * @returns {Promise<boolean>} Success status
+     */
+    async autoRefreshIfNeeded() {
+      if (this.needsDataRefresh()) {
+        console.log('⏰ [UserStore] Auto-refreshing user data...')
+        return await this.refreshUserData()
+      }
+      
+      console.log('✅ [UserStore] User data is fresh, no refresh needed')
+      return true
+    },
   }
 })

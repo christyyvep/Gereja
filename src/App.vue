@@ -20,11 +20,15 @@ export default {
       const userId = userStore.user.id || userStore.user.nama
       if (userId) {
         try {
-          console.log('🔥 [App] Checking daily streak for user:', userId)
+          // Auto-refresh user data jika diperlukan (untuk konten terbaru)
+          console.log('� [App] Auto-refreshing user data if needed...')
+          await userStore.autoRefreshIfNeeded()
+          
+          console.log('�🔥 [App] Checking daily streak for user:', userId)
           const currentStreak = await streakStore.checkDailyStreak(userId)
           console.log('✅ [App] Daily streak checked:', currentStreak)
         } catch (error) {
-          console.error('❌ [App] Error checking daily streak:', error)
+          console.error('❌ [App] Error during app initialization:', error)
         }
       }
     }

@@ -111,6 +111,89 @@ if (isDevelopment) {
     console.log('🔄 [PWA] Complete PWA reset done. Refresh page manually.')
   }
 
+  
+  // ✅ BARU: Debug tools untuk testing user login
+  window.debugUser = {
+    async checkCurrent() {
+      const { useUserStore } = await import('./stores/userStore')
+      const userStore = useUserStore()
+      console.log('👤 [Debug] Current user:', userStore.user)
+      console.log('🔐 [Debug] Is logged in:', userStore.isLoggedIn)
+      console.log('🆔 [Debug] User ID:', userStore.userId)
+      console.log('📋 [Debug] User name:', userStore.namaUser)
+      if (userStore.user) {
+        console.log('💾 [Debug] Remember Me:', userStore.user.rememberMe)
+        console.log('⏰ [Debug] Remember Expiry:', userStore.user.rememberExpiry ? new Date(userStore.user.rememberExpiry) : 'None')
+      }
+      return userStore.user
+    },
+    
+    async checkDatabase(nama) {
+      const { useUserStore } = await import('./stores/userStore')
+      const userStore = useUserStore()
+      const result = await userStore.checkUserInDatabase(nama)
+      return result
+    },
+    
+    async setUser(nama) {
+      const { useUserStore } = await import('./stores/userStore')
+      const userStore = useUserStore()
+      const success = await userStore.setUserManually(nama)
+      if (success) {
+        console.log('✅ [Debug] User set successfully. Check current user:')
+        return await this.checkCurrent()
+      }
+      return false
+    },
+    
+    async checkLoginStatus() {
+      const { useUserStore } = await import('./stores/userStore')
+      const userStore = useUserStore()
+      const isLoggedIn = await userStore.checkLoginStatus()
+      console.log('🔍 [Debug] Login status check result:', isLoggedIn)
+      return isLoggedIn
+    },
+    
+    async refreshData() {
+      const { useUserStore } = await import('./stores/userStore')
+      const userStore = useUserStore()
+      const success = await userStore.refreshUserData()
+      console.log('🔄 [Debug] Refresh result:', success)
+      return success
+    },
+    
+    async autoRefresh() {
+      const { useUserStore } = await import('./stores/userStore')
+      const userStore = useUserStore()
+      const success = await userStore.autoRefreshIfNeeded()
+      console.log('⚡ [Debug] Auto-refresh result:', success)
+      return success
+    },
+    
+    async needsRefresh() {
+      const { useUserStore } = await import('./stores/userStore')
+      const userStore = useUserStore()
+      const needs = userStore.needsDataRefresh()
+      console.log('⏰ [Debug] Needs refresh:', needs)
+      return needs
+    },
+    
+    async clearUser() {
+      const { useUserStore } = await import('./stores/userStore')
+      const userStore = useUserStore()
+      userStore.logout(true) // Force forget
+      console.log('🗑️ [Debug] User data cleared')
+    },
+    
+    checkStorage() {
+      const user = localStorage.getItem('user')
+      const rememberedUser = localStorage.getItem('rememberedUser')
+      console.log('💾 [Debug] localStorage user:', user ? JSON.parse(user) : null)
+      console.log('💾 [Debug] localStorage rememberedUser:', rememberedUser ? JSON.parse(rememberedUser) : null)
+      return { user: user ? JSON.parse(user) : null, rememberedUser: rememberedUser ? JSON.parse(rememberedUser) : null }
+    }
+  }
+
   // ✅ BARU: Debug tools untuk testing streak
   window.debugStreak = {
     async checkCurrent() {
