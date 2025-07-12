@@ -31,15 +31,19 @@
 </template>
 
 <script>
-import { House, Calendar, Bell, User } from 'lucide-vue-next'
+import { 
+  House, 
+  // Calendar, 
+  // Bell, 
+  User } from 'lucide-vue-next'
 
 export default {
   name: 'BottomNavbar',
   
   components: {
     House,
-    Calendar,
-    Bell,
+    // Calendar,
+    // Bell,
     User
   },
   
