@@ -239,7 +239,6 @@ export default {
     
     breadcrumbItems() {
       return [
-        { text: 'Home', to: '/' },
         { text: 'Jadwal Pelayan Altar', to: '/jadwal-peltar' },
         { text: this.schedule ? this.schedule.categoryLabel : 'Detail', to: null }
       ]

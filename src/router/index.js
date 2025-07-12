@@ -6,7 +6,6 @@ import LoginPage from '../views/LoginPage.vue'
 import RegisterPage from '../views/RegisterPage.vue'
 import HomePage from '../views/HomePage.vue'
 import SuccessRegister from '../views/SuccessRegister.vue'
-import FirebaseTestPage from '../views/FirebaseTestPage.vue'
 import JadwalPage from '../views/JadwalPage.vue'
 import DetailJadwal from '../views/DetailJadwal.vue'
 import JadwalPeltarPage from '../views/JadwalPeltarPage.vue'
@@ -163,12 +162,6 @@ const routes = [
     path: '/notifikasi',
     name: 'NotifikasiPage',
     component: () => import('../views/NotifikasiPage.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/firebase-test',
-    name: 'FirebaseTestPage',
-    component: FirebaseTestPage,
     meta: { requiresAuth: true }
   },
   {

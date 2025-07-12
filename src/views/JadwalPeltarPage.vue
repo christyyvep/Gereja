@@ -144,7 +144,6 @@ export default {
       error: null,           // Pesan error jika ada
       
       breadcrumbItems: [
-        { text: 'Home', to: '/' },
         { text: 'Jadwal Pelayan Altar', to: '/jadwal-peltar' }
       ]
     }
