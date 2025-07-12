@@ -47,11 +47,13 @@ export const useUserStore = defineStore('user', {
 
     /**
      * Check if user is pengurus or admin
+     * PENGURUS ROLE TEMPORARILY HIDDEN - Only admin access
      * @returns {boolean}
      */
     isPengurus: (state) => {
       const role = state.user?.role || 'jemaat'
-      return role === 'pengurus' || role === 'admin'
+      // Only admin now, pengurus role is hidden
+      return role === 'admin'
     },
 
     /**

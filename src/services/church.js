@@ -110,8 +110,10 @@ export async function initializeChurchInformation() {
 
 /**
  * Get history perubahan informasi gereja (untuk admin)
+ * TEMPORARILY DISABLED FOR DEVELOPMENT
  * @returns {Promise<Array>} Array history changes
  */
+/*
 export async function getChurchInfoHistory() {
   try {
     // TODO: Implementasi history tracking
@@ -124,6 +126,7 @@ export async function getChurchInfoHistory() {
     throw error
   }
 }
+*/
 
 // ===== HELPER FUNCTIONS =====
 
@@ -251,14 +254,17 @@ function validateChurchData(data) {
 
 /**
  * Helper function untuk admin: Check apakah user bisa edit church info
+ * TEMPORARILY DISABLED FOR DEVELOPMENT
  * @returns {boolean} Apakah user bisa edit
  */
+/*
 export function canEditChurchInfo() {
   // TODO: Implementasi permission check
   // Untuk sekarang, hanya admin yang bisa edit
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   return user.role === 'admin'
 }
+*/
 
 /**
  * Helper function: Get church data untuk display di UI

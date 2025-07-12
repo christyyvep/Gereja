@@ -1,6 +1,151 @@
-<!-- src/views/DetailProfile.vue - USING EXISTING COMPONENTS -->
+<!-- src/views/DetailProfile.vue - Responsive Profile Details -->
 <template>
-    <div class="profile-detail-container">
+  <div class="profile-detail-container">
+    
+    <!-- === DESKTOP LAYOUT (≥769px) === -->
+    <div class="desktop-layout">
+      <!-- Desktop Navbar -->
+      <DesktopNavbar />
+      
+      <!-- Desktop Content -->
+      <main class="desktop-content">
+        <!-- Desktop Breadcrumb -->
+        <BreadcrumbDesktop :items="breadcrumbItems" />
+        
+        <!-- Desktop Profile Form -->
+        <div class="desktop-profile-wrapper">
+          
+          <!-- Desktop Header -->
+          <div class="desktop-header">
+            <h1 class="desktop-title">Detail Profil</h1>
+            <p class="desktop-subtitle">Kelola informasi pribadi Anda</p>
+          </div>
+          
+          <!-- Desktop Profile Grid -->
+          <div class="desktop-profile-grid">
+            
+            <!-- Photo Section -->
+            <div class="desktop-photo-section">
+              <h2 class="section-title">Foto Profil</h2>
+              <div class="desktop-photo-container">
+                <div class="desktop-profile-photo">
+                  <span class="desktop-photo-text">{{ userInitial }}</span>
+                </div>
+                <button class="desktop-change-photo-btn" @click="changePhoto">
+                  <Camera class="camera-icon" />
+                  Ubah Foto Profil
+                </button>
+              </div>
+            </div>
+            
+            <!-- Form Section -->
+            <div class="desktop-form-section">
+              <div class="form-header">
+                <h2 class="section-title">Informasi Pribadi</h2>
+                <div class="form-actions">
+                  <ButtonPrimary 
+                    v-if="!isEditing" 
+                    @click="startEditing"
+                    variant="secondary"
+                  >
+                    <Edit class="btn-icon" />
+                    Edit Profile
+                  </ButtonPrimary>
+                  
+                  <div v-else class="edit-button-group">
+                    <ButtonPrimary 
+                      @click="cancelEditing"
+                      variant="secondary"
+                    >
+                      <X class="btn-icon" />
+                      Batal
+                    </ButtonPrimary>
+                    <ButtonPrimary 
+                      @click="saveProfile"
+                      :loading="isLoading"
+                      :disabled="isLoading"
+                    >
+                      <Check class="btn-icon" />
+                      {{ isLoading ? 'Menyimpan...' : 'Simpan' }}
+                    </ButtonPrimary>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Desktop Form Grid -->
+              <div class="desktop-form-grid">
+                <!-- Row 1 -->
+                <div class="form-row">
+                  <div class="nama-field-container">
+                    <FormInput
+                      id="desktop-profile-nama"
+                      label="Nama Lengkap"
+                      v-model="profileData.nama"
+                      placeholder="Masukkan nama lengkap"
+                      type="text"
+                      :disabled="true"
+                      :required="true"
+                    />
+                    <small class="helper-text">Nama tidak dapat diubah</small>
+                  </div>
+                  <FormInput
+                    id="desktop-profile-tanggal-lahir"
+                    label="Tanggal Lahir"
+                    v-model="profileData.tanggalLahir"
+                    type="date"
+                    :disabled="!isEditing"
+                  />
+                </div>
+                
+                <!-- Row 2 -->
+                <div class="form-row">
+                  <SelectDropdown
+                    id="desktop-profile-status"
+                    label="Status"
+                    v-model="profileData.status"
+                    :disabled="!isEditing"
+                    :options="statusOptions"
+                    placeholder="Pilih status"
+                  />
+                  <SelectDropdown
+                    id="desktop-profile-jenis-kelamin"
+                    label="Jenis Kelamin"
+                    v-model="profileData.jenisKelamin"
+                    :disabled="!isEditing"
+                    :options="jenisKelaminOptions"
+                    placeholder="Pilih jenis kelamin"
+                  />
+                </div>
+                
+                <!-- Row 3 -->
+                <div class="form-row">
+                  <SelectDropdown
+                    id="desktop-profile-sektor"
+                    label="Sektor"
+                    v-model="profileData.sektor"
+                    :disabled="!isEditing"
+                    :options="sektorOptions"
+                    placeholder="Pilih sektor"
+                  />
+                  <FormInput
+                    id="desktop-profile-no-telp"
+                    label="No. Telepon"
+                    v-model="profileData.noTelp"
+                    placeholder="08xxxxxxxxxx"
+                    type="tel"
+                    :disabled="!isEditing"
+                  />
+                </div>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      </main>
+    </div>
+    
+    <!-- === MOBILE LAYOUT (≤768px) === -->
+    <div class="mobile-layout">
       <div class="profile-wrapper">
         <!-- Header dengan tombol back -->
         <HeaderWithBack title="Profile" />
@@ -18,15 +163,18 @@
         <!-- Form Fields menggunakan component yang ada -->
         <div class="form-section">
           <!-- Nama -->
-          <FormInput
-            id="profile-nama"
-            label="Nama"
-            v-model="profileData.nama"
-            placeholder="Masukkan nama lengkap"
-            type="text"
-            :disabled="!isEditing"
-            :required="true"
-          />
+          <div class="nama-field-container">
+            <FormInput
+              id="profile-nama"
+              label="Nama"
+              v-model="profileData.nama"
+              placeholder="Masukkan nama lengkap"
+              type="text"
+              :disabled="true"
+              :required="true"
+            />
+            <small class="helper-text">Nama tidak dapat diubah</small>
+          </div>
   
           <!-- Tanggal Lahir -->
           <FormInput
@@ -111,49 +259,61 @@
         </div>
       </div>
     </div>
-  </template>
+  </div>
+</template>
+
+<script>
+import HeaderWithBack from '@/components/layout/HeaderWithBack.vue'
+import DesktopNavbar from '@/components/layout/DesktopNavbar.vue'
+import BreadcrumbDesktop from '@/components/common/BreadcrumbDesktop.vue'
+import FormInput from '@/components/common/FormInput.vue'
+import SelectDropdown from '@/components/common/SelectDropdown.vue'
+import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
+import { Edit, Check, X, Camera } from 'lucide-vue-next'
+import { useUserStore } from '@/stores/userStore'
+import { updateUserProfile } from '@/services/profile.js'
+
+export default {
+  name: 'DetailProfile',
+  components: {
+    HeaderWithBack,
+    DesktopNavbar,
+    BreadcrumbDesktop,
+    FormInput,
+    SelectDropdown,
+    ButtonPrimary,
+    Edit,
+    Check,
+    X,
+    Camera
+  },
   
-  <script>
-  import HeaderWithBack from '@/components/layout/HeaderWithBack.vue'
-  import FormInput from '@/components/common/FormInput.vue'
-  import SelectDropdown from '@/components/common/SelectDropdown.vue'
-  import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
-  import { Edit, Check, X } from 'lucide-vue-next'
-  import { useUserStore } from '@/stores/userStore'
-  import { updateUserProfile } from '@/services/profile.js'
-  
-  export default {
-    name: 'DetailProfile',
-    components: {
-      HeaderWithBack,
-      FormInput,
-      SelectDropdown,
-      ButtonPrimary,
-      Edit,
-      Check,
-      X
-    },
-    
-    data() {
-      return {
-        isEditing: false,
-        isLoading: false,
-        profileData: {
-          nama: '',
-          tanggalLahir: '',
-          status: '',
-          sektor: '',
-          jenisKelamin: '',
-          noTelp: ''
-        },
-        originalData: {}, // Backup data untuk cancel
-        
-        // Options untuk dropdown
-        statusOptions: ['Menikah', 'Single', 'Janda/Duda'],
-        sektorOptions: ['Tesalonika', 'Anugerah'],
-        jenisKelaminOptions: ['Laki-laki', 'Perempuan']
-      }
-    },
+  data() {
+    return {
+      isEditing: false,
+      isLoading: false,
+      profileData: {
+        nama: '',
+        tanggalLahir: '',
+        status: '',
+        sektor: '',
+        jenisKelamin: '',
+        noTelp: ''
+      },
+      originalData: {}, // Backup data untuk cancel
+      
+      // Breadcrumb items untuk desktop
+      breadcrumbItems: [
+        { text: 'Profile', to: '/account' },
+        { text: 'Detail Profile', to: '/detail-profile', active: true }
+      ],
+      
+      // Options untuk dropdown
+      statusOptions: ['Menikah', 'Single', 'Janda/Duda'],
+      sektorOptions: ['Tesalonika', 'Anugerah'],
+      jenisKelaminOptions: ['Laki-laki', 'Perempuan']
+    }
+  },
     
     computed: {
       userStore() {
@@ -248,12 +408,6 @@
         try {
             console.log('💾 [DetailProfile] Saving profile...', this.profileData)
             
-            // Validasi basic
-            if (!this.profileData.nama.trim()) {
-            alert('❌ Nama harus diisi!')
-            return
-            }
-            
             // Tampilkan loading state
             this.isLoading = true
             
@@ -270,7 +424,7 @@
             console.log('🔍 [DetailProfile] Using userId:', userId)
             
             const result = await updateUserProfile(userId, {
-            nama: this.profileData.nama,
+            // nama: this.profileData.nama, // Nama tidak boleh diupdate
             tanggalLahir: this.profileData.tanggalLahir,
             status: this.profileData.status,
             sektor: this.profileData.sektor,
@@ -283,8 +437,9 @@
             // Update local userStore dan localStorage
             const updatedUser = {
             ...this.userStore.user,
-            nama: this.profileData.nama,
-            namaUser: this.profileData.nama,
+            // nama tetap dari data awal, tidak diupdate dari form
+            // nama: this.profileData.nama,
+            // namaUser: this.profileData.nama,
             tanggalLahir: this.profileData.tanggalLahir,
             status: this.profileData.status,
             sektor: this.profileData.sektor,
@@ -418,23 +573,282 @@
     margin-right: 8px;
   }
   
-  /* Responsive */
-  @media (max-width: 360px) {
-    .profile-wrapper {
-      padding: 12px;
-    }
-    
-    .photo-section {
-      padding: 24px 0;
-    }
-    
-    .profile-photo {
-      width: 80px;
-      height: 80px;
-    }
-    
-    .photo-text {
-      font-size: 28px;
-    }
+  /* Nama Field Container - Global untuk mobile dan desktop */
+  .nama-field-container {
+    position: relative;
   }
+  
+  .helper-text {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    margin: 6px 0 0 0;
+    font-style: normal;
+    font-family: 'Inter', sans-serif;
+    line-height: 1.3;
+  }
+  
+  /* === DESKTOP RESPONSIVE LAYOUT === */
+
+/* Desktop layout - hidden on mobile */
+.desktop-layout {
+  display: none;
+}
+
+/* Mobile layout - shown by default */
+.mobile-layout {
+  display: block;
+}
+
+/* === DESKTOP STYLES (≥769px) === */
+@media (min-width: 769px) {
+  .desktop-layout {
+    display: block;
+    background: #fcfcf7;
+    min-height: 100vh;
+  }
+  
+  .mobile-layout {
+    display: none;
+  }
+  
+  .desktop-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px;
+    min-height: calc(100vh - 80px);
+  }
+  
+  /* Desktop Header */
+  .desktop-header {
+    text-align: center;
+    margin-bottom: 32px;
+    padding: 0 0 32px 0;
+    border-bottom: 1px solid #e9ecef;
+  }
+  
+  .desktop-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #2d2d2d;
+    margin: 0 0 8px 0;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .desktop-subtitle {
+    font-size: 16px;
+    color: #666;
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  /* Desktop Profile Wrapper */
+  .desktop-profile-wrapper {
+    background: white;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border: 1px solid #f0f0f0;
+  }
+  
+  /* Desktop Profile Grid */
+  .desktop-profile-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 40px;
+    align-items: start;
+  }
+  
+  /* Section Titles */
+  .section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #2d2d2d;
+    margin: 0 0 20px 0;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  /* Desktop Photo Section */
+  .desktop-photo-section {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .desktop-photo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px;
+    background: #f8f9fa;
+    border-radius: 16px;
+    border: 1px solid #e9ecef;
+  }
+  
+  .desktop-profile-photo {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: #41442A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  }
+  
+  .desktop-photo-text {
+    color: white;
+    font-size: 48px;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .desktop-change-photo-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #41442A;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .desktop-change-photo-btn:hover {
+    background: #5a5e3d;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(65, 68, 42, 0.2);
+  }
+  
+  .camera-icon {
+    width: 18px;
+    height: 18px;
+  }
+  
+  /* Desktop Form Section */
+  .desktop-form-section {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e9ecef;
+  }
+  
+  .form-actions {
+    display: flex;
+    gap: 12px;
+  }
+  
+  .desktop-form-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  
+  /* Desktop Nama Field Container */
+  .desktop-form-section .nama-field-container {
+    position: relative;
+  }
+  
+  .desktop-form-section .helper-text {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    margin: 6px 0 0 0;
+    font-style: normal;
+    font-family: 'Inter', sans-serif;
+    line-height: 1.3;
+  }
+  
+  /* Form inputs styling for desktop */
+  .desktop-form-section .form-input-container {
+    margin-bottom: 0;
+  }
+  
+  .desktop-form-section .form-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2d2d2d;
+    margin-bottom: 8px;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .desktop-form-section .form-input,
+  .desktop-form-section .form-select {
+    border-radius: 12px;
+    border: 1px solid #e9ecef;
+    padding: 14px 16px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+  }
+  
+  .desktop-form-section .form-input:focus,
+  .desktop-form-section .form-select:focus {
+    border-color: #41442A;
+    box-shadow: 0 0 0 3px rgba(65, 68, 42, 0.1);
+    outline: none;
+  }
+  
+  .desktop-form-section .form-input:disabled,
+  .desktop-form-section .form-select:disabled {
+    background-color: #f8f9fa;
+    color: #666;
+    cursor: not-allowed;
+  }
+}
+
+/* === TABLET RESPONSIVE (769px - 1024px) === */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .desktop-content {
+    padding: 24px;
+  }
+  
+  .desktop-profile-wrapper {
+    padding: 32px 24px;
+  }
+  
+  .desktop-profile-grid {
+    grid-template-columns: 250px 1fr;
+    gap: 32px;
+  }
+  
+  .desktop-profile-photo {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .desktop-photo-text {
+    font-size: 40px;
+  }
+  
+  .form-row {
+    gap: 16px;
+  }
+}
+
+/* === LARGE TABLET (1025px - 1200px) === */
+@media (min-width: 1025px) and (max-width: 1200px) {
+  .desktop-profile-grid {
+    grid-template-columns: 280px 1fr;
+    gap: 36px;
+  }
+}
+  
   </style>

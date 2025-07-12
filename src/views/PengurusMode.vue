@@ -1,22 +1,18 @@
-<!-- src/views/PengurusMode.vue -->
-<template>
+<!-- <template>
     <div class="pengurus-container">
-      <div class="pengurus-wrapper">
-        <!-- Header dengan tombol back -->
-        <HeaderWithBack title="Mode Pengurus" />
+      <div class="pengurus-wrapper"> -->
+        <!-- <HeaderWithBack title="Mode Admin" /> -->
   
-        <!-- Info Mode -->
-        <div class="mode-info-card">
+        <!-- <div class="mode-info-card">
           <div class="mode-icon">👨‍💼</div>
           <div class="mode-text">
-            <h2>Mode Pengurus Aktif</h2>
-            <p>Anda sekarang dapat mengakses fitur khusus pengurus</p>
+            <h2>Mode Admin Aktif</h2>
+            <p>Anda sekarang dapat mengakses fitur khusus admin</p>
           </div>
-        </div>
+        </div> -->
   
-        <!-- Menu Pengurus -->
-        <div class="pengurus-menu">
-          <h3 class="menu-title">Fitur Pengurus</h3>
+        <!-- <div class="pengurus-menu">
+          <h3 class="menu-title">Fitur Admin</h3>
           
           <div class="menu-item" @click="goToManageNews">
             <div class="menu-icon">📰</div>
@@ -25,18 +21,18 @@
               <p>Tambah, edit, dan hapus berita</p>
             </div>
             <ChevronRight class="menu-arrow" />
-          </div>
+          </div> -->
   
-          <div class="menu-item" @click="goToManageSchedule">
+          <!-- <div class="menu-item" @click="goToManageSchedule">
             <div class="menu-icon">📅</div>
             <div class="menu-content">
               <h4>Kelola Jadwal</h4>
               <p>Atur jadwal ibadah dan kegiatan</p>
             </div>
             <ChevronRight class="menu-arrow" />
-          </div>
+          </div> -->
   
-          <div class="menu-item" @click="goToManageDevotionals">
+          <!-- <div class="menu-item" @click="goToManageDevotionals">
             <div class="menu-icon">🙏</div>
             <div class="menu-content">
               <h4>Kelola Renungan</h4>
@@ -62,20 +58,19 @@
             </div>
             <ChevronRight class="menu-arrow" />
           </div>
-        </div>
+        </div> -->
   
-        <!-- Keluar Mode -->
-        <div class="exit-mode-section">
+        <!-- <div class="exit-mode-section">
           <button class="exit-mode-btn" @click="exitPengurusMode">
             <LogOut class="exit-icon" />
-            <span>Keluar dari Mode Pengurus</span>
+            <span>Keluar dari Mode Admin</span>
           </button>
         </div>
       </div>
     </div>
-  </template>
+  </template> -->
   
-  <script>
+<!-- <script>
   import HeaderWithBack from '@/components/layout/HeaderWithBack.vue'
   import { ChevronRight, LogOut } from 'lucide-vue-next'
   
@@ -117,9 +112,9 @@
       }
     }
   }
-  </script>
+  </script> -->
   
-  <style scoped>
+  <!-- <style scoped>
   .pengurus-container {
     background: #fcfcf7;
     min-height: 100vh;
@@ -131,7 +126,6 @@
     margin: 0 auto;
   }
   
-  /* Mode Info Card */
   .mode-info-card {
     background: linear-gradient(135deg, #41442A, #5a5e3d);
     border-radius: 16px;
@@ -163,7 +157,6 @@
     line-height: 1.4;
   }
   
-  /* Menu Section */
   .pengurus-menu {
     background: white;
     border-radius: 16px;
@@ -241,7 +234,6 @@
     color: #999;
   }
   
-  /* Exit Mode Section */
   .exit-mode-section {
     margin-top: 24px;
   }
@@ -279,7 +271,6 @@
     height: 20px;
   }
   
-  /* Responsive */
   @media (max-width: 360px) {
     .pengurus-wrapper {
       padding: 12px;
@@ -307,4 +298,4 @@
       height: 40px;
     }
   }
-  </style>
+  </style> -->

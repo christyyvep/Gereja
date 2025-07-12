@@ -15,7 +15,7 @@ import RenunganPage from '../views/RenunganPage.vue'
 import DetailRenungan from '../views/DetailRenungan.vue'
 import BookmarksPage from '../views/BookmarksPage.vue'
 import AccountPage from '../views/AccountPage.vue'
-import PengurusMode from '../views/PengurusMode.vue'
+// import PengurusMode from '../views/PengurusMode.vue'
 import DetailProfile from '../views/DetailProfile.vue'
 import TentangGereja from '../views/TentangGereja.vue'
 import PrayerRequest from '../views/PrayerRequest.vue'
@@ -56,16 +56,16 @@ const routes = [
     meta: { requiresAuth: true }
   },
   
-  // Pengurus routes
-  {
-    path: '/pengurus/mode',
-    name: 'PengurusMode',
-    component: PengurusMode,
-    meta: { 
-      requiresAuth: true,
-      requiresPengurus: true 
-    }
-  },
+  // Pengurus routes - RESTRICTED TO ADMIN ONLY (pengurus role hidden)
+  // {
+  //   path: '/pengurus/mode',
+  //   name: 'PengurusMode',
+  //   component: PengurusMode,
+  //   meta: { 
+  //     requiresAuth: true,
+  //     requiresPengurus: true 
+  //   }
+  // },
   
   // Jadwal routes
   {
@@ -193,7 +193,7 @@ router.beforeEach(async (to, from, next) => {
     return
   }
   
-  // Check pengurus permission
+  // Check pengurus permission - RESTRICTED TO ADMIN ONLY (pengurus role hidden)
   if (to.meta.requiresPengurus) {
     if (!currentUser) {
       next('/home')
@@ -201,17 +201,18 @@ router.beforeEach(async (to, from, next) => {
     }
     
     const userRole = currentUser.role || 'jemaat'
-    const isPengurus = userRole === 'pengurus' || userRole === 'admin'
+    // Only admin can access pengurus features now
+    const isAdmin = userRole === 'admin'
     
-    if (!isPengurus) {
-      // Development bypass
+    if (!isAdmin) {
+      // Development bypass for admin only
       if (process.env.NODE_ENV === 'development') {
         const localUser = localStorage.getItem('user')
         if (localUser) {
           try {
             const parsedUser = JSON.parse(localUser)
             const localRole = parsedUser.role
-            if (localRole === 'pengurus' || localRole === 'admin') {
+            if (localRole === 'admin') {
               next()
               return
             }
@@ -221,7 +222,7 @@ router.beforeEach(async (to, from, next) => {
         }
       }
       
-      alert('❌ Akses ditolak! Anda tidak memiliki permission sebagai pengurus.')
+      alert('❌ Akses ditolak! Hanya admin yang dapat mengakses fitur ini.')
       next('/home')
       return
     }

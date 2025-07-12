@@ -2,10 +2,7 @@
 import { db } from './firebase'
 import { 
   collection, 
-  doc, 
   getDocs, 
-  getDoc,
-  setDoc,
   updateDoc,  // eslint-disable-line no-unused-vars
   deleteDoc,  // eslint-disable-line no-unused-vars
   query, 
@@ -19,6 +16,8 @@ const COLLECTION_NAME = 'worship_schedules'
 // 🎯 TEMPLATE FACTORY - AUTO GENERATE STRUCTURE
 // =======================================
 
+// Temporarily disable TemplateFactory class
+/*
 class TemplateFactory {
   
   // Generate template baru dengan structure yang consistent
@@ -92,11 +91,14 @@ class TemplateFactory {
     return sunday.toISOString().split('T')[0]
   }
 }
+*/
 
 // =======================================
 // 🛠️ ADMIN TEMPLATE MANAGER - CRUD OPERATIONS
+// TEMPORARILY DISABLED FOR DEVELOPMENT
 // =======================================
 
+/*
 class AdminTemplateManager {
   
   // CREATE: Tambah template baru
@@ -367,6 +369,7 @@ class AdminTemplateManager {
     return new Date(isoString).toLocaleString('id-ID')
   }
 }
+*/
 
 // =======================================
 // 📅 CORE SCHEDULE FUNCTIONS (USER SIDE)
@@ -522,6 +525,11 @@ export async function getWorshipTemplates() {
  */
 export async function getWorshipSchedule(templateId, _date = null) {  // eslint-disable-line no-unused-vars
   try {
+    // TEMPORARILY DISABLED - AdminTemplateManager is commented out
+    console.log('⚠️ getWorshipSchedule temporarily disabled')
+    return null
+    
+    /*
     const template = await AdminTemplateManager.getTemplate(templateId)
     
     if (!template) {
@@ -535,6 +543,7 @@ export async function getWorshipSchedule(templateId, _date = null) {  // eslint-
     
     console.log(`✅ [Worship Service] Generated schedule:`, schedule)
     return schedule
+    */
     
   } catch (error) {
     console.error('❌ [Worship Service] Error getting worship schedule:', error)
@@ -633,9 +642,11 @@ export async function getUpcomingSchedules(_days = 7) {  // eslint-disable-line 
 
 // =======================================
 // 🎯 ADMIN EXPORTS (untuk admin panel)
+// TEMPORARILY DISABLED FOR DEVELOPMENT
 // =======================================
 
 // Export admin functions untuk admin panel
+/*
 export const AdminAPI = {
   // CRUD Operations
   createTemplate: AdminTemplateManager.createTemplate.bind(AdminTemplateManager),
@@ -650,6 +661,7 @@ export const AdminAPI = {
   getTemplate: AdminTemplateManager.getTemplate.bind(AdminTemplateManager),
   validateTemplateData: AdminTemplateManager.validateTemplateData.bind(AdminTemplateManager)
 }
+*/
 
 // =======================================
 // 🎯 INITIALIZATION (untuk setup default templates)
@@ -722,6 +734,8 @@ export async function initializeDefaultTemplates() {
     ]
     
     for (const templateData of defaultTemplates) {
+      // TEMPORARILY DISABLED - AdminTemplateManager not available
+      /*
       const existingTemplate = await AdminTemplateManager.getTemplate(
         TemplateFactory.generateTemplateId(templateData.title)
       )
@@ -733,6 +747,8 @@ export async function initializeDefaultTemplates() {
         })
         console.log(`✅ Created template: ${templateData.title}`)
       }
+      */
+      console.log(`⏸️ Skipped template creation: ${templateData.title} (admin features disabled)`)
     }
     
     console.log('✅ [Worship Service] All default templates initialized!')

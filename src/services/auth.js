@@ -499,7 +499,8 @@ export async function updateUserRole(userId, newRole, adminUserId) {
       throw new Error('User ID dan role harus diisi')
     }
     
-    const validRoles = ['jemaat', 'pengurus', 'admin']
+    // UPDATED: Remove 'pengurus' from valid roles (hide pengurus role)
+    const validRoles = ['jemaat', 'admin']
     if (!validRoles.includes(newRole)) {
       throw new Error(`Role tidak valid. Harus salah satu dari: ${validRoles.join(', ')}`)
     }

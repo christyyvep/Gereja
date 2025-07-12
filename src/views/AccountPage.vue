@@ -1,83 +1,134 @@
-<!-- AccountPage.vue - Halaman Profile User -->
+<!-- AccountPage.vue - Halaman Profile User dengan UI yang Diperbaiki -->
 <template>
   <div class="account-container">
-    <div class="account-wrapper">
+    
+    <!-- === DESKTOP LAYOUT (≥769px) === -->
+    <div class="desktop-layout">
+      <!-- Desktop Navbar -->
+      <DesktopNavbar />
       
-      <!-- Header dengan judul halaman -->
-      <div class="account-header">
-        <h1 class="page-title">Profile</h1>
-      </div>
-
-      <!-- Section Info User - Bisa diklik untuk edit profile -->
-      <div class="user-info-section" @click="goToProfileDetail">
-        <!-- Avatar dengan initial nama user -->
-        <div class="user-avatar">
-          <span class="avatar-text">{{ userInitial }}</span>
+      <!-- Desktop Content -->
+      <main class="desktop-content">
+        <!-- Desktop Breadcrumb -->
+        <BreadcrumbDesktop :items="breadcrumbItems" />
+        
+        <!-- Desktop Profile Header -->
+        <div class="desktop-profile-header">
+          <div class="desktop-avatar">
+            <span class="desktop-avatar-text">{{ userInitial }}</span>
+          </div>
+          <div class="desktop-profile-info" @click="goToProfileDetail">
+            <h1 class="desktop-profile-name">{{ userName }}</h1>
+            <p class="desktop-profile-subtitle">Lihat dan edit profile</p>
+          </div>
         </div>
         
-        <!-- Detail user (nama dan subtitle) -->
-        <div class="user-details">
-          <h2 class="user-name">{{ userName }}</h2>
-          <p class="user-subtitle">Lihat dan edit Profil</p>
+        <!-- Desktop Content Grid -->
+        <div class="desktop-content-grid">
+          <!-- Menu Section - Full Width -->
+          <div class="desktop-menu-section-full">
+            <h2 class="section-title">Pengaturan & Bantuan</h2>
+            <div class="desktop-menu-grid">
+              
+              <!-- Menu Item -->
+              <div class="desktop-menu-item" @click="goToScheduleSettings">
+                <div class="desktop-menu-icon">
+                  <Calendar class="menu-icon-svg" />
+                </div>
+                <h3 class="desktop-menu-title">Jadwal Pelayan Altar</h3>
+                <p class="desktop-menu-desc">Lihat jadwal pelayanan Anda</p>
+              </div>
+              
+              <!-- Menu Item -->
+              <div class="desktop-menu-item" @click="goToReportsHelp">
+                <div class="desktop-menu-icon">
+                  <HelpCircle class="menu-icon-svg" />
+                </div>
+                <h3 class="desktop-menu-title">Laporan dan Bantuan</h3>
+                <p class="desktop-menu-desc">Buat laporan atau minta bantuan</p>
+              </div>
+              
+              <!-- Logout Item -->
+              <div class="desktop-menu-item logout-item" @click="showLogoutModal">
+                <div class="desktop-menu-icon logout-icon">
+                  <LogOut class="menu-icon-svg" />
+                </div>
+                <h3 class="desktop-menu-title">Keluar</h3>
+                <p class="desktop-menu-desc">Keluar dari akun Anda</p>
+              </div>
+              
+            </div>
+          </div>
         </div>
+      </main>
+    </div>
+    
+    <!-- === MOBILE LAYOUT (≤768px) === -->
+    <div class="mobile-layout">
+      <div class="account-wrapper">
         
-        <!-- Icon panah untuk indikasi bisa diklik -->
-        <ChevronRight class="profile-arrow" />
+        <!-- Header Profile dengan Gradient -->
+        <div class="profile-header" @click="goToProfileDetail">
+          <div class="profile-avatar">
+            <span class="avatar-text">{{ userInitial }}</span>
+          </div>
+          <h1 class="profile-name">{{ userName }}</h1>
+          <p class="profile-subtitle">Lihat dan edit Profil</p>
+        </div>
+
+        <!-- Konten Profile -->
+        <div class="profile-content">
+
+          <!-- Daftar Menu Utama -->
+          <div class="menu-container">
+            
+            <!-- Menu Jadwal Pelayan Altar -->
+            <div class="menu-item" @click="goToScheduleSettings">
+              <div class="menu-icon">
+                <Calendar class="icon" />
+              </div>
+              <div class="menu-text">
+                <div class="menu-title">Jadwal Pelayan Altar</div>
+                <div class="menu-desc">Lihat jadwal pelayanan Anda</div>
+              </div>
+              <div class="menu-arrow">
+                <ChevronRight class="arrow-icon" />
+              </div>
+            </div>
+
+            <!-- Menu Laporan dan Bantuan -->
+            <div class="menu-item" @click="goToReportsHelp">
+              <div class="menu-icon">
+                <HelpCircle class="icon" />
+              </div>
+              <div class="menu-text">
+                <div class="menu-title">Laporan dan Bantuan</div>
+                <div class="menu-desc">Buat laporan atau minta bantuan</div>
+              </div>
+              <div class="menu-arrow">
+                <ChevronRight class="arrow-icon" />
+              </div>
+            </div>
+
+            <!-- Menu Logout -->
+            <div class="menu-item logout-item" @click="showLogoutModal">
+              <div class="menu-icon logout-icon">
+                <LogOut class="icon" />
+              </div>
+              <div class="menu-text">
+                <div class="menu-title">Keluar</div>
+                <div class="menu-desc">Keluar dari akun Anda</div>
+              </div>
+              <div class="menu-arrow">
+                <ChevronRight class="arrow-icon" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Navigation Bar -->
+        <BottomNavbar forceActiveRoute="/account" />
       </div>
-
-      <!-- Card Mode Pengurus - Hanya muncul jika user adalah pengurus/admin -->
-      <div 
-        v-if="userStore.isPengurus" 
-        class="pengurus-card" 
-        @click="switchToPengurusMode"
-      >
-        <div class="pengurus-icon">👨‍💼</div>
-        <span class="pengurus-text">Beralih ke mode Pengurus</span>
-        <ChevronRight class="pengurus-arrow" />
-      </div>
-
-      <!-- Daftar Menu Utama -->
-      <div class="menu-container">
-        
-        <!-- Menu Jadwal Pelayan Altar -->
-        <div class="menu-item" @click="goToScheduleSettings">
-          <div class="menu-left">
-            <Calendar class="menu-icon" />
-            <span class="menu-text">Jadwal Pelayan Altar</span>
-          </div>
-          <ChevronRight class="menu-arrow" />
-        </div>
-
-        <!-- Menu Ganti Password -->
-        <div class="menu-item" @click="goToPasswordChange">
-          <div class="menu-left">
-            <Lock class="menu-icon" />
-            <span class="menu-text">Ganti password</span>
-          </div>
-          <ChevronRight class="menu-arrow" />
-        </div>
-
-        <!-- Menu Laporan dan Bantuan -->
-        <div class="menu-item" @click="goToReportsHelp">
-          <div class="menu-left">
-            <HelpCircle class="menu-icon" />
-            <span class="menu-text">Laporan dan Bantuan</span>
-          </div>
-          <ChevronRight class="menu-arrow" />
-        </div>
-
-        <!-- Menu Logout -->
-        <div class="menu-item" @click="showLogoutModal">
-          <div class="menu-left">
-            <LogOut class="menu-icon" />
-            <span class="menu-text">Keluar</span>
-          </div>
-          <ChevronRight class="menu-arrow" />
-        </div>
-      </div>
-
-      <!-- Bottom Navigation Bar -->
-      <BottomNavbar forceActiveRoute="/account" />
     </div>
 
     <!-- Modal Konfirmasi Logout -->
@@ -120,17 +171,20 @@
 <script>
 import { useUserStore } from '@/stores/userStore'
 import BottomNavbar from '@/components/BottomNavbar.vue'
-import { LogOut, ChevronRight, Calendar, Lock, HelpCircle } from 'lucide-vue-next'
+import DesktopNavbar from '@/components/layout/DesktopNavbar.vue'
+import BreadcrumbDesktop from '@/components/common/BreadcrumbDesktop.vue'
+import { LogOut, ChevronRight, Calendar, HelpCircle } from 'lucide-vue-next'
 
 export default {
   name: 'AccountPage',
   
   components: {
     BottomNavbar,
+    DesktopNavbar,
+    BreadcrumbDesktop,
     LogOut,
     ChevronRight,
     Calendar,
-    Lock,
     HelpCircle
   },
   
@@ -139,7 +193,11 @@ export default {
       // State untuk mengontrol tampilan modal logout
       showLogoutConfirm: false,
       // State untuk menunjukkan proses logout sedang berjalan
-      isLoggingOut: false
+      isLoggingOut: false,
+      // Breadcrumb items untuk desktop
+      breadcrumbItems: [
+        { text: 'Profile', to: '/account', active: true }
+      ]
     }
   },
   
@@ -173,33 +231,11 @@ export default {
     },
 
     /**
-     * Beralih ke mode pengurus (khusus untuk pengurus/admin)
-     * Ada pengecekan role sebelum mengizinkan akses
-     */
-    switchToPengurusMode() {
-      // Cek apakah user punya akses sebagai pengurus
-      if (!this.userStore.isPengurus) {
-        this.showNotification('Anda tidak memiliki akses sebagai pengurus!', 'error')
-        return
-      }
-      // Jika punya akses, pindah ke halaman pengurus
-      this.$router.push('/pengurus/mode')
-    },
-
-    /**
      * Menu Jadwal Pelayan Altar
      * Saat ini masih dalam pengembangan
      */
     goToScheduleSettings() {
       this.showNotification('Fitur Jadwal Pelayan Altar sedang dalam pengembangan', 'info')
-    },
-    
-    /**
-     * Menu Ganti Password
-     * Saat ini masih dalam pengembangan
-     */
-    goToPasswordChange() {
-      this.showNotification('Fitur Ganti Password sedang dalam pengembangan', 'info')
     },
     
     /**
@@ -279,139 +315,312 @@ export default {
 </script>
 
 <style scoped>
-/* === CONTAINER & LAYOUT === */
+/* === RESPONSIVE LAYOUT CONTROL === */
+
+/* Default: Show mobile, hide desktop */
+.desktop-layout {
+  display: none;
+}
+
+.mobile-layout {
+  display: block;
+}
+
+/* Desktop (≥769px) */
+@media (min-width: 769px) {
+  .desktop-layout {
+    display: block;
+    background: #fcfcf7;
+    min-height: 100vh;
+  }
+  
+  .mobile-layout {
+    display: none;
+  }
+  
+  .desktop-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px;
+    min-height: calc(100vh - 80px);
+  }
+  
+  /* Desktop Profile Header */
+  .desktop-profile-header {
+    display: flex;
+    align-items: center;
+    background: linear-gradient(135deg, #41442A 0%, #5a5e3d 100%);
+    border-radius: 20px;
+    padding: 40px;
+    margin-bottom: 32px;
+    color: white;
+    box-shadow: 0 8px 32px rgba(65, 68, 42, 0.2);
+  }
+  
+  .desktop-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 32px;
+    flex-shrink: 0;
+  }
+  
+  .desktop-avatar-text {
+    font-size: 48px;
+    font-weight: 700;
+    color: #41442A;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .desktop-profile-info {
+    flex: 1;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    padding: 16px;
+    border-radius: 12px;
+  }
+  
+  .desktop-profile-name {
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .desktop-profile-subtitle {
+    font-size: 16px;
+    color: rgba(255,255,255,0.8);
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  /* Desktop Content Grid */
+  .desktop-content-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  /* Menu Section - Full Width */
+  .desktop-menu-section-full {
+    background: white;
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border: 1px solid #f0f0f0;
+    width: 100%;
+    max-width: 800px;
+  }
+  
+  .desktop-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+  }
+  
+  /* Section Titles */
+  .section-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2d2d2d;
+    margin: 0 0 20px 0;
+    font-family: 'Inter', sans-serif;
+    text-align: center;
+  }
+  
+  .desktop-menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 24px;
+    background: #f8f9fa;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+  }
+  
+  .desktop-menu-item:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  }
+  
+  .desktop-menu-item.logout-item:hover {
+    background: #fdf2f2;
+    border-color: #fecaca;
+  }
+  
+  .desktop-menu-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 16px;
+    background: #41442A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+    color: white;
+    transition: all 0.3s ease;
+  }
+  
+  .desktop-menu-icon.logout-icon {
+    background: #ffe0e0;
+  }
+  
+  .menu-icon-svg {
+    width: 24px;
+    height: 24px;
+  }
+  
+  .desktop-menu-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #2d2d2d;
+    margin: 0 0 8px 0;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .desktop-menu-desc {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    line-height: 1.4;
+  }
+}
+
+/* === TABLET RESPONSIVE (769px - 1024px) === */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .desktop-content {
+    padding: 24px;
+  }
+  
+  .desktop-profile-header {
+    padding: 32px 24px;
+  }
+  
+  .desktop-avatar {
+    width: 100px;
+    height: 100px;
+    margin-right: 24px;
+  }
+  
+  .desktop-avatar-text {
+    font-size: 40px;
+  }
+  
+  .desktop-profile-name {
+    font-size: 28px;
+  }
+  
+  .desktop-menu-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+  }
+}
+
+/* === MOBILE STYLES (EXISTING) === */
 
 .account-container {
   background: #fcfcf7;
   min-height: 100vh;
-  padding-bottom: 64px;
+  padding-bottom: 80px;
   box-sizing: border-box;
 }
 
 .account-wrapper {
-  padding: 16px;
-  max-width: 360px;
+  max-width: 400px;
   margin: 0 auto;
+  background: white;
+  min-height: 100vh;
+  position: relative;
 }
 
-/* === HEADER === */
+/* === PROFILE HEADER === */
 
-.account-header {
+.profile-header {
+  background: linear-gradient(135deg, #41442A 0%, #5a5e3d 100%);
+  padding: 60px 24px 40px;
   text-align: center;
-  padding: 20px 0;
-}
-
-.page-title {
-  font-family: 'Inter';
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
-  margin: 0;
-}
-
-/* === USER INFO SECTION === */
-
-.user-info-section {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: #E8E8E8;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
 }
 
-.user-info-section:hover {
-  background: #ddd;
-  transform: translateY(-1px);
+.profile-header:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(65, 68, 42, 0.2);
 }
 
-.user-avatar {
-  width: 48px;
-  height: 48px;
+.profile-header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  /* Animasi dihapus untuk performa yang lebih baik */
+}
+
+.profile-avatar {
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
-  background: #666;
+  background: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  margin: 0 auto 16px;
+  font-size: 36px;
+  font-weight: 700;
+  color: #41442A;
+  border: 4px solid rgba(255,255,255,0.3);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  position: relative;
+  z-index: 2;
 }
 
 .avatar-text {
+  font-family: 'Inter', sans-serif;
+}
+
+.profile-name {
+  font-size: 24px;
+  font-weight: 700;
   color: white;
-  font-size: 20px;
-  font-weight: bold;
-  font-family: 'Inter';
+  margin: 0 0 8px 0;
+  position: relative;
+  z-index: 2;
+  font-family: 'Inter', sans-serif;
 }
 
-.user-details {
-  flex: 1;
-}
-
-.user-name {
-  font-family: 'Inter';
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 4px 0;
-}
-
-.user-subtitle {
-  font-family: 'Inter';
-  font-size: 12px;
-  color: #666;
-  margin: 0;
-}
-
-.profile-arrow {
-  width: 16px;
-  height: 16px;
-  color: #999;
-  flex-shrink: 0;
-}
-
-/* === PENGURUS CARD === */
-
-.pengurus-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: #FFF9C4;
-  border: 1px solid #FFE082;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 24px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.pengurus-card:hover {
-  background: #FFF59D;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 12px rgba(255, 193, 7, 0.3);
-}
-
-.pengurus-icon {
-  font-size: 20px;
-  width: 24px;
-  text-align: center;
-}
-
-.pengurus-text {
-  flex: 1;
-  font-family: 'Inter';
+.profile-subtitle {
   font-size: 14px;
-  color: #333;
-  font-weight: 500;
+  color: rgba(255,255,255,0.8);
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
 }
 
-.pengurus-arrow {
-  width: 16px;
-  height: 16px;
-  color: #999;
-  flex-shrink: 0;
+/* === PROFILE CONTENT === */
+
+.profile-content {
+  padding: 24px;
+  background: white;
+  border-radius: 24px 24px 0 0;
+  margin-top: -20px;
+  position: relative;
+  z-index: 3;
+  min-height: calc(100vh - 180px);
 }
 
 /* === MENU CONTAINER === */
@@ -419,59 +628,88 @@ export default {
 .menu-container {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  background: #e0e0e0;
-  border-radius: 8px;
-  overflow: hidden;
+  gap: 12px;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  padding: 20px;
   background: white;
-  padding: 16px 20px;
+  border-radius: 16px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: all 0.3s ease;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .menu-item:hover {
   background: #f8f9fa;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
 }
 
-.menu-item:first-child {
-  border-radius: 8px 8px 0 0;
-}
-
-.menu-item:last-child {
-  border-radius: 0 0 8px 8px;
-}
-
-.menu-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.menu-item.logout-item:hover {
+  background: #fdf2f2;
+  border-color: #fecaca;
 }
 
 .menu-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  color: #41442A;
+  transition: all 0.3s ease;
+}
+
+.logout-icon {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.icon {
   width: 20px;
   height: 20px;
-  color: #666;
-  flex-shrink: 0;
 }
 
 .menu-text {
-  font-family: 'Inter';
+  flex: 1;
+}
+
+.menu-title {
   font-size: 16px;
-  color: #333;
-  font-weight: 400;
+  font-weight: 600;
+  color: #2d2d2d;
+  margin: 0 0 2px 0;
+  font-family: 'Inter', sans-serif;
+}
+
+.menu-desc {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
 }
 
 .menu-arrow {
-  width: 20px;
-  height: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.arrow-icon {
+  width: 18px;
+  height: 18px;
   color: #999;
-  flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+.menu-item:hover .arrow-icon {
+  transform: translateX(4px);
 }
 
 /* === MODAL STYLES === */
@@ -492,12 +730,13 @@ export default {
 
 .modal-content {
   background: white;
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: 20px;
+  padding: 32px 24px;
   max-width: 320px;
   width: 100%;
   text-align: center;
   animation: modalSlideIn 0.3s ease;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
 }
 
 @keyframes modalSlideIn {
@@ -515,30 +754,33 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .modal-icon {
-  width: 48px;
-  height: 48px;
-  color: #dc3545;
-  margin-bottom: 12px;
+  width: 56px;
+  height: 56px;
+  color: #dc2626;
+  margin-bottom: 16px;
+  background: #fef2f2;
+  border-radius: 50%;
+  padding: 12px;
 }
 
 .modal-header h3 {
-  font-family: 'Inter';
+  font-family: 'Inter', sans-serif;
   font-size: 20px;
   font-weight: 600;
-  color: #333;
+  color: #2d2d2d;
   margin: 0;
 }
 
 .modal-message {
-  font-family: 'Inter';
+  font-family: 'Inter', sans-serif;
   font-size: 14px;
   color: #666;
-  line-height: 1.5;
-  margin: 0 0 24px 0;
+  line-height: 1.6;
+  margin: 0 0 28px 0;
   text-align: left;
 }
 
@@ -550,10 +792,10 @@ export default {
 .cancel-btn, 
 .logout-confirm-btn {
   flex: 1;
-  padding: 12px;
+  padding: 14px 20px;
   border: none;
-  border-radius: 8px;
-  font-family: 'Inter';
+  border-radius: 12px;
+  font-family: 'Inter', sans-serif;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -561,21 +803,22 @@ export default {
 }
 
 .cancel-btn {
-  background: #f5f5f5;
+  background: #f8f9fa;
   color: #666;
+  border: 1px solid #e9ecef;
 }
 
 .cancel-btn:hover {
-  background: #e0e0e0;
+  background: #e9ecef;
 }
 
 .logout-confirm-btn {
-  background: #dc3545;
+  background: #dc2626;
   color: white;
 }
 
 .logout-confirm-btn:hover:not(:disabled) {
-  background: #c82333;
+  background: #b91c1c;
 }
 
 .logout-confirm-btn:disabled {
@@ -586,16 +829,62 @@ export default {
 /* === RESPONSIVE === */
 
 @media (max-width: 360px) {
-  .account-wrapper {
-    padding: 12px;
+  .profile-header {
+    padding: 50px 16px 30px;
+  }
+  
+  .profile-avatar {
+    width: 80px;
+    height: 80px;
+    font-size: 28px;
+  }
+  
+  .profile-name {
+    font-size: 20px;
+  }
+  
+  .profile-content {
+    padding: 16px;
+  }
+  
+  .menu-icon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .icon {
+    width: 18px;
+    height: 18px;
   }
   
   .menu-item {
-    padding: 14px 16px;
+    padding: 16px;
+  }
+}
+
+/* === ACCESSIBILITY === */
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-header:hover {
+    transform: none;
   }
   
-  .menu-text {
-    font-size: 15px;
+  .menu-item:hover .arrow-icon {
+    transform: none;
+  }
+  
+  .menu-item:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-contrast: high) {
+  .menu-item {
+    border: 2px solid #333;
+  }
+  
+  .profile-header {
+    border: 2px solid #333;
   }
 }
 </style>
