@@ -9,7 +9,7 @@
       <div :class="['card-thumbnail', sizeClass]">
         <img 
           :src="thumbnailUrl" 
-          :alt="item.title || item.name"
+          :alt="(item && (item.title || item.name)) || 'Image'"
           @error="handleImageError"
           class="thumbnail-img"
         />
@@ -17,7 +17,7 @@
         <!-- Category Badge (kalau ada) - ONLY FOR DESKTOP -->
         <span 
           v-if="categoryLabel && layout === 'desktop-grid' && !hideCategory" 
-          :class="['category-badge', `category-${item.category || 'default'}`]"
+          :class="['category-badge', `category-${(item && item.category) || 'default'}`]"
         >
           {{ categoryLabel }}
         </span>
@@ -26,7 +26,7 @@
       <!-- Content Section -->
       <div class="card-content">
         <!-- Title -->
-        <h3 class="card-title">{{ item.title || item.name }}</h3>
+        <h3 class="card-title">{{ (item && (item.title || item.name)) || 'Untitled' }}</h3>
         
         <!-- Subtitle/Description - ONLY FOR DESKTOP -->
         <p v-if="subtitle && layout === 'desktop-grid'" class="card-subtitle">{{ subtitle }}</p>
@@ -37,7 +37,7 @@
             <Calendar class="meta-icon" />
             {{ formattedDate }}
           </span>
-          <span v-if="item.time" class="meta-time">
+          <span v-if="item && item.time" class="meta-time">
             <Clock class="meta-icon" />
             {{ item.time }}
           </span>
@@ -156,7 +156,7 @@
       },
       
       categoryLabel() {
-        if (!this.item.category) return null
+        if (!this.item || !this.item.category) return null
         
         // Category labels berdasarkan content type
         const labels = {
@@ -203,10 +203,12 @@
         }
         
         const typeLabels = labels[this.contentType] || labels.news
-        return typeLabels[this.item.category?.toLowerCase()] || this.item.category
+        return typeLabels[this.item?.category?.toLowerCase()] || this.item?.category
       },
       
       subtitle() {
+        if (!this.item) return null
+        
         // Generate subtitle berdasarkan content type
         switch (this.contentType) {
           case 'news':
@@ -222,6 +224,8 @@
       },
       
       formattedDate() {
+        if (!this.item) return null
+        
         const dateValue = this.item.createdAt || this.item.date || this.item.updatedAt
         if (!dateValue) return null
         

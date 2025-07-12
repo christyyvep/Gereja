@@ -232,10 +232,10 @@ export default {
 
     /**
      * Menu Jadwal Pelayan Altar
-     * Saat ini masih dalam pengembangan
+     * Navigasi ke halaman jadwal pelayan altar
      */
     goToScheduleSettings() {
-      this.showNotification('Fitur Jadwal Pelayan Altar sedang dalam pengembangan', 'info')
+      this.$router.push('/jadwal-peltar')
     },
     
     /**

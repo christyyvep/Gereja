@@ -9,6 +9,9 @@ import SuccessRegister from '../views/SuccessRegister.vue'
 import FirebaseTestPage from '../views/FirebaseTestPage.vue'
 import JadwalPage from '../views/JadwalPage.vue'
 import DetailJadwal from '../views/DetailJadwal.vue'
+import JadwalPeltarPage from '../views/JadwalPeltarPage.vue'
+import DetailJadwalPeltar from '../views/DetailJadwalPeltar.vue'
+import AdminAltarSchedules from '../views/admin/AdminAltarSchedules.vue'
 import NewsPage from '../views/NewsPage.vue'
 import DetailNews from '../views/DetailNews.vue'
 import RenunganPage from '../views/RenunganPage.vue'
@@ -78,6 +81,20 @@ const routes = [
     path: '/jadwal/:id',
     name: 'DetailJadwal',
     component: DetailJadwal,
+    meta: { requiresAuth: true }
+  },
+  
+  // Jadwal Pelayan Altar routes
+  {
+    path: '/jadwal-peltar',
+    name: 'JadwalPeltarPage',
+    component: JadwalPeltarPage,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/jadwal-peltar/:id',
+    name: 'DetailJadwalPeltar',
+    component: DetailJadwalPeltar,
     meta: { requiresAuth: true }
   },
   
@@ -170,6 +187,15 @@ const routes = [
     path: '/update-structure',
     name: 'UpdateStructure', 
     component: () => import('@/views/UpdateStructurePage.vue')
+  },
+  {
+    path: '/admin/altar-schedules',
+    name: 'AdminAltarSchedules',
+    component: AdminAltarSchedules,
+    meta: { 
+      requiresAuth: true,
+      requiresAdmin: true 
+    }
   }
 ]
 
