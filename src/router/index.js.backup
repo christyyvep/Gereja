@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getCurrentJemaat } from '../services/auth'
 
+// Import components
 import LoginPage from '../views/LoginPage.vue'
 import RegisterPage from '../views/RegisterPage.vue'
 import HomePage from '../views/HomePage.vue'
@@ -24,10 +25,6 @@ import AddPrayerReq from '../views/AddPrayerReq.vue'
 import PrayerDetail from '../views/PrayerDetail.vue'
 import GivingPage from '@/views/GivingPage.vue'
 
-// ===== NEW ADMIN IMPORTS =====
-import AdminLayout from '@/layouts/AdminLayout.vue'
-import AdminDashboard from '@/views/admin/AdminDashboard.vue'
-import AdminNews from '@/views/admin/AdminNews.vue'
 
 const routes = [
   // Public routes
@@ -161,12 +158,12 @@ const routes = [
   },
 
   // Other routes
-  // {
-  //   path: '/notifikasi',
-  //   name: 'NotifikasiPage',
-  //   component: () => import('../views/NotifikasiPage.vue'),
-  //   meta: { requiresAuth: true }
-  // },
+  {
+    path: '/notifikasi',
+    name: 'NotifikasiPage',
+    component: () => import('../views/NotifikasiPage.vue'),
+    meta: { requiresAuth: true }
+  },
   {
   path: '/detail-profile',
   name: 'DetailProfile',
@@ -198,75 +195,6 @@ const routes = [
     name: 'LaporBantuanPage',
     component: () => import('@/views/LaporBantuanPage.vue'),
     meta: { requiresAuth: true }
-  },
-
-  // ===== NEW ADMIN ROUTES =====
-  {
-    path: '/admin',
-    component: AdminLayout,
-    meta: { 
-      requiresAuth: true, 
-      requiresAdmin: true,
-      title: 'Admin Panel'
-    },
-    children: [
-      {
-        path: '',
-        redirect: '/admin/dashboard'
-      },
-      {
-        path: 'dashboard',
-        name: 'AdminDashboard',
-        component: AdminDashboard,
-        meta: { 
-          title: 'Dashboard',
-          breadcrumb: 'Dashboard'
-        }
-      },
-      // {
-      //   path: 'users',
-      //   name: 'AdminUsers',
-      //   component: () => import('@/views/admin/AdminUsers.vue'),
-      //   meta: { 
-      //     title: 'Kelola Jemaat',
-      //     breadcrumb: 'Kelola Jemaat'
-      //   }
-      // },
-      {
-        path: 'news',
-        name: 'AdminNews', 
-        component: AdminNews,
-        meta: { 
-          requiresAuth: true,
-          requiresAdmin: true,
-          title: 'Kelola Berita'
-        }
-      }
-      // {
-      //   path: 'schedules',
-      //   name: 'AdminSchedules',
-      //   component: () => import('@/views/admin/AdminSchedules.vue'),
-      //   meta: { 
-      //     title: 'Kelola Jadwal',
-      //     breadcrumb: 'Kelola Jadwal'
-      //   }
-      // },
-      // {
-      //   path: 'announcements',
-      //   name: 'AdminAnnouncements',
-      //   component: () => import('@/views/admin/AdminAnnouncements.vue'),
-      //   meta: { 
-      //     title: 'Kelola Pengumuman',
-      //     breadcrumb: 'Kelola Pengumuman'
-      //   }
-      // }
-    ]
-  },
-
-  // ===== CATCH ALL ROUTE =====
-  {
-    path: '/:pathMatch(.*)*',
-    redirect: '/'
   }
 ]
 

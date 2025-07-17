@@ -125,6 +125,7 @@
 import HeaderWithBack from '@/components/layout/HeaderWithBack.vue'
 import DesktopNavbar from '@/components/layout/DesktopNavbar.vue'
 import BreadcrumbDesktop from '@/components/common/BreadcrumbDesktop.vue'
+// import { getNewsThumbnail, getScheduleThumbnail, getDevotionalThumbnail, getGivingThumbnail, getAboutThumbnail } from '@/utils/imageUtils'
 import { 
   ArrowLeft, 
   Calendar, 
@@ -136,7 +137,6 @@ import {
   BookOpen,
   Heart
 } from 'lucide-vue-next'
-import { getNewsThumbnail, getScheduleThumbnail, getDevotionalThumbnail, getGivingThumbnail } from '@/utils/imageUtils'
 
 export default {
   name: 'DetailLayout',
@@ -179,7 +179,11 @@ export default {
     contentType: {
       type: String,
       default: '',
-      validator: (value) => ['', 'news', 'schedule', 'devotional', 'jadwal', 'renungan', 'giving'].includes(value)
+      validator: (value) => ['', 'news', 'schedule', 'devotional', 'jadwal', 'renungan', 'giving', 'church', 'tentang-gereja'].includes(value)
+    },
+    newsData: {
+      type: Object,
+      default: null
     },
     closing: {
       type: String,
@@ -234,16 +238,60 @@ export default {
     },
 
     thumbnailSrc() {
+      console.log('🖼️ [DetailLayout] Resolving thumbnail...', {
+        newsData: this.newsData,
+        isDesktop: this.isDesktop,
+        contentType: this.contentType
+      })
+
+      // ✅ PRIORITY 1: STRICT mode untuk news dengan images atau thumbnails object
+      if (this.newsData && (this.newsData.images || this.newsData.thumbnails) && this.contentType === 'news') {
+        // ⭐ PERBAIKAN: Support both 'images' and 'thumbnails' field
+        const images = this.newsData.images || this.newsData.thumbnails
+        let selectedImage = null
+
+        console.log('📦 [DetailLayout] Available images from newsData:', images)
+        console.log('📦 [DetailLayout] Field used:', this.newsData.images ? 'images' : 'thumbnails')
+
+        // ✅ IMPROVED SELECTION dengan fallback
+        if (this.isDesktop) {
+          // ✅ DESKTOP: Prioritas detailDesktop, fallback ke cardDesktop
+          selectedImage = images.detailDesktop || images.cardDesktop
+          console.log('🖥️ [DetailLayout] Desktop - using:', selectedImage, 
+                     images.detailDesktop ? '(detailDesktop)' : '(cardDesktop fallback)')
+        } else {
+          // ✅ MOBILE: Prioritas detailMobile, fallback ke cardMobile
+          selectedImage = images.detailMobile || images.cardMobile
+          console.log('📱 [DetailLayout] Mobile - using:', selectedImage,
+                     images.detailMobile ? '(detailMobile)' : '(cardMobile fallback)')
+        }
+
+        if (selectedImage) {
+          console.log('✅ [DetailLayout] Using image selection:', selectedImage)
+          return selectedImage
+        } else {
+          console.log('❌ [DetailLayout] No image found for', this.isDesktop ? 'desktop' : 'mobile', 
+                     '- available images:', Object.keys(images))
+        }
+      }
+
+      // ✅ PRIORITY 2: Direct URL (unchanged)
+      if (this.thumbnail) {
+        if (this.thumbnail.startsWith('http://') || 
+            this.thumbnail.startsWith('https://') ||
+            this.thumbnail.startsWith('data:') || 
+            this.thumbnail.startsWith('blob:') ||
+            this.thumbnail.includes('cloudinary.com')) {
+          console.log('✅ [DetailLayout] Using direct URL:', this.thumbnail)
+          return this.thumbnail
+        }
+      }
+
+      // ✅ PRIORITY 3: Fallback ke imageUtils (unchanged)
+      console.log('🔄 [DetailLayout] Fallback to imageUtils...')
+      
       let detectedType = this.contentType
       
-      console.log('🔍 DetailLayout thumbnailSrc:', {
-        contentType: this.contentType,
-        detectedType,
-        thumbnail: this.thumbnail,
-        category: this.category
-      })
-      
-      // Auto-detect dari headerTitle jika contentType kosong
       if (!detectedType && this.headerTitle) {
         if (this.headerTitle.toLowerCase().includes('news') || this.headerTitle.toLowerCase().includes('berita')) {
           detectedType = 'news'
@@ -253,54 +301,56 @@ export default {
           detectedType = 'devotional'
         } else if (this.headerTitle.toLowerCase().includes('giving') || this.headerTitle.toLowerCase().includes('persembahan')) {
           detectedType = 'giving'
+        } else if (this.headerTitle.toLowerCase().includes('tentang') || this.headerTitle.toLowerCase().includes('church')) {
+          detectedType = 'church'
         }
       }
       
-      console.log('🎯 Final detectedType:', detectedType)
-      
-      // Check if thumbnail is already a valid URL
-      if (this.thumbnail) {
-        if (this.thumbnail.startsWith('http') || 
-            this.thumbnail.startsWith('data:') || 
-            this.thumbnail.startsWith('blob:') ||
-            this.thumbnail.includes('/')) {
-          console.log('📸 Using direct URL:', this.thumbnail)
-          return this.thumbnail
-        }
-      }
-      
-      // Create object for imageUtils
       const itemObject = {
         thumbnail: this.thumbnail,
         category: this.category,
-        title: this.title
+        title: this.title,
+        contentType: detectedType,
+        images: this.newsData?.images
       }
       
-      console.log('📦 ItemObject for imageUtils:', itemObject)
+      console.log('📦 [DetailLayout] ItemObject for imageUtils:', itemObject)
       
-      // Use imageUtils for proper file resolution
+      const { 
+        getNewsThumbnail, 
+        getScheduleThumbnail, 
+        getDevotionalThumbnail, 
+        getGivingThumbnail, 
+        getAboutThumbnail 
+      } = require('@/utils/imageUtils')
+      
       switch (detectedType) {
         case 'news': {
-          console.log('📰 Using getNewsThumbnail')
-          return getNewsThumbnail(itemObject)
+          console.log('📰 [DetailLayout] Using getNewsThumbnail')
+          return getNewsThumbnail(itemObject, this.isDesktop ? 'large' : 'small')
         }
         case 'schedule':
         case 'jadwal': {
-          console.log('📅 Using getScheduleThumbnail')
-          return getScheduleThumbnail(itemObject)
+          console.log('📅 [DetailLayout] Using getScheduleThumbnail')
+          return getScheduleThumbnail(itemObject, this.isDesktop ? 'large' : 'small')
         }
         case 'devotional':
         case 'renungan': {
-          console.log('🙏 Using getDevotionalThumbnail')
-          return getDevotionalThumbnail(itemObject)
+          console.log('🙏 [DetailLayout] Using getDevotionalThumbnail')
+          return getDevotionalThumbnail(itemObject, this.isDesktop ? 'large' : 'small')
         }
         case 'giving': {
-          console.log('💝 Using getGivingThumbnail')
-          return getGivingThumbnail(itemObject)
+          console.log('💝 [DetailLayout] Using getGivingThumbnail')
+          return getGivingThumbnail(itemObject, this.isDesktop ? 'large' : 'small')
+        }
+        case 'church':
+        case 'tentang-gereja': {
+          console.log('🏛️ [DetailLayout] Using getAboutThumbnail')
+          return getAboutThumbnail(itemObject, this.isDesktop ? 'large' : 'small')
         }
         default: {
-          console.log('📰 Using default getNewsThumbnail')
-          return getNewsThumbnail(itemObject)
+          console.log('📰 [DetailLayout] Using default getNewsThumbnail')
+          return getNewsThumbnail(itemObject, this.isDesktop ? 'large' : 'small')
         }
       }
     },
@@ -318,6 +368,8 @@ export default {
           return 'devotional'
         } else if (this.headerTitle.toLowerCase().includes('giving') || this.headerTitle.toLowerCase().includes('persembahan')) {
           return 'giving'
+        } else if (this.headerTitle.toLowerCase().includes('tentang') || this.headerTitle.toLowerCase().includes('church')) {
+          return 'church'
         }
       }
       return 'content'
@@ -329,6 +381,7 @@ export default {
         case 'schedule': case 'jadwal': return 'Jadwal Kegiatan'
         case 'devotional': case 'renungan': return 'Renungan Harian'
         case 'giving': return 'Persembahan & Persepuluhan'
+        case 'church': case 'tentang-gereja': return 'Tentang Gereja'
         default: return 'Konten'
       }
     },
@@ -339,6 +392,7 @@ export default {
         case 'schedule': case 'jadwal': return 'CalendarDays'
         case 'devotional': case 'renungan': return 'BookOpen'
         case 'giving': return 'Heart'
+        case 'church': case 'tentang-gereja': return 'User'
         default: return 'Newspaper'
       }
     },
@@ -348,6 +402,7 @@ export default {
         case 'news': return 'Isi Berita'
         case 'schedule': case 'jadwal': return 'Deskripsi Kegiatan'
         case 'devotional': case 'renungan': return 'Renungan'
+        case 'church': case 'tentang-gereja': return 'Informasi'
         default: return 'Deskripsi'
       }
     },
@@ -357,6 +412,7 @@ export default {
         case 'news': return 'Unduh PDF'
         case 'schedule': case 'jadwal': return 'Tambah ke Kalender'
         case 'devotional': case 'renungan': return 'Simpan Renungan'
+        case 'church': case 'tentang-gereja': return 'Bagikan Info'
         default: return 'Unduh'
       }
     },
@@ -366,6 +422,7 @@ export default {
         case 'news': return 'Kembali ke Berita'
         case 'schedule': case 'jadwal': return 'Kembali ke Jadwal'
         case 'devotional': case 'renungan': return 'Kembali ke Renungan'
+        case 'church': case 'tentang-gereja': return 'Kembali ke Info Gereja'
         default: return 'Kembali'
       }
     },
@@ -391,6 +448,13 @@ export default {
         case 'renungan':
           breadcrumbs.push({ text: 'Renungan', to: '/home' })
           break
+        case 'church':
+        case 'tentang-gereja':
+          breadcrumbs.push({ text: 'Tentang Gereja', to: '/about' })
+          break
+        case 'giving':
+          breadcrumbs.push({ text: 'Persembahan', to: '/giving' })
+          break
         default:
           breadcrumbs.push({ text: 'Konten' })
       }
@@ -411,6 +475,12 @@ export default {
   },
   mounted() {
     window.addEventListener('resize', this.handleResize)
+    
+    // Debug info
+    this.$nextTick(() => {
+      this.debugCloudinaryUrl()
+      this.debugImageData()
+    })
   },
   
   beforeUnmount() {
@@ -423,11 +493,36 @@ export default {
     },
 
     onImageError() {
+      console.error('❌ [DetailLayout] Image failed to load:', this.thumbnailSrc)
       this.imageError = true
     },
 
     onImageLoad() {
-      // Image loaded successfully
+      console.log('✅ [DetailLayout] Image loaded successfully:', this.thumbnailSrc)
+      this.imageError = false
+    },
+
+    // Method untuk debugging Cloudinary URL
+    debugCloudinaryUrl() {
+      console.log('🔍 [DetailLayout] Debugging Cloudinary URL:')
+      console.log('- Raw thumbnail prop:', this.thumbnail)
+      console.log('- Computed thumbnailSrc:', this.thumbnailSrc)
+      console.log('- Content type:', this.contentType)
+      console.log('- Detected type:', this.detectedContentType)
+      console.log('- Image error status:', this.imageError)
+    },
+
+    // ✅ TAMBAH method untuk debugging image
+    debugImageData() {
+      console.log('🔍 [DetailLayout] Debug Info:', {
+        newsData: this.newsData,
+        thumbnail: this.thumbnail,
+        images: this.newsData?.images,
+        selectedThumbnail: this.thumbnailSrc,
+        isDesktop: this.isDesktop,
+        isMobile: this.isMobile,
+        screenWidth: this.screenWidth
+      })
     },
 
     handleBackNavigation() {
@@ -450,6 +545,10 @@ export default {
             case 'devotional':
             case 'renungan':
               this.$router.push('/home')
+              break
+            case 'church':
+            case 'tentang-gereja':
+              this.$router.push('/about')
               break
             default:
               this.$router.go(-1)

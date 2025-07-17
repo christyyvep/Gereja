@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Image Utils</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5; 
+        }
+        .test-section { 
+            background: white; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 8px; 
+        }
+        .test-result { 
+            margin: 10px 0; 
+            padding: 10px; 
+            border-left: 4px solid #007cba; 
+            background: #f0f8ff; 
+        }
+        .error { 
+            border-left-color: #dc3545; 
+            background: #fff5f5; 
+        }
+        img { 
+            max-width: 200px; 
+            border: 1px solid #ddd; 
+            margin: 10px 0; 
+        }
+    </style>
+</head>
+<body>
+    <h1>Debug Image Utils</h1>
+    
+    <div class="test-section">
+        <h2>Function Import Test</h2>
+        <div id="import-test">Testing...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Placeholder Test</h2>
+        <div id="placeholder-test">
+            <h4>card-mobile placeholder:</h4>
+            <div id="mobile-placeholder"></div>
+            
+            <h4>card-desktop placeholder:</h4>
+            <div id="desktop-placeholder"></div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test News Data</h2>
+        <div id="news-test">Testing with sample data...</div>
+    </div>
+
+    <script>
+        console.log('🧪 Starting debug tests...');
+        
+        // Test 1: Check if functions are available
+        async function testImports() {
+            try {
+                // Try to import the functions
+                const { getNewsThumbnail, getPlaceholder } = await import('/src/utils/imageUtils.js');
+                
+                document.getElementById('import-test').innerHTML = `
+                    <div class="test-result">
+                        ✅ Functions imported successfully<br>
+                        - getNewsThumbnail: ${typeof getNewsThumbnail}<br>
+                        - getPlaceholder: ${typeof getPlaceholder}
+                    </div>
+                `;
+                
+                return { getNewsThumbnail, getPlaceholder };
+            } catch (error) {
+                document.getElementById('import-test').innerHTML = `
+                    <div class="test-result error">
+                        ❌ Import failed: ${error.message}
+                    </div>
+                `;
+                return null;
+            }
+        }
+        
+        // Test 2: Placeholder generation
+        async function testPlaceholders(utils) {
+            if (!utils) return;
+            
+            try {
+                const mobilePlaceholder = utils.getPlaceholder('card-mobile', 'Mobile');
+                const desktopPlaceholder = utils.getPlaceholder('card-desktop', 'Desktop');
+                
+                document.getElementById('mobile-placeholder').innerHTML = `
+                    <img src="${mobilePlaceholder}" alt="Mobile placeholder">
+                    <p>Size: card-mobile (80x80)</p>
+                `;
+                
+                document.getElementById('desktop-placeholder').innerHTML = `
+                    <img src="${desktopPlaceholder}" alt="Desktop placeholder">
+                    <p>Size: card-desktop (400x300)</p>
+                `;
+                
+            } catch (error) {
+                document.getElementById('placeholder-test').innerHTML += `
+                    <div class="test-result error">
+                        ❌ Placeholder test failed: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Test 3: News thumbnail generation
+        async function testNewsData(utils) {
+            if (!utils) return;
+            
+            const testNews = [
+                // News with no thumbnails
+                {
+                    id: 'test1',
+                    title: 'Test News - No Thumbnails',
+                    summary: 'This news has no thumbnail data'
+                },
+                
+                // News with direct URLs
+                {
+                    id: 'test2', 
+                    title: 'Test News - Direct URLs',
+                    summary: 'This news has direct URL thumbnails',
+                    thumbnails: {
+                        'card-mobile': 'https://res.cloudinary.com/demo/image/upload/w_80,h_80,c_fill/sample',
+                        'card-desktop': 'https://res.cloudinary.com/demo/image/upload/w_400,h_300,c_fill/sample'
+                    }
+                },
+                
+                // News with filenames
+                {
+                    id: 'test3',
+                    title: 'Test News - Filenames', 
+                    summary: 'This news has filename thumbnails',
+                    thumbnails: {
+                        'card-desktop': 'sample-image'
+                    }
+                }
+            ];
+            
+            let results = '<h3>Test Results:</h3>';
+            
+            testNews.forEach((news, index) => {
+                try {
+                    const mobileUrl = utils.getNewsThumbnail(news, 'card-mobile');
+                    const desktopUrl = utils.getNewsThumbnail(news, 'card-desktop');
+                    
+                    results += `
+                        <div class="test-result">
+                            <h4>${news.title}</h4>
+                            <p><strong>Mobile URL:</strong> ${mobileUrl}</p>
+                            <p><strong>Desktop URL:</strong> ${desktopUrl}</p>
+                            <img src="${mobileUrl}" alt="Mobile thumbnail" style="width: 80px; height: 80px;">
+                            <img src="${desktopUrl}" alt="Desktop thumbnail" style="width: 200px; height: 150px;">
+                        </div>
+                    `;
+                } catch (error) {
+                    results += `
+                        <div class="test-result error">
+                            <h4>${news.title}</h4>
+                            <p>❌ Error: ${error.message}</p>
+                        </div>
+                    `;
+                }
+            });
+            
+            document.getElementById('news-test').innerHTML = results;
+        }
+        
+        // Run all tests
+        async function runAllTests() {
+            const utils = await testImports();
+            await testPlaceholders(utils);
+            await testNewsData(utils);
+        }
+        
+        // Start tests when page loads
+        window.addEventListener('load', runAllTests);
+    </script>
+</body>
+</html>

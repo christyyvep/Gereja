@@ -38,13 +38,15 @@
 
         <!-- News Grid -->
         <div v-else-if="news.length > 0" class="news-grid">
+          
           <ContentCard
             v-for="newsItem in news" 
             :key="newsItem.id"
             :item="newsItem"
-            content-type="news"
-            layout="desktop-grid"
-            size="large"
+            :content-type="'news'"
+            :layout="'desktop-grid'"
+            :size="'card-desktop'"
+            @click="navigateToDetail"
           />
         </div>
 
@@ -80,16 +82,18 @@
         </div>
 
         <!-- Content ketika ada data -->
-        <div v-else-if="news.length > 0" class="news-content">  
+        <div v-else-if="news.length > 0" class="news-content">
+          
           <!-- ✅ GANTI KE CONTENTCARD -->
           <div class="news-list">
             <ContentCard
               v-for="newsItem in news" 
               :key="newsItem.id"
               :item="newsItem"
-              content-type="news"
-              layout="mobile-list"
-              size="small"
+              :content-type="'news'"
+              :layout="'mobile-list'"
+              :size="'card-mobile'"
+              @click="navigateToDetail"
             />
           </div>
         </div>
@@ -139,6 +143,7 @@ export default {
       news: [],
       loading: true,
       error: null,
+      windowWidth: window.innerWidth, // ✅ DEBUG: Track window width
       // ✅ BREADCRUMB DATA
       breadcrumbItems: [
         {
@@ -156,18 +161,56 @@ export default {
         this.loading = true
         this.error = null
         
-        console.log('🔍 [NewsPage] Fetching news...')
+        console.log('🔍 [NewsPage] Starting fetchNews...')
+        console.log('🔍 [NewsPage] getNews function:', typeof getNews)
         
         const newsData = await getNews(20)
         
-        console.log('✅ [NewsPage] News loaded:', newsData.length)
+        console.log('✅ [NewsPage] News loaded:', newsData)
+        console.log('✅ [NewsPage] News count:', newsData?.length)
         
-        this.news = newsData
+        if (newsData && Array.isArray(newsData)) {
+          this.news = newsData
+          console.log('✅ [NewsPage] News data set successfully')
+        } else {
+          console.warn('⚠️ [NewsPage] Invalid news data format:', newsData)
+          this.news = []
+        }
+        
       } catch (error) {
         console.error('❌ [NewsPage] Error loading news:', error)
+        console.error('❌ [NewsPage] Error stack:', error.stack)
         this.error = 'Gagal memuat berita. Pastikan koneksi internet Anda stabil.'
+        this.news = []
       } finally {
         this.loading = false
+        console.log('🏁 [NewsPage] fetchNews completed, final state:', {
+          loading: this.loading,
+          error: this.error,
+          newsCount: this.news.length
+        })
+      }
+    },
+
+    // ✅ SIMPLIFIED NAVIGATION METHOD
+    async navigateToDetail(newsItem) {
+      console.log('📰 [NewsPage] Navigation triggered for:', newsItem?.title)
+      
+      // Simple validation
+      if (!newsItem?.id) {
+        console.warn('⚠️ [NewsPage] Cannot navigate: missing news ID')
+        return
+      }
+      
+      // Simple navigation
+      try {
+        await this.$router.push(`/news/${newsItem.id}`)
+        console.log('✅ [NewsPage] Navigation completed')
+      } catch (error) {
+        // Ignore NavigationDuplicated errors (when user clicks multiple times)
+        if (error.name !== 'NavigationDuplicated') {
+          console.error('❌ [NewsPage] Navigation error:', error.message)
+        }
       }
     }
   }

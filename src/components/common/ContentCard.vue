@@ -140,19 +140,71 @@
         return `size-${this.size}`
       },
       
+      // 🎯 RESPONSIVE THUMBNAIL SIZE COMPUTATION
+      computedThumbnailSize() {
+        // ✅ RESPONSIF: Gunakan window width untuk menentukan size yang tepat
+        if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+          console.log('📱 [ContentCard] Mobile detected, using card-mobile')
+          return 'card-mobile' // 80x80 untuk mobile
+        } else {
+          console.log('🖥️ [ContentCard] Desktop detected, using card-desktop')
+          return 'card-desktop' // 400x250 untuk desktop
+        }
+      },
+      
       thumbnailUrl() {
-        // Pilih function thumbnail berdasarkan content type
+        // Check if item exists
+        if (!this.item) {
+          console.warn('⚠️ [ContentCard] No item provided for thumbnail')
+          return this.getFallbackImage()
+        }
+        
+        console.log(`🖼️ [ContentCard] Getting thumbnail for "${this.item?.title}" with computed size: ${this.computedThumbnailSize}`)
+        
+        // 🎯 MENGGUNAKAN LOGIC YANG SAMA DENGAN DETAILLAYOUT
+        if (this.item && (this.item.images || this.item.thumbnails) && this.contentType === 'news') {
+          const images = this.item.images || this.item.thumbnails
+          let selectedImage = null
+          
+          console.log('📦 [ContentCard] Available images from item:', images)
+          console.log('📦 [ContentCard] Field used:', this.item.images ? 'images' : 'thumbnails')
+          
+          // ✅ SELECTION berdasarkan computed size
+          if (this.computedThumbnailSize === 'card-desktop') {
+            selectedImage = images.cardDesktop || images.detailDesktop 
+            console.log('�️ [ContentCard] Desktop - using:', selectedImage)
+          } else {
+            selectedImage = images.cardMobile || images.detailMobile
+            console.log('📱 [ContentCard] Mobile - using:', selectedImage)
+          }
+          
+          if (selectedImage) {
+            console.log('✅ [ContentCard] Using direct image selection:', selectedImage)
+            return selectedImage
+          }
+          
+          console.log('❌ [ContentCard] No image found for', this.computedThumbnailSize, '- available images:', Object.keys(images))
+        }
+        
+        // ✅ FALLBACK: Gunakan function getNewsThumbnail seperti sebelumnya
+        let result
         switch (this.contentType) {
           case 'news':
           case 'announcement':
-            return getNewsThumbnail(this.item, this.size)
+            result = getNewsThumbnail(this.item, this.computedThumbnailSize)
+            break
           case 'schedule':
-            return getScheduleThumbnail(this.item, this.size)
+            result = getScheduleThumbnail(this.item, this.computedThumbnailSize)
+            break
           case 'devotional':
-            return getDevotionalThumbnail(this.item, this.size)
+            result = getDevotionalThumbnail(this.item, this.computedThumbnailSize)
+            break
           default:
-            return getNewsThumbnail(this.item, this.size)
+            result = getNewsThumbnail(this.item, this.computedThumbnailSize)
         }
+        
+        console.log(`✅ [ContentCard] Final thumbnail URL:`, result)
+        return result
       },
       
       categoryLabel() {
@@ -287,8 +339,7 @@
           ? plainText.substring(0, maxLength) + '...' 
           : plainText
       },
-      
-      formatDate(dateValue) {
+        formatDate(dateValue) {
         if (!dateValue) return 'Tanggal tidak tersedia'
         
         try {
@@ -309,12 +360,12 @@
           else {
             return 'Tanggal tidak tersedia'
           }
-  
+
           // Check if date is valid
           if (isNaN(date.getTime())) {
             return 'Tanggal tidak tersedia'
           }
-  
+
           const months = [
             'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
             'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
@@ -325,6 +376,21 @@
           console.error('Error formatting date:', error)
           return 'Tanggal tidak tersedia'
         }
+      },
+      
+      // 🎯 FALLBACK IMAGE GENERATOR
+      getFallbackImage() {
+        const isSmall = this.computedThumbnailSize === 'card-mobile'
+        const width = isSmall ? 80 : 400
+        const height = isSmall ? 80 : 250
+        
+        // Generate simple SVG placeholder
+        const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+          <rect width="${width}" height="${height}" fill="#f5f5f5"/>
+          <text x="${width/2}" y="${height/2}" font-family="Arial" font-size="14" fill="#999" text-anchor="middle" dominant-baseline="middle">📰 News</text>
+        </svg>`
+        
+        return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
       }
     }
   }
@@ -332,7 +398,7 @@
   
   <style scoped>
   /* ========================================
-     BASE CARD STYLES
+     BASE CARD STYLES - HORIZONTAL LAYOUT
   ========================================= */
   .content-card {
     background: white;
@@ -341,6 +407,10 @@
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    /* ✅ LAYOUT HORIZONTAL: Thumbnail di kiri, content di kanan */
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
   }
   
   .content-card:hover {
@@ -349,7 +419,7 @@
   }
   
   /* ========================================
-     THUMBNAIL STYLES
+     THUMBNAIL STYLES - KOTAK DI KIRI
   ========================================= */
   .card-thumbnail {
     position: relative;
@@ -358,6 +428,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* ✅ THUMBNAIL FIXED SIZE - KOTAK DI KIRI */
+    flex-shrink: 0;
   }
   
   .thumbnail-img {
@@ -371,7 +443,7 @@
     transform: scale(1.05);
   }
   
-  /* Size variants */
+  /* Size variants - RESPONSIVE HORIZONTAL LAYOUT */
   .size-small {
     width: 80px;
     min-width: 80px;
@@ -379,8 +451,18 @@
   }
   
   .size-large {
-    width: 100%;
-    height: 200px;
+    width: 100px;
+    min-width: 100px;
+    height: 100px;
+  }
+  
+  /* ✅ RESPONSIVE: Desktop bisa lebih besar */
+  @media (min-width: 768px) {
+    .size-large {
+      width: 120px;
+      min-width: 120px;
+      height: 120px;
+    }
   }
   
   /* ========================================
@@ -431,14 +513,23 @@
   .category-default { background: rgba(76, 81, 191, 0.9); }              /* Deep blue-purple */
   
   /* ========================================
-     CONTENT STYLES
+     CONTENT STYLES - HORIZONTAL LAYOUT
   ========================================= */
   .card-content {
     padding: 16px;
     flex: 1;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
     gap: 8px;
+    min-height: 80px; /* Match dengan thumbnail small */
+  }
+  
+  /* ✅ RESPONSIVE: Desktop content height */
+  @media (min-width: 768px) {
+    .card-content {
+      min-height: 120px; /* Match dengan thumbnail large desktop */
+    }
   }
   
   .card-title {
@@ -570,48 +661,96 @@
      LAYOUT VARIANTS
   ========================================= */
   
-  /* Mobile List Layout (simplified - thumbnail + title only) */
+  /* Mobile List Layout (horizontal - thumbnail mengisi tinggi card, content di kanan) */
   .layout-mobile-list {
     display: flex;
-    align-items: center;
-    height: 80px;
+    flex-direction: row;
+    align-items: stretch;
+    height: 80px; /* Fixed height untuk card */
     margin-bottom: 8px;
   }
   
-  .layout-mobile-list .card-content {
-    min-height: 80px;
-    justify-content: center;
-    padding: 16px;
+  .layout-mobile-list .card-thumbnail {
+    width: 80px;
+    min-width: 80px;
+    height: 100%; /* Mengisi tinggi penuh card */
+    flex-shrink: 0;
   }
   
-  /* Hide subtitle and meta for mobile */
+  .layout-mobile-list .card-content {
+    height: 100%; /* Mengisi tinggi penuh card */
+    justify-content: center;
+    padding: 0px 12px; /* Kurangi padding untuk lebih banyak space */
+    flex: 1;
+    overflow: hidden; /* Prevent content overflow */
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Mobile title styling - lebih kecil dan line-clamp ketat */
+  .layout-mobile-list .card-title {
+    font-size: 13px;
+    line-height: 1.1;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    max-height: 2.2em; /* 2 lines with line-height 1.1 */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+    margin: 0;
+  }
+  
+  /* Hide subtitle dan meta untuk mobile */
   .layout-mobile-list .card-subtitle,
   .layout-mobile-list .card-meta {
     display: none;
   }
   
-  /* Desktop Grid Layout (new for NewsPage desktop) */
+  /* Desktop Grid Layout (compact seperti gambar 1) */
   .layout-desktop-grid {
     display: flex;
     flex-direction: column;
     height: auto;
-    min-height: 350px;
+    min-height: 280px; /* Lebih kecil dari 350px */
+    max-height: 320px; /* Batasi tinggi maksimal */
+  }
+  
+  .layout-desktop-grid .card-thumbnail {
+    height: 160px; /* Tinggi thumbnail lebih kecil */
+    width: 100%;
   }
   
   .layout-desktop-grid .card-content {
     flex: 1;
-    padding: 20px;
+    padding: 16px; /* Padding lebih kecil dari 20px */
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
   
   .layout-desktop-grid .card-title {
-    font-size: 16px;
-    margin-bottom: 12px;
+    font-size: 15px; /* Lebih kecil dari 16px */
+    line-height: 1.3;
+    margin-bottom: 8px; /* Lebih kecil dari 12px */
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   
   .layout-desktop-grid .card-subtitle {
-    font-size: 14px;
-    line-clamp: 3;
-    margin-bottom: 16px;
+    font-size: 13px; /* Lebih kecil dari 14px */
+    line-height: 1.4;
+    line-clamp: 2; /* Kurangi dari 3 menjadi 2 baris */
+    -webkit-line-clamp: 2;
+    margin-bottom: 12px; /* Lebih kecil dari 16px */
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: #666;
   }
   
   /* Desktop List Layout (alternative) */
@@ -655,22 +794,37 @@
   ========================================= */
   @media (max-width: 360px) {
     .layout-mobile-list {
-      height: 70px;
+      margin-bottom: 6px;
+      height: 70px; /* Fixed height untuk card kecil */
     }
     
-    .layout-mobile-list .size-small {
+    .layout-mobile-list .card-thumbnail {
       width: 70px;
       min-width: 70px;
-      height: 70px;
+      height: 100%; /* Mengisi tinggi penuh card */
     }
     
     .layout-mobile-list .card-content {
-      padding: 12px;
-      min-height: 70px;
+      padding: 6px 10px; /* Padding lebih kecil lagi */
+      height: 100%; /* Mengisi tinggi penuh card */
+      overflow: hidden; /* Prevent content overflow */
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
     
-    .card-title {
-      font-size: 14px;
+    .layout-mobile-list .card-title {
+      font-size: 12px;
+      line-height: 1.05;
+      line-clamp: 2;
+      -webkit-line-clamp: 2;
+      max-height: 2.1em; /* 2 lines with smaller line-height */
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: break-word;
+      margin: 0;
     }
     
     .card-subtitle {
@@ -678,18 +832,29 @@
     }
   }
   
-  /* Desktop responsive */
+  /* Desktop responsive - untuk layar medium */
   @media (max-width: 950px) and (min-width: 769px) {
     .layout-desktop-grid {
-      min-height: 320px;
+      min-height: 260px; /* Lebih kecil lagi */
+      max-height: 300px;
+    }
+    
+    .layout-desktop-grid .card-thumbnail {
+      height: 140px; /* Thumbnail lebih kecil */
+    }
+    
+    .layout-desktop-grid .card-content {
+      padding: 14px; /* Padding lebih kecil */
     }
     
     .layout-desktop-grid .card-title {
-      font-size: 15px;
+      font-size: 14px; /* Font lebih kecil */
+      margin-bottom: 6px;
     }
     
     .layout-desktop-grid .card-subtitle {
-      font-size: 13px;
+      font-size: 12px; /* Font lebih kecil */
+      margin-bottom: 10px;
     }
     
     .category-badge {

@@ -17,14 +17,22 @@
           </div>
           <div class="story-right">
             <p class="story-text">
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+              Gereja Pantekosta di Indonesia (GPdI) Rajawali Kanonang, Wilayah 61 Kawangkoan, diresmikan oleh Ketua Majelis Daerah GPdI Sulawesi Utara pada tanggal 15 April 2014.
             </p>
             <p class="story-text">
-              Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium.
+              Setelah resmi dimekarkan dari gereja induk, GPdI Elim Kanonang, gembala dan jemaat--yang waktu itu hanya berjumlah 20 kepala keluarga atau 76 jiwa--, langsung tancap gas menyiapkan gereja darurat.
             </p>
             <p class="story-text">
-              At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt.
+              Tahun 2016, gembala dan Panitia Pembangunan mulai membangun gereja secara permanen. 
+              Memasuki masa pandemi Covid-19 di bulan Maret 2020, pembangunan sempat terhenti karena jemaat tidak bisa mencari dana lewat penjualan kue Klapertart.
             </p>
+            <p class="story-text">
+              Tepatnya 24 Agustus 2020, masih dalam situasi yang dibatasi, justru gembala dan jemaat dengan iman melanjutkan pembangunan dengan modal 3 juta rupiah pemberian seseorang.
+              Saat itu progres pembangunan baru 20% yakni tiang-tiang bagian bawah. Tapi luar biasanya Tuhan, pembangunan terus berlanjut hingga Juni 2022 pembangunan telah mencapai 80%, bagian luar gereja.
+              Inilah mujizat yang gembala dan jemaat alami, pembangunan non stop selama 2 tahun. Banyak yang digerakkan Tuhan menyumbang.
+              Semua karena anugerah Tuhan GPdI Rajawali Kanonang bisa berdiri hingga saat ini. 
+            </p>
+
           </div>
         </div>
       </div>
@@ -90,6 +98,8 @@
 
 <script>
 import DetailLayout from '@/components/layout/DetailLayout.vue'
+import { getChurchCloudinaryUrl } from '@/utils/cloudinary'
+import { getAboutThumbnail } from '@/utils/imageUtils'
 
 export default {
   name: 'TentangGereja',
@@ -103,26 +113,24 @@ export default {
         { text: 'Tentang Gereja' }
       ],
       churchInfo: {
-        visiImage: this.getImagePath('church/visi-gereja.jpg'),
-        misiImage: this.getImagePath('church/misi-gereja.jpg'),
-        visi: 'Menjadikan setiap jemaat murid Yesus dengan cara yang relevan sehingga berdampak bagi lingkungan.',
+        visiImage: null,
+        misiImage: null,
+        visi: 'Menjadikan gereja bertumbuh, berakar, bersinar terang dan mulia.',
         misi: [
-          'Menyelenggarakan ibadah raya yang menarik dan menggairahkan dengan dukungan sarana yang diperlukan.',
-          'Menjadikan ibadah raya sebagai sarana mengajar jemaat untuk memahami firman Tuhan dengan baik dan benar.',
-          'Melakukan proses pemuridan melalui kelas 4M (Membership, Maturity, Ministry, dan Mission) dan CORE.',
-          'Melakukan proses pemuridan secara pribadi dengan sistem one-on-one.',
-          'Melakukan amanat agung Tuhan Yesus, melalui berbagai kegiatan penginjilan dan misi.'
+          'Bersama jemaat bersatu padu mewujudkan gereja yang sempurna, menyongsong kedatangan Tuhan Yesus kedua kali.',
+          'Memantapkan ajaran/doktrin GPdI tentang kepenuhan Roh Kudus untuk mewujudkan gereja yang dewasa sempurna.',
+          'Melatih karakter jemaat sesuai Firman Tuhan agar layak menjadi pengantin Kristus'
         ],
         gembala: [
           { 
             name: 'Pdt. Fanny Potabuga', 
             position: 'GEMBALA',
-            image: this.getImagePath('church/pastors/pdt-fanny-potabuga.jpg')
+            image: null
           },
           { 
             name: 'Pdt. Meity Gerungan-Pesoth', 
             position: 'GEMBALA SENIOR',
-            image: this.getImagePath('church/pastors/pdt-meity-gerungan-pesoth.jpg')
+            image: null
           }
         ]
       }
@@ -132,18 +140,76 @@ export default {
   computed: {
     churchContent() {
       return `
-        <p>Selamat datang di Gereja Rajawali! Kami adalah komunitas iman yang berdedikasi untuk melayani Tuhan dan sesama dengan penuh kasih. Gereja kami menjadi rumah spiritual bagi keluarga-keluarga Kristen di Manado dan sekitarnya.</p>
+        <p>Gereja Pantekosta di Indonesia (GPdI) Rajawali Kanonang, Wilayah 61 Kawangkoan, diresmikan oleh Ketua Majelis Daerah GPdI Sulawesi Utara pada tanggal 15 April 2014.</p>
         
-        <p>Sebagai bagian dari tubuh Kristus, kami berkomitmen untuk terus bertumbuh dalam iman, pengharapan, dan kasih. Melalui ibadah, persekutuan, dan pelayanan, kami berusaha menjadi berkat bagi masyarakat di sekitar kami.</p>
+        <p>Setelah resmi dimekarkan dari gereja induk, GPdI Elim Kanonang, gembala dan jemaat--yang waktu itu hanya berjumlah 20 kepala keluarga atau 76 jiwa--, langsung tancap gas menyiapkan gereja darurat.</p>
+
+        <p>Tahun 2016, gembala dan Panitia Pembangunan mulai membangun gereja secara permanen. 
+        Memasuki masa pandemi Covid-19 di bulan Maret 2020, pembangunan sempat terhenti karena jemaat tidak bisa mencari dana lewat penjualan kue Klapertart.</p>
+
+        <p>Tepatnya 24 Agustus 2020, masih dalam situasi yang dibatasi, justru gembala dan jemaat dwngan iman melanjutkan pembangunan dengan modal 3 juta rupiah pemberian seseorang.
+        Saat itu progres pembangunan baru 20% yakni tiang-tiang bagian bawah. Tapi luar biasanya Tuhan, pembangunan terus berlanjut hingga Juni 2022 pembangunan telah mencapai 80%, bagian luar gereja.
+        Inilah mujizat yang gembala dan jemaat alami, pembangunan non stop selama 2 tahun. Banyak yang digerakkan Tuhan memnyumbang.</p>
+
       `
     },
 
     churchThumbnail() {
-      return this.getImagePath('church/gereja-utama.jpg')
+      // Use getAboutThumbnail from imageUtils for proper church image handling
+      console.log('🏛️ [TentangGereja] Getting church thumbnail...')
+      return getAboutThumbnail({ contentType: 'church' }, 'large')
     }
   },
   
+  created() {
+    this.loadChurchImages()
+  },
+  
   methods: {
+    async loadChurchImages() {
+      console.log('🏛️ Loading church images from Cloudinary...')
+      
+      try {
+        // Load Visi Image
+        try {
+          this.churchInfo.visiImage = getChurchCloudinaryUrl('visi-gereja')
+          console.log('✅ Visi image loaded:', this.churchInfo.visiImage)
+        } catch (error) {
+          console.log('⚠️ Visi image failed, using placeholder')
+          this.churchInfo.visiImage = null
+        }
+        
+        // Load Misi Image
+        try {
+          this.churchInfo.misiImage = getChurchCloudinaryUrl('misi-gereja')
+          console.log('✅ Misi image loaded:', this.churchInfo.misiImage)
+        } catch (error) {
+          console.log('⚠️ Misi image failed, using placeholder')
+          this.churchInfo.misiImage = null
+        }
+        
+        // Load Pastor Images (if you have them in Cloudinary)
+        try {
+          this.churchInfo.gembala[0].image = getChurchCloudinaryUrl('pdt-fanny-potabuga')
+          console.log('✅ Pastor Fanny image loaded:', this.churchInfo.gembala[0].image)
+        } catch (error) {
+          console.log('⚠️ Pastor Fanny image not found, using placeholder')
+          this.churchInfo.gembala[0].image = null
+        }
+        
+        try {
+          this.churchInfo.gembala[1].image = getChurchCloudinaryUrl('pdt-meity-gerungan-pesoth')
+          console.log('✅ Pastor Meity image loaded:', this.churchInfo.gembala[1].image)
+        } catch (error) {
+          console.log('⚠️ Pastor Meity image not found, using placeholder')
+          this.churchInfo.gembala[1].image = null
+        }
+        
+      } catch (error) {
+        console.error('❌ Error loading church images:', error)
+      }
+    },
+    
     getInitials(name) {
       return name
         .split(' ')
@@ -151,15 +217,6 @@ export default {
         .join('')
         .toUpperCase()
         .slice(0, 2)
-    },
-
-    getImagePath(imagePath) {
-      try {
-        return require(`@/assets/${imagePath}`)
-      } catch (error) {
-        console.warn(`Image not found: ${imagePath}`)
-        return null // Fallback ke placeholder jika gambar tidak ditemukan
-      }
     }
   }
 }

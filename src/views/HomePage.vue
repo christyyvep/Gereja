@@ -36,7 +36,6 @@
                 v-for="feature in featureList"
                 :key="`desktop-${feature.name}`"
                 :name="feature.name"
-                :iconName="feature.icon"
                 class="feature-box-desktop"
                 @click="navigateToFeature(feature)"
               />
@@ -84,7 +83,6 @@
             v-for="feature in featureList"
             :key="`mobile-${feature.name}`"
             :name="feature.name"
-            :iconName="feature.icon"
             @click="navigateToFeature(feature)"
           />
         </div>
@@ -174,12 +172,12 @@ export default {
       namaUser: 'Jemaat',
       ayatGambar: null,
       featureList: [
-        { name: "News", icon: "news" },
-        { name: "Jadwal", icon: "jadwal" },
-        { name: "Giving", icon: "giving" },
-        { name: "Tentang Gereja", icon: "tentang-gereja" },
-        { name: "Renungan", icon: "renungan" },
-        { name: "Prayer Request", icon: "prayer" }
+        { name: "News" },
+        { name: "Jadwal" },
+        { name: "Giving" },
+        { name: "Tentang Gereja" },
+        { name: "Renungan" },
+        { name: "Prayer Request" }
       ],
       announcementList: []
     }
@@ -264,12 +262,33 @@ export default {
     async loadUnifiedAnnouncements() {
       try {
         console.log('🔍 [HomePage] Loading unified announcements...')
+        
+        // ✅ DEBUG: Tambah debug untuk tanggal hari ini
+        const today = new Date().toISOString().split('T')[0]
+        console.log('📅 [HomePage] Today:', today)
+        
         const announcements = await getUnifiedAnnouncements(6)
         
         console.log('✅ [HomePage] Unified announcements loaded:', announcements.length)
+        console.log('🔍 [HomePage] Announcements data:', announcements)
+        
         this.announcementList = announcements
+        
+        // ✅ DEBUG: Log final announcement list
+        if (announcements.length === 0) {
+          console.log('❌ [HomePage] No announcements found for today. This means:')
+          console.log('   1. No schedules with date =', today)
+          console.log('   2. No news with eventDate/activityDate/scheduleDate/date =', today)
+          console.log('   3. Check Firebase data or create test data for today')
+          console.log('   4. Falling back to dummy data for testing...')
+          
+          // ✅ Fallback to dummy data jika benar-benar tidak ada
+          this.loadDummyAnnouncements()
+        }
+        
       } catch (error) {
         console.error('❌ [HomePage] Error loading unified announcements:', error)
+        console.log('🔄 [HomePage] Falling back to dummy announcements due to error...')
         this.announcementList = []
         this.loadDummyAnnouncements()
       }

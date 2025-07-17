@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Cloudinary Upload</title></head>
+<body>
+  <h3>Test Upload Manual ke Cloudinary</h3>
+  <input type="file" id="fileInput" accept="image/*">
+  <button onclick="testUpload()">Test Upload</button>
+  <div id="result"></div>
+  
+  <script>
+    async function testUpload() {
+      const file = document.getElementById('fileInput').files[0]
+      if (!file) return alert('Pilih file dulu')
+      
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('folder', 'myrajawali/thumbnails/news/card-mobile')
+      
+      try {
+        console.log('🔄 Uploading to df74ywsgg...')
+        const response = await fetch('https://api.cloudinary.com/v1_1/df74ywsgg/image/upload', {
+          method: 'POST',
+          body: formData
+        })
+        
+        const result = await response.json()
+        
+        if (response.ok) {
+          console.log('✅ Success:', result)
+          document.getElementById('result').innerHTML = `
+            <h4>✅ Upload Berhasil!</h4>
+            <p>URL: <a href="${result.secure_url}" target="_blank">${result.secure_url}</a></p>
+            <img src="${result.secure_url}" style="max-width: 300px;">
+          `
+        } else {
+          console.error('❌ Error:', result)
+          document.getElementById('result').innerHTML = `
+            <h4>❌ Upload Gagal</h4>
+            <p>Error: ${result.error?.message || JSON.stringify(result)}</p>
+          `
+        }
+      } catch (error) {
+        console.error('❌ Network Error:', error)
+        document.getElementById('result').innerHTML = `<p style="color: red;">Network Error: ${error.message}</p>`
+      }
+    }
+  </script>
+</body>
+</html>

@@ -48,7 +48,9 @@ export default {
       if (this.iconError) return null
       
       try {
-        return getFeatureIconUrl(this.name)
+        const iconFilename = getFeatureIconUrl(this.name)
+        // Use require to load asset properly
+        return require(`@/assets/icons/features/${iconFilename}`)
       } catch (err) {
         console.warn(`Failed to load icon for ${this.name}:`, err)
         return null

@@ -1,4 +1,4 @@
-// services/news.js - Updated dengan field baru untuk announcement system
+// services/news.js - Fixed dengan backward compatibility
 import { db } from './firebase'
 import { 
   collection, 
@@ -11,7 +11,7 @@ import {
   query, 
   orderBy, 
   limit, 
-  where 
+  where
 } from 'firebase/firestore'
 
 const COLLECTION_NAME = 'news'
@@ -34,9 +34,24 @@ export async function getNews(limitCount = 10) {
     const news = []
     
     querySnapshot.forEach((doc) => {
+      const data = doc.data()
       news.push({
         id: doc.id,
-        ...doc.data()
+        ...data,
+        
+        // ⭐ SAFE FIELD HANDLING - Pastikan field baru ada dengan default values
+        date: data.date || null, // Tanggal kegiatan
+        time: data.time || null, // Waktu kegiatan
+        location: data.location || null, // Lokasi kegiatan
+        priority: data.priority || 3, // Default priority sedang
+        showInAnnouncement: data.showInAnnouncement || false,
+        isEvent: data.isEvent || false,
+        attachLinks: data.attachLinks || [], // Array link tambahan
+        thumbnails: data.thumbnails || {}, // Object thumbnails
+        tags: data.tags || [], // Array tags
+        author: data.author || 'Tim Redaksi',
+        source: data.source || 'Admin',
+        views: data.views || 0
       })
     })
     
@@ -88,49 +103,7 @@ export async function getNewsByDate(date) {
 }
 
 /**
- * ⭐ NEW - Mendapatkan upcoming news events (untuk fallback jika hari ini kosong)
- * @param {string} fromDate - Tanggal mulai pencarian (YYYY-MM-DD)
- * @param {number} limitCount - Limit hasil
- * @returns {Promise<Array>} Array news events yang akan datang
- */
-export async function getUpcomingNewsEvents(fromDate, limitCount = 5) {
-  try {
-    if (!fromDate) {
-      throw new Error('From date harus diisi')
-    }
-    
-    const newsRef = collection(db, COLLECTION_NAME)
-    const q = query(
-      newsRef, 
-      where('date', '>=', fromDate),
-      where('isEvent', '==', true),
-      where('showInAnnouncement', '==', true),
-      orderBy('date', 'asc'),
-      orderBy('priority', 'asc'),
-      limit(limitCount)
-    )
-    
-    const querySnapshot = await getDocs(q)
-    const news = []
-    
-    querySnapshot.forEach((doc) => {
-      news.push({
-        id: doc.id,
-        source: 'news',
-        ...doc.data()
-      })
-    })
-    
-    console.log(`📰 [News Service] Found ${news.length} upcoming news events from: ${fromDate}`)
-    return news
-  } catch (error) {
-    console.error('Error getting upcoming news events:', error)
-    throw error
-  }
-}
-
-/**
- * Mendapatkan satu news berdasarkan ID
+ * Mendapatkan satu news berdasarkan ID dengan field lengkap
  * @param {string} id - ID news
  * @returns {Promise<Object>} Data news
  */
@@ -147,9 +120,25 @@ export async function getNewsById(id) {
       throw new Error('News tidak ditemukan')
     }
 
+    const data = docSnap.data()
+    
     return {
       id: docSnap.id,
-      ...docSnap.data()
+      ...data,
+      
+      // ⭐ SAFE FIELD HANDLING untuk DetailNews
+      date: data.date || null,
+      time: data.time || null,
+      location: data.location || null,
+      priority: data.priority || 3,
+      showInAnnouncement: data.showInAnnouncement || false,
+      isEvent: data.isEvent || false,
+      attachLinks: data.attachLinks || [],
+      thumbnails: data.thumbnails || {},
+      tags: data.tags || [],
+      author: data.author || 'Tim Redaksi',
+      source: data.source || 'Admin',
+      views: data.views || 0
     }
   } catch (error) {
     console.error('Error getting news by ID:', error)
@@ -193,7 +182,172 @@ export async function getNewsByCategory(category) {
 }
 
 /**
- * ⭐ UPDATED - Menambahkan news baru dengan auto-detection dan default values
+ * ⭐ AUTO-DETECT FIELDS - Mendeteksi field otomatis berdasarkan konten
+ */
+function autoDetectNewsFields(newsData) {
+  const category = newsData.category?.toLowerCase() || ''
+  const title = newsData.title?.toLowerCase() || ''
+  const content = newsData.content?.toLowerCase() || ''
+  
+  // Default values
+  let isEvent = false
+  let showInAnnouncement = false
+  let priority = 3
+  
+  // ⭐ EVENT CATEGORIES
+  const eventCategories = [
+    'event', 'ibadah', 'pelprap', 'pelatar', 'birthday', 
+    'ulang_tahun', 'camping', 'retreat', 'seminar', 'workshop',
+    'kegiatan', 'acara'
+  ]
+  
+  // ⭐ EVENT KEYWORDS
+  const eventKeywords = [
+    'ibadh', 'pelprap', 'pelatar', 'birthday', 'ulang tahun',
+    'camp', 'camping', 'retreat', 'seminar', 'workshop', 'acara',
+    'kegiatan', 'event', 'pertemuan', 'gathering', 'favored'
+  ]
+  
+  // ⭐ ANNOUNCEMENT CATEGORIES 
+  const announcementCategories = ['announcement', 'pengumuman']
+  
+  // ⭐ HIGH PRIORITY KEYWORDS
+  const highPriorityKeywords = ['penting', 'urgent', 'segera', 'darurat']
+  
+  // Logic detection
+  const isEventCategory = eventCategories.some(cat => category.includes(cat))
+  const hasEventKeyword = eventKeywords.some(keyword => 
+    title.includes(keyword) || content.includes(keyword)
+  )
+  const isAnnouncementCategory = announcementCategories.some(cat => category.includes(cat))
+  const hasHighPriorityKeyword = highPriorityKeywords.some(keyword => 
+    title.includes(keyword) || content.includes(keyword)
+  )
+  const hasDateAndTime = newsData.date && newsData.time
+  
+  // ⭐ EVENT DETECTION
+  if (isEventCategory || hasEventKeyword || hasDateAndTime) {
+    isEvent = true
+    showInAnnouncement = true
+    priority = 2 // Tinggi untuk event
+  }
+  
+  // ⭐ ANNOUNCEMENT DETECTION
+  if (isAnnouncementCategory) {
+    isEvent = false
+    showInAnnouncement = true
+    priority = 1 // Sangat tinggi untuk pengumuman
+  }
+  
+  // ⭐ HIGH PRIORITY DETECTION
+  if (hasHighPriorityKeyword) {
+    showInAnnouncement = true
+    priority = 1 // Sangat tinggi
+  }
+  
+  return {
+    isEvent,
+    showInAnnouncement,
+    priority
+  }
+}
+
+/**
+ * Detect schedule info dari content
+ */
+function detectScheduleInfo(content) {
+  const scheduleKeywords = [
+    'jam', 'pukul', 'waktu', 'tanggal', 'hari', 'minggu',
+    'jadwal', 'acara', 'agenda', 'pelaksanaan', 'dimulai',
+    'berakhir', 'durasi', 'tempat', 'lokasi', 'venue'
+  ]
+  
+  const lowerContent = content.toLowerCase()
+  return scheduleKeywords.some(keyword => lowerContent.includes(keyword))
+}
+
+/**
+ * Create news baru dengan field lengkap
+ * @param {Object} newsData - Data news
+ * @returns {Promise<Object>} Created news object with ID
+ */
+export async function createNews(newsData) {
+  try {
+    console.log('🔍 [createNews] Received data:', newsData)
+    
+    if (!newsData.title || !newsData.title.trim()) {
+      throw new Error('Title harus diisi')
+    }
+
+    if (!newsData.summary || !newsData.summary.trim()) {
+      throw new Error('Summary harus diisi')
+    }
+
+    if (!newsData.category || !newsData.category.trim()) {
+      throw new Error('Category harus diisi')
+    }
+
+    // ⭐ AUTO-DETECTION untuk field baru
+    const autoDetectedFields = autoDetectNewsFields(newsData)
+
+    const enrichedData = {
+      // ⭐ BASIC FIELDS
+      title: newsData.title.trim(),
+      category: newsData.category.trim(), 
+      summary: newsData.summary.trim(),
+      content: newsData.content || newsData.summary.trim(),
+      
+      // ⭐ DATE FIELDS
+      publishDate: newsData.publishDate || new Date(),
+      date: newsData.date || null,
+      time: newsData.time || null,
+      location: newsData.location || null,
+      
+      // ⭐ DISPLAY SETTINGS
+      priority: newsData.priority ?? autoDetectedFields.priority,
+      showInAnnouncement: newsData.showInAnnouncement ?? autoDetectedFields.showInAnnouncement,
+      isEvent: newsData.isEvent ?? autoDetectedFields.isEvent,
+      
+      // ⭐ MEDIA
+      thumbnail: newsData.thumbnail || null,
+      thumbnails: newsData.thumbnails || {},
+      
+      // ⭐ ADDITIONAL FIELDS
+      author: newsData.author || 'Tim Redaksi',
+      source: newsData.source || 'Admin',
+      tags: Array.isArray(newsData.tags) ? newsData.tags : [],
+      attachLinks: Array.isArray(newsData.attachLinks) ? newsData.attachLinks : [],
+      views: 0,
+      
+      // ⭐ SYSTEM FIELDS
+      hasScheduleInfo: detectScheduleInfo(newsData.summary || newsData.content || ''),
+      isPublished: true,
+      
+      // Metadata
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: newsData.createdBy || 'Admin'
+    }
+    
+    console.log('✅ [createNews] Enriched data:', enrichedData)
+    
+    const newsRef = collection(db, 'news')
+    const docRef = await addDoc(newsRef, enrichedData)
+    
+    console.log('🎉 [createNews] News created with ID:', docRef.id)
+    
+    return {
+      id: docRef.id,
+      ...enrichedData
+    }
+  } catch (error) {
+    console.error('❌ [createNews] Error:', error)
+    throw error
+  }
+}
+
+/**
+ * ⭐ BACKWARD COMPATIBILITY - Alias untuk addNews (yang lama)
  * @param {Object} newsData - Data news baru
  * @returns {Promise<string>} ID news yang baru dibuat
  */
@@ -207,8 +361,8 @@ export async function addNews(newsData) {
       throw new Error('Title news harus diisi')
     }
 
-    if (!newsData.content) {
-      throw new Error('Content news harus diisi')
+    if (!newsData.summary) {
+      throw new Error('Summary news harus diisi')
     }
 
     if (!newsData.category) {
@@ -222,11 +376,25 @@ export async function addNews(newsData) {
     const enrichedData = {
       ...newsData,
       
+      // ⭐ CONTENT dari summary jika tidak ada content
+      content: newsData.content || newsData.summary,
+      
       // Field baru dengan priority: manual input > auto-detection > default
       isEvent: newsData.isEvent ?? autoDetectedFields.isEvent,
       showInAnnouncement: newsData.showInAnnouncement ?? autoDetectedFields.showInAnnouncement,
       priority: newsData.priority ?? autoDetectedFields.priority,
-      eventEndDate: newsData.eventEndDate || autoDetectedFields.eventEndDate,
+      date: newsData.date || null,
+      time: newsData.time || null,
+      location: newsData.location || null,
+      author: newsData.author || 'Tim Redaksi',
+      source: newsData.source || 'Admin',
+      tags: Array.isArray(newsData.tags) ? newsData.tags : [],
+      attachLinks: Array.isArray(newsData.attachLinks) ? newsData.attachLinks : [],
+      thumbnails: newsData.thumbnails || {},
+      views: 0,
+      
+      // Auto-detect showInAnnouncement berdasarkan priority/isEvent
+      hasScheduleInfo: detectScheduleInfo(newsData.summary || newsData.content || ''),
       
       // Metadata
       createdAt: new Date(),
@@ -244,81 +412,6 @@ export async function addNews(newsData) {
   } catch (error) {
     console.error('Error adding news:', error)
     throw error
-  }
-}
-
-/**
- * ⭐ NEW - Auto-detection logic untuk field baru berdasarkan content
- * @param {Object} newsData - Data news input
- * @returns {Object} Auto-detected field values
- */
-function autoDetectNewsFields(newsData) {
-  const category = newsData.category?.toLowerCase() || ''
-  const title = newsData.title?.toLowerCase() || ''
-  const content = newsData.content?.toLowerCase() || ''
-  
-  // Default values
-  let isEvent = false
-  let showInAnnouncement = false
-  let priority = 3
-  let eventEndDate = null
-  
-  // ⭐ EVENT CATEGORIES - otomatis jadi event
-  const eventCategories = [
-    'event', 'ibadah', 'pelprap', 'pelatar', 'birthday', 
-    'ulang_tahun', 'camping', 'retreat', 'seminar', 'workshop'
-  ]
-  
-  // ⭐ EVENT KEYWORDS - deteksi dari title/content
-  const eventKeywords = [
-    'ibadah', 'pelprap', 'pelatar', 'birthday', 'ulang tahun',
-    'camp', 'camping', 'retreat', 'seminar', 'workshop', 'acara',
-    'kegiatan', 'event', 'pertemuan', 'gathering'
-  ]
-  
-  // ⭐ ANNOUNCEMENT CATEGORIES - news biasa
-  const announcementCategories = ['announcement', 'pengumuman', 'info', 'berita']
-  
-  // Logic detection
-  const isEventCategory = eventCategories.some(cat => category.includes(cat))
-  const hasEventKeyword = eventKeywords.some(keyword => 
-    title.includes(keyword) || content.includes(keyword)
-  )
-  const isAnnouncementCategory = announcementCategories.some(cat => category.includes(cat))
-  const hasScheduleInfo = newsData.hasScheduleInfo === true
-  const hasDateAndTime = newsData.date && newsData.time
-  
-  if (isEventCategory || hasEventKeyword || hasScheduleInfo || hasDateAndTime) {
-    isEvent = true
-    showInAnnouncement = true
-    priority = 1
-    
-    // ⭐ DETECT MULTI-DAY EVENTS
-    if (title.includes('camp') || title.includes('retreat') || title.includes('perkemahan')) {
-      if (newsData.date) {
-        const startDate = new Date(newsData.date)
-        startDate.setDate(startDate.getDate() + 2) // Default 2 hari
-        eventEndDate = startDate.toISOString().split('T')[0]
-      }
-    }
-  } else if (isAnnouncementCategory) {
-    isEvent = false
-    showInAnnouncement = false
-    priority = 2
-  }
-  
-  // ⭐ BIRTHDAY SPECIAL HANDLING
-  if (category.includes('birthday') || title.includes('birthday') || title.includes('ulang tahun')) {
-    isEvent = true
-    showInAnnouncement = true
-    priority = 1
-  }
-  
-  return {
-    isEvent,
-    showInAnnouncement,
-    priority,
-    eventEndDate
   }
 }
 
@@ -394,6 +487,48 @@ export async function deleteNews(id) {
     return true
   } catch (error) {
     console.error('Error deleting news:', error)
+    throw error
+  }
+}
+
+/**
+ * ⭐ NEW - Mendapatkan upcoming news events (untuk fallback jika hari ini kosong)
+ * @param {string} fromDate - Tanggal mulai pencarian (YYYY-MM-DD)
+ * @param {number} limitCount - Limit hasil
+ * @returns {Promise<Array>} Array news events yang akan datang
+ */
+export async function getUpcomingNewsEvents(fromDate, limitCount = 5) {
+  try {
+    if (!fromDate) {
+      throw new Error('From date harus diisi')
+    }
+    
+    const newsRef = collection(db, COLLECTION_NAME)
+    const q = query(
+      newsRef, 
+      where('date', '>=', fromDate),
+      where('isEvent', '==', true),
+      where('showInAnnouncement', '==', true),
+      orderBy('date', 'asc'),
+      orderBy('priority', 'asc'),
+      limit(limitCount)
+    )
+    
+    const querySnapshot = await getDocs(q)
+    const news = []
+    
+    querySnapshot.forEach((doc) => {
+      news.push({
+        id: doc.id,
+        source: 'news',
+        ...doc.data()
+      })
+    })
+    
+    console.log(`📰 [News Service] Found ${news.length} upcoming news events from: ${fromDate}`)
+    return news
+  } catch (error) {
+    console.error('Error getting upcoming news events:', error)
     throw error
   }
 }

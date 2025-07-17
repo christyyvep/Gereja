@@ -16,14 +16,69 @@ import { getUpcomingWorshipSchedules as getUpcomingSchedules } from './schedules
 const NEWS_COLLECTION = 'news'
 
 /**
+ * ⭐ HELPER: Convert Indonesian date format to ISO format
+ * "16 Juli 2025" -> "2025-07-16"
+ */
+function convertIndonesianDateToISO(dateString) {
+  if (!dateString || typeof dateString !== 'string') return null
+  
+  const monthMap = {
+    'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04',
+    'Mei': '05', 'Juni': '06', 'Juli': '07', 'Agustus': '08',
+    'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12'
+  }
+  
+  // Match format "DD Bulan YYYY"
+  const match = dateString.match(/^(\d{1,2})\s+(\w+)\s+(\d{4})$/)
+  if (match) {
+    const [, day, month, year] = match
+    const monthNumber = monthMap[month]
+    if (monthNumber) {
+      const paddedDay = day.padStart(2, '0')
+      return `${year}-${monthNumber}-${paddedDay}`
+    }
+  }
+  
+  return null
+}
+
+/**
+ * ⭐ HELPER: Check if a date value matches today (supports multiple formats)
+ */
+function isDateToday(dateValue, today) {
+  if (!dateValue) return false
+  
+  // Direct match (string format)
+  if (dateValue === today) return true
+  
+  // Handle Firestore Timestamp
+  if (dateValue && typeof dateValue === 'object' && dateValue.seconds) {
+    const timestampDate = new Date(dateValue.seconds * 1000).toISOString().split('T')[0]
+    if (timestampDate === today) return true
+  }
+  
+  // Handle Date object
+  if (dateValue instanceof Date) {
+    const dateString = dateValue.toISOString().split('T')[0]
+    if (dateString === today) return true
+  }
+  
+  // Convert Indonesian format
+  const convertedDate = convertIndonesianDateToISO(dateValue)
+  if (convertedDate === today) return true
+  
+  return false
+}
+
+/**
  * ⭐ MAIN FUNCTION - Get unified announcements dari schedules + news
- * Hanya menampilkan konten yang memiliki KEGIATAN/ACARA HARI INI
+ * Prioritas: 1) Kegiatan hari ini, 2) Recent published news sebagai fallback
  * @param {number} limitCount - Maksimal announcements yang diambil
  * @returns {Promise<Array>} Array unified announcements
  */
 export async function getUnifiedAnnouncements(limitCount = 8) {
   try {
-    console.log('📢 [Announcement Service] Getting unified announcements for TODAY...')
+    console.log('📢 [Announcement Service] Getting unified announcements...')
     
     // 1. Get tanggal hari ini
     const today = new Date().toISOString().split('T')[0] // "2025-07-07"
@@ -37,7 +92,15 @@ export async function getUnifiedAnnouncements(limitCount = 8) {
     const todayNews = await getTodayNews(today)
     console.log(`📰 [Announcement Service] Found ${todayNews.length} news with activities for today`)
     
-    // 4. Transform ke format unified
+    // ✅ 4. FALLBACK: Jika tidak ada kegiatan hari ini, ambil recent published news
+    let fallbackNews = []
+    if (todaySchedules.length === 0 && todayNews.length === 0) {
+      console.log('📰 [Announcement Service] No activities today, getting recent published news as fallback...')
+      fallbackNews = await getRecentPublishedNews(limitCount)
+      console.log(`📰 [Announcement Service] Found ${fallbackNews.length} recent published news`)
+    }
+    
+    // 5. Transform ke format unified
     const scheduleAnnouncements = todaySchedules.map(schedule => ({
       // ✅ ID untuk display (dengan prefix untuk uniqueness di homepage)
       id: `schedule_${schedule.id}`,
@@ -68,11 +131,11 @@ export async function getUnifiedAnnouncements(limitCount = 8) {
       
       // Display info
       icon: getScheduleIcon(schedule.category),
-      badge: 'Jadwal',
+      badge: 'Jadwal Hari Ini',
       badgeColor: getScheduleBadgeColor(schedule.category)
     }))
     
-    const newsAnnouncements = todayNews.map(news => ({
+    const newsAnnouncements = (todayNews.length > 0 ? todayNews : fallbackNews).map(news => ({
       // ✅ ID untuk display (dengan prefix untuk uniqueness di homepage)
       id: `news_${news.id}`,
       
@@ -104,20 +167,20 @@ export async function getUnifiedAnnouncements(limitCount = 8) {
       
       // Display info
       icon: getNewsIcon(news.category),
-      badge: 'Acara',
+      badge: todayNews.length > 0 ? 'Acara Hari Ini' : 'Berita Terbaru',
       badgeColor: getNewsBadgeColor(news.category),
       
       // Optional: thumbnail jika ada
       ...(news.thumbnail && { thumbnail: news.thumbnail })
     }))
     
-    // 5. Gabungkan semua announcements
+    // 6. Gabungkan semua announcements
     const allAnnouncements = [
       ...scheduleAnnouncements,
       ...newsAnnouncements
     ]
     
-    // 6. Sort berdasarkan priority dan waktu
+    // 7. Sort berdasarkan priority dan waktu
     const sortedAnnouncements = allAnnouncements
       .sort((a, b) => {
         // Priority tinggi dulu
@@ -139,7 +202,7 @@ export async function getUnifiedAnnouncements(limitCount = 8) {
       })
       .slice(0, limitCount)
     
-    console.log(`📢 [Announcement Service] Today's activities: ${scheduleAnnouncements.length} schedules + ${newsAnnouncements.length} news = ${sortedAnnouncements.length} total announcements`)
+    console.log(`📢 [Announcement Service] Final result: ${scheduleAnnouncements.length} schedules + ${newsAnnouncements.length} news = ${sortedAnnouncements.length} total announcements`)
     
     if (sortedAnnouncements.length > 0) {
       console.log('🔍 [Announcement Service] Sample announcement structure:', sortedAnnouncements[0])
@@ -150,6 +213,55 @@ export async function getUnifiedAnnouncements(limitCount = 8) {
   } catch (error) {
     console.error('❌ [Announcement Service] Error getting unified announcements:', error)
     throw error
+  }
+}
+
+/**
+ * ⭐ FALLBACK - Get recent published news untuk homepage
+ */
+async function getRecentPublishedNews(limitCount = 6) {
+  try {
+    console.log('📰 [Announcement Service] Getting recent published news...')
+    
+    const newsRef = collection(db, NEWS_COLLECTION)
+    
+    // Query untuk published news, diurutkan berdasarkan createdAt
+    const recentNewsQuery = query(
+      newsRef, 
+      where('isPublished', '==', true)
+      // Note: orderBy akan ditambah setelah data ter-load untuk menghindari composite index requirement
+    )
+    
+    const querySnapshot = await getDocs(recentNewsQuery)
+    
+    const allPublishedNews = []
+    querySnapshot.forEach((doc) => {
+      const newsData = {
+        id: doc.id,
+        ...doc.data()
+      }
+      allPublishedNews.push(newsData)
+    })
+    
+    // Sort manual berdasarkan createdAt (terbaru dulu)
+    const sortedNews = allPublishedNews.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt.seconds ? a.createdAt.seconds * 1000 : a.createdAt) : new Date(0)
+      const dateB = b.createdAt ? new Date(b.createdAt.seconds ? b.createdAt.seconds * 1000 : b.createdAt) : new Date(0)
+      return dateB - dateA
+    })
+    
+    const recentNews = sortedNews.slice(0, limitCount)
+    
+    console.log(`📰 [Announcement Service] Found ${recentNews.length} recent published news:`)
+    recentNews.forEach(news => {
+      console.log(`  - ${news.title} (${news.category || 'no-category'})`)
+    })
+    
+    return recentNews
+    
+  } catch (error) {
+    console.error('❌ [Announcement Service] Error getting recent published news:', error)
+    return []
   }
 }
 
@@ -180,55 +292,76 @@ async function getTodaySchedules(today) {
 /**
  * ⭐ Get news yang ada KEGIATAN/ACARA HARI INI
  */
+/**
+ * ⭐ Get news yang ada KEGIATAN/ACARA HARI INI (SIMPLIFIED VERSION)
+ */
 async function getTodayNews(today) {
   try {
     console.log('📰 [Announcement Service] Getting news with activities for today:', today)
     
     const newsRef = collection(db, NEWS_COLLECTION)
     
-    // Query dengan berbagai field tanggal kegiatan
-    const queries = [
-      query(newsRef, where('eventDate', '==', today)),
-      query(newsRef, where('activityDate', '==', today)),
-      query(newsRef, where('scheduleDate', '==', today)),
-      query(newsRef, where('date', '==', today))
-    ]
+    // ✅ SIMPLIFIED: Ambil semua published news dan filter manual
+    console.log('📰 [Announcement Service] Getting all published news for manual filtering...')
     
-    const newsSet = new Set()
+    const publishedQuery = query(newsRef, where('isPublished', '==', true))
+    const publishedSnapshot = await getDocs(publishedQuery)
     
-    // Execute semua queries
-    for (const q of queries) {
-      try {
-        const querySnapshot = await getDocs(q)
-        querySnapshot.forEach((doc) => {
-          const newsData = {
-            id: doc.id,
-            ...doc.data()
-          }
-          newsSet.add(JSON.stringify(newsData))
-        })
-      } catch (queryError) {
-        console.warn('⚠️ [Announcement Service] Query failed (normal jika field tidak ada):', queryError.message)
-      }
-    }
+    console.log(`📰 [Announcement Service] Found ${publishedSnapshot.size} published news items`)
     
-    // Convert Set kembali ke array
-    const todayNews = Array.from(newsSet).map(item => JSON.parse(item))
+    const todayNews = []
     
-    // Double check: filter manual
-    const filteredNews = todayNews.filter(news => {
-      const eventDate = news.eventDate || news.activityDate || news.scheduleDate || news.date
-      const hasEventToday = eventDate === today
+    publishedSnapshot.forEach((doc) => {
+      const newsData = { id: doc.id, ...doc.data() }
+      
+      // Check all possible date fields
+      const dateFields = [
+        newsData.date,
+        newsData.eventDate, 
+        newsData.activityDate, 
+        newsData.scheduleDate,
+        newsData.publishDate
+      ]
+      
+      console.log(`🔍 [Announcement Service] Checking news "${newsData.title}":`)
+      
+      // Check if any date field matches today
+      const hasEventToday = dateFields.some((dateValue, index) => {
+        const fieldNames = ['date', 'eventDate', 'activityDate', 'scheduleDate', 'publishDate']
+        const fieldName = fieldNames[index]
+        
+        if (!dateValue) {
+          console.log(`   - ${fieldName}: null`)
+          return false
+        }
+        
+        const matches = isDateToday(dateValue, today)
+        
+        // Enhanced debug logging
+        let dateStr = 'unknown'
+        if (dateValue && typeof dateValue === 'object' && dateValue.seconds) {
+          dateStr = new Date(dateValue.seconds * 1000).toISOString().split('T')[0]
+        } else if (dateValue instanceof Date) {
+          dateStr = dateValue.toISOString().split('T')[0]
+        } else if (typeof dateValue === 'string') {
+          dateStr = dateValue
+        }
+        
+        console.log(`   - ${fieldName}: ${dateStr} (${typeof dateValue}) -> matches: ${matches}`)
+        
+        return matches
+      })
       
       if (hasEventToday) {
-        console.log(`✅ [Announcement Service] News "${news.title}" has activity on ${today}`)
+        console.log(`✅ [Announcement Service] News "${newsData.title}" has activity today!`)
+        todayNews.push(newsData)
+      } else {
+        console.log(`❌ [Announcement Service] News "${newsData.title}" does not have activity today`)
       }
-      
-      return hasEventToday
     })
     
-    console.log(`📰 [Announcement Service] Found ${filteredNews.length} news with activities for ${today}`)
-    return filteredNews
+    console.log(`📰 [Announcement Service] Found ${todayNews.length} news with activities for ${today}`)
+    return todayNews
     
   } catch (error) {
     console.error('❌ [Announcement Service] Error getting today news:', error)

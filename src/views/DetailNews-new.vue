@@ -23,8 +23,8 @@
       v-else-if="news"
       :headerTitle="'Detail Berita'"
       :title="news.title"
-      :description="''"
-      :thumbnail="''"
+      :description="getNewsDescription"
+      :thumbnail="getNewsThumbnailUrl"
       :category="news.category"
       :contentType="'news'"
       :newsData="news"
@@ -32,61 +32,71 @@
       <!-- Additional News Info Slot -->
       <template #additional-info>
         <div class="news-meta-info">
-          <!-- Isi Berita (tanpa title) -->
-          <div v-if="news.content" class="news-rich-content">
-            <div class="content-body" v-html="news.content"></div>
-          </div>
-          
-          <!-- Meta Data: Tanggal, Waktu, Lokasi -->
+          <!-- Date and Category -->
           <div class="news-meta">
             <div class="meta-item">
               <span class="meta-label">Tanggal:</span>
               <span class="meta-value">{{ formatDate(news.date || news.createdAt) }}</span>
             </div>
-            <div v-if="news.time" class="meta-item">
-              <span class="meta-label">Waktu:</span>
-              <span class="meta-value">{{ news.time }}</span>
+            <div v-if="news.category" class="meta-item">
+              <span class="meta-label">Kategori:</span>
+              <span class="meta-value">{{ news.category }}</span>
             </div>
-            <div v-if="news.location" class="meta-item">
-              <span class="meta-label">Lokasi:</span>
-              <span class="meta-value">{{ news.location }}</span>
+            <div v-if="news.author" class="meta-item">
+              <span class="meta-label">Penulis:</span>
+              <span class="meta-value">{{ news.author }}</span>
             </div>
           </div>
           
-          <!-- Additional Links - IMPROVED LOGIC -->
-          <div v-if="hasValidLinks" class="news-links">
-            <h4 class="links-title">Link Tambahan:</h4>
-            <div class="links-list">
-              <a 
-                v-for="(link, index) in validLinks" 
+          <!-- Rich Content -->
+          <div v-if="news.content" class="news-rich-content">
+            <h3 class="content-title">Detail Berita</h3>
+            <div class="content-body" v-html="news.content"></div>
+          </div>
+          
+          <!-- Additional Images Gallery -->
+          <div v-if="hasGalleryImages" class="news-gallery">
+            <h3 class="gallery-title">Galeri Foto</h3>
+            <div class="gallery-grid">
+              <div 
+                v-for="(image, index) in getGalleryImages" 
                 :key="index"
-                :href="getLinkUrl(link)"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="link-item"
+                class="gallery-item"
+                @click="openImageModal(image)"
               >
-                {{ getLinkText(link, index) }}
-              </a>
+                <img :src="image.url" :alt="image.caption || `Gambar ${index + 1}`" />
+                <div v-if="image.caption" class="gallery-caption">{{ image.caption }}</div>
+              </div>
             </div>
           </div>
           
-          <!-- Debug Links (temporary) - DISABLED -->
-          <div v-if="false && news.attachLinks" class="debug-links" style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-size: 12px;">
-            <strong>DEBUG - Links Data:</strong><br>
-            Length: {{ news.attachLinks.length }}<br>
-            Data: {{ JSON.stringify(news.attachLinks, null, 2) }}
+          <!-- Tags -->
+          <div v-if="news.tags && news.tags.length > 0" class="news-tags">
+            <h4 class="tags-title">Tag Berita:</h4>
+            <div class="tags-list">
+              <span v-for="tag in news.tags" :key="tag" class="tag-item">{{ tag }}</span>
+            </div>
           </div>
         </div>
       </template>
     </DetailLayout>
     
-    <!-- Image Modal for Gallery (Tidak diperlukan lagi) -->
-    <!-- Modal dihapus karena galeri tidak digunakan -->
+    <!-- Image Modal for Gallery -->
+    <div v-if="selectedImage" class="image-modal" @click="closeImageModal">
+      <div class="modal-content" @click.stop>
+        <button class="modal-close" @click="closeImageModal">&times;</button>
+        <img :src="selectedImage.url" :alt="selectedImage.caption" />
+        <div v-if="selectedImage.caption" class="modal-caption">
+          {{ selectedImage.caption }}
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import DetailLayout from '@/components/layout/DetailLayout.vue'
+import { getNewsThumbnail } from '@/utils/imageUtils'
 import { getNewsById } from '@/services/news'
 
 export default {
@@ -99,43 +109,98 @@ export default {
     return {
       news: null,
       loading: true,
-      error: null
+      error: null,
+      selectedImage: null
+    }
+  },
+  
+  computed: {
+    // Get news description with fallback
+    getNewsDescription() {
+      if (!this.news) return ''
+      
+      // Use summary first, then description
+      return this.news.summary || this.news.description || 'Deskripsi tidak tersedia'
+    },
+    
+    // Get the appropriate thumbnail for DetailLayout
+    getNewsThumbnailUrl() {
+      if (!this.news) return ''
+      
+      try {
+        // DetectLayout will handle device-specific thumbnails automatically
+        // We'll pass the news object and let the layout component decide
+        console.log('🖼️ [DetailNews] Getting thumbnail for DetailLayout')
+        
+        // For detail view, prefer detail thumbnails
+        const isMobile = window.innerWidth < 768
+        const thumbnailType = isMobile ? 'detail-mobile' : 'detail-desktop'
+        
+        return getNewsThumbnail(this.news, thumbnailType)
+      } catch (error) {
+        console.error('❌ [DetailNews] Error getting thumbnail:', error)
+        return ''
+      }
+    },
+    
+    // Check if news has gallery images (excluding main thumbnails)
+    hasGalleryImages() {
+      if (!this.news) return false
+      
+      // Check both old format (images) and new format (thumbnails)
+      const images = this.news.images || {}
+      const thumbnails = this.news.thumbnails || {}
+      
+      // Look for any additional images beyond the main 4 thumbnails
+      const imageKeys = Object.keys(images).filter(key => 
+        !['cardDesktop', 'cardMobile', 'detailDesktop', 'detailMobile'].includes(key)
+      )
+      
+      const thumbnailKeys = Object.keys(thumbnails).filter(key => 
+        !['cardDesktop', 'cardMobile', 'detailDesktop', 'detailMobile'].includes(key)
+      )
+      
+      return imageKeys.length > 0 || thumbnailKeys.length > 0
+    },
+    
+    // Get gallery images for display
+    getGalleryImages() {
+      if (!this.hasGalleryImages) return []
+      
+      const galleryImages = []
+      
+      // Add from legacy images field
+      if (this.news.images) {
+        Object.keys(this.news.images).forEach(key => {
+          if (!['cardDesktop', 'cardMobile', 'detailDesktop', 'detailMobile'].includes(key)) {
+            galleryImages.push({
+              url: this.news.images[key],
+              caption: `Gambar ${key}`,
+              key: key
+            })
+          }
+        })
+      }
+      
+      // Add from new thumbnails field
+      if (this.news.thumbnails) {
+        Object.keys(this.news.thumbnails).forEach(key => {
+          if (!['cardDesktop', 'cardMobile', 'detailDesktop', 'detailMobile'].includes(key)) {
+            galleryImages.push({
+              url: this.news.thumbnails[key],
+              caption: `Gambar ${key}`,
+              key: key
+            })
+          }
+        })
+      }
+      
+      return galleryImages
     }
   },
   
   async mounted() {
     await this.loadNews()
-  },
-  
-  computed: {
-    // ⭐ COMPUTED: Check if there are valid links
-    hasValidLinks() {
-      return this.validLinks.length > 0
-    },
-    
-    // ⭐ COMPUTED: Filter out invalid/empty links
-    validLinks() {
-      if (!this.news?.attachLinks || !Array.isArray(this.news.attachLinks)) {
-        return []
-      }
-      
-      return this.news.attachLinks.filter(link => {
-        if (!link) return false
-        
-        // If it's a string, it should be a valid URL
-        if (typeof link === 'string') {
-          return link.trim().length > 0 && this.isValidUrl(link.trim())
-        }
-        
-        // If it's an object, it should have url property or be a valid URL string
-        if (typeof link === 'object') {
-          const url = link.url || link.link || link.href
-          return url && typeof url === 'string' && url.trim().length > 0 && this.isValidUrl(url.trim())
-        }
-        
-        return false
-      })
-    }
   },
   
   methods: {
@@ -146,11 +211,8 @@ export default {
       try {
         const newsId = this.$route.params.id
         
-        console.log('🔄 [DetailNews] Route params:', this.$route.params)
-        console.log('🔄 [DetailNews] Full route:', this.$route)
-        
         if (!newsId) {
-          throw new Error('ID berita tidak ditemukan dalam route')
+          throw new Error('ID berita tidak ditemukan')
         }
         
         console.log('🔄 [DetailNews] Loading news with ID:', newsId)
@@ -158,43 +220,7 @@ export default {
         // Use real news service
         this.news = await getNewsById(newsId)
         
-        if (!this.news) {
-          throw new Error(`Berita dengan ID "${newsId}" tidak ditemukan`)
-        }
-        
-        console.log('✅ [DetailNews] News loaded successfully:', {
-          id: this.news.id,
-          title: this.news.title,
-          category: this.news.category,
-          hasImages: !!this.news.images,
-          hasThumbnails: !!this.news.thumbnails,
-          images: this.news.images,
-          thumbnails: this.news.thumbnails
-        })
-        
-        // ⭐ PERBAIKAN: Map thumbnails ke images jika images tidak ada
-        if (!this.news.images && this.news.thumbnails) {
-          console.log('🔄 [DetailNews] Mapping thumbnails to images field')
-          this.news.images = this.news.thumbnails
-        }
-        
-        // Debug: Check links data
-        console.log('🔗 [DetailNews] Links data:', {
-          attachLinks: this.news.attachLinks,
-          attachLinksLength: this.news.attachLinks?.length,
-          allFields: Object.keys(this.news)
-        })
-        
-        // Debug: Check specific image URLs
-        if (this.news.images) {
-          console.log('🖼️ [DetailNews] Image URLs:')
-          console.log('- cardDesktop:', this.news.images.cardDesktop)
-          console.log('- cardMobile:', this.news.images.cardMobile) 
-          console.log('- detailDesktop:', this.news.images.detailDesktop)
-          console.log('- detailMobile:', this.news.images.detailMobile)
-        } else {
-          console.log('❌ [DetailNews] No images object found in news data')
-        }
+        console.log('✅ [DetailNews] News loaded successfully:', this.news.title)
         
       } catch (error) {
         console.error('❌ [DetailNews] Error loading news:', error)
@@ -202,6 +228,15 @@ export default {
       } finally {
         this.loading = false
       }
+    },
+    
+    openImageModal(image) {
+      this.selectedImage = image
+      console.log('🖼️ [DetailNews] Opening image modal:', image.key)
+    },
+    
+    closeImageModal() {
+      this.selectedImage = null
     },
     
     formatDate(dateValue) {
@@ -236,64 +271,7 @@ export default {
         console.error('❌ [DetailNews] Error formatting date:', error)
         return 'Tanggal tidak tersedia'
       }
-    },
-    
-    // ⭐ METHOD: Get URL from link (supports both string and object)
-    getLinkUrl(link) {
-      if (typeof link === 'string') {
-        return link.trim()
-      }
-      
-      if (typeof link === 'object') {
-        return link.url || link.link || link.href || ''
-      }
-      
-      return ''
-    },
-    
-    // ⭐ METHOD: Get display text for link
-    getLinkText(link, index) {
-      if (typeof link === 'string') {
-        // For string URLs, use a friendly display name
-        return `Link ${index + 1}`
-      }
-      
-      if (typeof link === 'object') {
-        // Try various description fields
-        const text = link.description || link.title || link.name || link.label || link.text
-        if (text && text.trim()) {
-          return text.trim()
-        }
-        
-        // Fallback to URL or generic name
-        const url = link.url || link.link || link.href
-        if (url) {
-          // Try to extract domain name for display
-          try {
-            const domain = new URL(url).hostname.replace('www.', '')
-            return domain || `Link ${index + 1}`
-          } catch {
-            return `Link ${index + 1}`
-          }
-        }
-      }
-      
-      return `Link ${index + 1}`
-    },
-    
-    // ⭐ METHOD: Validate URL
-    isValidUrl(string) {
-      try {
-        new URL(string)
-        return true
-      } catch {
-        // Check if it's a relative URL or missing protocol
-        if (string.includes('.') && !string.includes(' ')) {
-          return true
-        }
-        return false
-      }
-    },
+    }
   }
 }
 </script>
@@ -425,6 +403,13 @@ export default {
   margin-bottom: 2rem;
 }
 
+.content-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 1rem;
+}
+
 .content-body {
   line-height: 1.6;
   color: #4a5568;
@@ -446,46 +431,81 @@ export default {
 }
 
 /* ========================================
-   GALLERY STYLES (TIDAK DIGUNAKAN)
+   GALLERY STYLES
 ========================================= */
 
-/* Galeri foto dihapus karena admin tidak upload galeri */
-
-/* ========================================
-   NEWS LINKS STYLES
-========================================= */
-
-.news-links {
+.news-gallery {
   margin-bottom: 2rem;
 }
 
-.links-title {
+.gallery-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 1rem;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.gallery-item {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.gallery-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.gallery-item img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+}
+
+.gallery-caption {
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  color: #4a5568;
+  background: white;
+}
+
+/* ========================================
+   TAGS STYLES
+========================================= */
+
+.news-tags {
+  margin-bottom: 2rem;
+}
+
+.tags-title {
   font-size: 1rem;
   font-weight: 600;
   color: #2d3748;
   margin-bottom: 0.75rem;
 }
 
-.links-list {
+.tags-list {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.link-item {
-  color: #6366F1;
-  text-decoration: none;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  transition: background-color 0.2s, border-color 0.2s;
+.tag-item {
+  background: #e2e8f0;
+  color: #4a5568;
+  padding: 0.375rem 0.75rem;
+  border-radius: 20px;
   font-size: 0.875rem;
-}
-
-.link-item:hover {
-  background-color: #f7fafc;
-  border-color: #6366F1;
-  text-decoration: underline;
+  font-weight: 500;
 }
 
 /* ========================================
@@ -568,13 +588,22 @@ export default {
     font-size: 0.875rem;
   }
   
-  .links-list {
+  .gallery-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+  
+  .gallery-item img {
+    height: 120px;
+  }
+  
+  .tags-list {
     gap: 0.375rem;
   }
   
-  .link-item {
+  .tag-item {
     font-size: 0.8rem;
-    padding: 0.375rem 0.5rem;
+    padding: 0.25rem 0.5rem;
   }
 }
 </style>

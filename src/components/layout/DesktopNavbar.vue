@@ -18,7 +18,7 @@
             v-for="item in menuItems" 
             :key="item.path"
             :to="item.path" 
-            class="nav-link"
+            :class="['nav-link', item.class]"
             :exact="item.exact"
           >
             {{ item.label }}
@@ -29,6 +29,8 @@
   </template>
   
   <script>
+  import { useUserStore } from '@/stores/userStore'
+
   export default {
     name: 'DesktopNavbar',
     
@@ -41,13 +43,19 @@
     },
     
     computed: {
+      isAdmin() {
+        const userStore = useUserStore()
+        const user = userStore.user
+        return user && user.role === 'admin'
+      },
       // ⭐ Main navigation menu items only
       menuItems() {
         return [
           { path: '/home', label: 'Home', exact: false }, // ✅ UBAH ke false biar jadwal juga active
           // { path: '/calendar', label: 'Kalender', exact: false }, // ✅ HIDDEN TEMPORARILY
           // { path: '/notifikasi', label: 'Notifikasi', exact: false }, // ✅ HIDDEN TEMPORARILY
-          { path: '/account', label: 'Profile', exact: false }
+          { path: '/account', label: 'Profile', exact: false },
+          ...(this.isAdmin ? [{ path: '/admin/dashboard', label: '🛡️ Admin', class: 'admin-link' }] : [])
         ]
       }
     }
@@ -244,6 +252,26 @@
       background: #41442A;
       color: white;
     }
+  }
+
+  .admin-link {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    color: white !important;
+    font-weight: 600;
+    border: 1px solid #dc2626;
+    box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+  }
+
+  .admin-link:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+    color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+  }
+
+  .admin-link.router-link-active {
+    background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
+    color: white !important;
   }
   
   /* === PRINT STYLES === */

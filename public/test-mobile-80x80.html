@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Mobile 80x80 Transform</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-container { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+        .image-comparison { display: flex; gap: 20px; flex-wrap: wrap; }
+        .image-container { text-align: center; }
+        .image-container img { border: 2px solid #ddd; display: block; margin: 10px auto; }
+        .image-container h3 { margin: 0 0 10px 0; }
+        .url-display { background: #f0f0f0; padding: 8px; margin: 8px 0; font-size: 10px; word-break: break-all; max-width: 300px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Mobile Transform Test (80x80)</h1>
+    
+    <div class="test-container">
+        <h2>Comparing Original vs Mobile Transformed</h2>
+        
+        <div class="image-comparison">
+            <div class="image-container">
+                <h3>📱 Mobile Transform (80x80)</h3>
+                <img id="mobile-img" src="" alt="Mobile 80x80" style="width: 80px; height: 80px;" />
+                <div class="url-display" id="mobile-url"></div>
+            </div>
+            
+            <div class="image-container">
+                <h3>🖥️ Desktop Original</h3>
+                <img id="desktop-img" src="" alt="Desktop original" style="max-width: 200px;" />
+                <div class="url-display" id="desktop-url"></div>
+            </div>
+            
+            <div class="image-container">
+                <h3>🔗 Manual Transform Test</h3>
+                <img id="manual-img" src="" alt="Manual transform" style="width: 80px; height: 80px;" />
+                <div class="url-display" id="manual-url"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import functions
+        import { getNewsThumbnail, getNewsCloudinaryUrl } from './src/utils/imageUtils.js'
+        
+        // Mock data
+        const mockNews = {
+            title: "TEST APING",
+            thumbnails: {
+                cardDesktop: "https://res.cloudinary.com/df74ywsgg/image/upload/v1752684262/myrajawali/thumbnails/news/cardDesktop/20211006_075026.jpg"
+            }
+        }
+        
+        console.log('🧪 Testing mobile transform...')
+        
+        // Test 1: Mobile transform via getNewsThumbnail
+        const mobileUrl = getNewsThumbnail(mockNews, 'card-mobile')
+        console.log('📱 Mobile URL:', mobileUrl)
+        document.getElementById('mobile-img').src = mobileUrl
+        document.getElementById('mobile-url').textContent = mobileUrl
+        
+        // Test 2: Desktop original
+        const desktopUrl = mockNews.thumbnails.cardDesktop
+        console.log('🖥️ Desktop URL:', desktopUrl)
+        document.getElementById('desktop-img').src = desktopUrl
+        document.getElementById('desktop-url').textContent = desktopUrl
+        
+        // Test 3: Manual transform test
+        const manualUrl = "https://res.cloudinary.com/df74ywsgg/image/upload/w_80,h_80,c_fill,f_auto,q_auto/v1752684262/myrajawali/thumbnails/news/cardDesktop/20211006_075026"
+        console.log('🔗 Manual URL:', manualUrl)
+        document.getElementById('manual-img').src = manualUrl
+        document.getElementById('manual-url').textContent = manualUrl
+        
+        // Check if transforms are working
+        if (mobileUrl.includes('w_80,h_80')) {
+            console.log('✅ SUCCESS: Mobile transform includes 80x80 parameters!')
+        } else {
+            console.log('❌ PROBLEM: Mobile transform missing 80x80 parameters')
+        }
+    </script>
+</body>
+</html>
