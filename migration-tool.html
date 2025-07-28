@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MyRajawali User Migration</title>
+</head>
+<body>
+    <h1>MyRajawali User Migration Tool</h1>
+    <button onclick="migrateChristy()">Migrate Christy Potabuga</button>
+    <div id="output"></div>
+
+    <script type="module">
+        import { db } from './src/services/firebase-security.js'
+        import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore'
+        import CryptoJS from 'crypto-js'
+
+        // Hash password function
+        function hashPassword(password) {
+            const salt = CryptoJS.lib.WordArray.random(128/8)
+            const hash = CryptoJS.PBKDF2(password, salt, {
+                keySize: 256/32,
+                iterations: 10000
+            })
+            return salt.toString() + ':' + hash.toString()
+        }
+
+        window.migrateChristy = async function() {
+            try {
+                document.getElementById('output').innerHTML = 'Migrating Christy...'
+                
+                // Find Christy
+                const jemaatRef = collection(db, 'jemaat')
+                const christyQuery = query(jemaatRef, where('nama', '==', 'Christy Potabuga'))
+                const snapshot = await getDocs(christyQuery)
+                
+                if (snapshot.empty) {
+                    throw new Error('Christy tidak ditemukan')
+                }
+                
+                const userDoc = snapshot.docs[0]
+                
+                // Update with hybrid auth fields
+                await updateDoc(doc(db, 'jemaat', userDoc.id), {
+                    password: hashPassword('christy123'),
+                    isRegistered: true,
+                    isActive: true,
+                    updatedAt: new Date()
+                })
+                
+                document.getElementById('output').innerHTML = `
+                    <h3>✅ Migration Success!</h3>
+                    <p>Christy Potabuga berhasil di-migrate</p>
+                    <p><strong>Password baru:</strong> christy123</p>
+                    <p>Sekarang bisa login dengan password: <code>christy123</code></p>
+                `
+                
+            } catch (error) {
+                document.getElementById('output').innerHTML = `
+                    <h3>❌ Migration Failed</h3>
+                    <p>Error: ${error.message}</p>
+                `
+            }
+        }
+    </script>
+</body>
+</html>
