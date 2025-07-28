@@ -34,7 +34,7 @@
         <div class="news-meta-info">
           <!-- Isi Berita (tanpa title) -->
           <div v-if="news.content" class="news-rich-content">
-            <div class="content-body" v-html="news.content"></div>
+            <div class="content-body" v-html="formatContentWithParagraphs(news.content)"></div>
           </div>
           
           <!-- Meta Data: Tanggal, Waktu, Lokasi -->
@@ -294,6 +294,29 @@ export default {
         return false
       }
     },
+
+    // ⭐ METHOD: Format content with proper paragraph spacing
+    formatContentWithParagraphs(content) {
+      if (!content) return ''
+      
+      // If content already contains HTML tags, return as is
+      if (content.includes('<p>') || content.includes('<div>') || content.includes('<br>')) {
+        return content
+      }
+      
+      // Convert plain text with line breaks to HTML paragraphs
+      const paragraphs = content
+        .split(/\n\s*\n/) // Split on double line breaks (paragraph breaks)
+        .map(paragraph => paragraph.trim())
+        .filter(paragraph => paragraph.length > 0)
+        .map(paragraph => {
+          // Convert single line breaks within paragraphs to <br>
+          const formattedParagraph = paragraph.replace(/\n/g, '<br>')
+          return `<p>${formattedParagraph}</p>`
+        })
+      
+      return paragraphs.join('')
+    },
   }
 }
 </script>
@@ -426,12 +449,22 @@ export default {
 }
 
 .content-body {
-  line-height: 1.6;
+  line-height: 1.7;
   color: #4a5568;
+  font-size: 1rem;
 }
 
 .content-body p {
-  margin-bottom: 1rem;
+  margin-bottom: 1.2rem;
+  line-height: 1.7;
+}
+
+.content-body p:last-child {
+  margin-bottom: 0;
+}
+
+.content-body br {
+  line-height: 2;
 }
 
 .content-body h1, .content-body h2, .content-body h3 {

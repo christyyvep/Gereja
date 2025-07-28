@@ -151,6 +151,9 @@
     addTestimony, 
     getPrayerCategories 
   } from '@/services/prayerRequests.js'
+
+  // Toast notification
+  import { useToast } from '@/composables/useToast.js'
   
   export default {
     name: 'PrayerDetail',
@@ -187,6 +190,20 @@
         showTestimonyModal: false,
         newTestimonyContent: '',
         isSubmittingTestimony: false
+      }
+    },
+
+    setup() {
+      const {
+        showSuccess,
+        showError,
+        validationError
+      } = useToast()
+
+      return {
+        showSuccess,
+        showError,
+        validationError
       }
     },
     
@@ -247,7 +264,7 @@
   
       async submitTestimony() {
         if (!this.newTestimonyContent.trim()) {
-          alert('Testimoni tidak boleh kosong!')
+          this.validationError('Testimoni tidak boleh kosong!')
           return
         }
   
@@ -267,11 +284,11 @@
           await this.fetchPrayerDetail()
           this.closeTestimonyModal()
           
-          alert('✅ Testimoni berhasil ditambahkan! Terima kasih telah berbagi.')
+          this.showSuccess('Testimoni berhasil ditambahkan! Terima kasih telah berbagi.')
           
         } catch (error) {
           console.error('❌ [PrayerDetail] Error submitting testimony:', error)
-          alert('❌ Gagal menambahkan testimoni: ' + error.message)
+          this.showError('Gagal menambahkan testimoni: ' + error.message)
         } finally {
           this.isSubmittingTestimony = false
         }

@@ -11,64 +11,12 @@ import {
 } from 'firebase/firestore'
 
 // Import services lain
-import { getUpcomingWorshipSchedules as getUpcomingSchedules } from './schedules'
+import { getWeeklyWorshipOverview } from './schedules'
+import { getNewsByDate } from './news'
 
 const NEWS_COLLECTION = 'news'
 
-/**
- * ⭐ HELPER: Convert Indonesian date format to ISO format
- * "16 Juli 2025" -> "2025-07-16"
- */
-function convertIndonesianDateToISO(dateString) {
-  if (!dateString || typeof dateString !== 'string') return null
-  
-  const monthMap = {
-    'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04',
-    'Mei': '05', 'Juni': '06', 'Juli': '07', 'Agustus': '08',
-    'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12'
-  }
-  
-  // Match format "DD Bulan YYYY"
-  const match = dateString.match(/^(\d{1,2})\s+(\w+)\s+(\d{4})$/)
-  if (match) {
-    const [, day, month, year] = match
-    const monthNumber = monthMap[month]
-    if (monthNumber) {
-      const paddedDay = day.padStart(2, '0')
-      return `${year}-${monthNumber}-${paddedDay}`
-    }
-  }
-  
-  return null
-}
-
-/**
- * ⭐ HELPER: Check if a date value matches today (supports multiple formats)
- */
-function isDateToday(dateValue, today) {
-  if (!dateValue) return false
-  
-  // Direct match (string format)
-  if (dateValue === today) return true
-  
-  // Handle Firestore Timestamp
-  if (dateValue && typeof dateValue === 'object' && dateValue.seconds) {
-    const timestampDate = new Date(dateValue.seconds * 1000).toISOString().split('T')[0]
-    if (timestampDate === today) return true
-  }
-  
-  // Handle Date object
-  if (dateValue instanceof Date) {
-    const dateString = dateValue.toISOString().split('T')[0]
-    if (dateString === today) return true
-  }
-  
-  // Convert Indonesian format
-  const convertedDate = convertIndonesianDateToISO(dateValue)
-  if (convertedDate === today) return true
-  
-  return false
-}
+// Helper functions removed - logic simplified to use existing news.js functions
 
 /**
  * ⭐ MAIN FUNCTION - Get unified announcements dari schedules + news
@@ -81,7 +29,7 @@ export async function getUnifiedAnnouncements(limitCount = 8) {
     console.log('📢 [Announcement Service] Getting unified announcements...')
     
     // 1. Get tanggal hari ini
-    const today = new Date().toISOString().split('T')[0] // "2025-07-07"
+    const today = new Date().toISOString().split('T')[0] // "2025-07-23"
     console.log('📅 [Announcement Service] Today:', today)
     
     // 2. Ambil jadwal yang event-nya HARI INI (sudah benar)
@@ -267,21 +215,48 @@ async function getRecentPublishedNews(limitCount = 6) {
 
 /**
  * ⭐ Get schedules yang event-nya HARI INI
+ * Schedules menggunakan dayOfWeek (0-6), jadi kita perlu convert tanggal hari ini ke dayOfWeek
  */
 async function getTodaySchedules(today) {
   try {
     console.log('📅 [Announcement Service] Getting schedules for today:', today)
     
-    // Gunakan fungsi yang sudah ada, tapi filter untuk hari ini saja
-    const allUpcomingSchedules = await getUpcomingSchedules(today, 20)
+    // Convert today string ke dayOfWeek number
+    const todayDate = new Date(today)
+    const todayDayOfWeek = todayDate.getDay() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
     
-    // Filter hanya yang event-nya hari ini
-    const todaySchedules = allUpcomingSchedules.filter(schedule => {
-      return schedule.date === today
+    console.log('📅 [Announcement Service] Today dayOfWeek:', todayDayOfWeek, 
+      ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][todayDayOfWeek])
+    
+    // Ambil semua published schedules
+    const allSchedules = await getWeeklyWorshipOverview()
+    
+    // Filter schedules yang sesuai dengan hari ini atau daily
+    const todaySchedules = allSchedules.filter(schedule => {
+      // Include daily schedules (yang berlaku setiap hari)
+      if (schedule.dayOfWeek === 'daily') {
+        console.log(`✅ [Announcement Service] Daily schedule included: ${schedule.title}`)
+        return true
+      }
+      
+      // Include schedules yang sesuai dayOfWeek hari ini
+      if (schedule.dayOfWeek === todayDayOfWeek) {
+        console.log(`✅ [Announcement Service] Today schedule included: ${schedule.title} (dayOfWeek: ${schedule.dayOfWeek})`)
+        return true
+      }
+      
+      console.log(`❌ [Announcement Service] Schedule not for today: ${schedule.title} (dayOfWeek: ${schedule.dayOfWeek})`)
+      return false
     })
     
-    console.log(`📅 [Announcement Service] Found ${todaySchedules.length} schedules for ${today}`)
-    return todaySchedules
+    // Tambahkan field date untuk konsistensi dengan news
+    const todaySchedulesWithDate = todaySchedules.map(schedule => ({
+      ...schedule,
+      date: today // Tambahkan field date agar konsisten
+    }))
+    
+    console.log(`📅 [Announcement Service] Found ${todaySchedulesWithDate.length} schedules for ${today}`)
+    return todaySchedulesWithDate
     
   } catch (error) {
     console.error('❌ [Announcement Service] Error getting today schedules:', error)
@@ -294,73 +269,24 @@ async function getTodaySchedules(today) {
  */
 /**
  * ⭐ Get news yang ada KEGIATAN/ACARA HARI INI (SIMPLIFIED VERSION)
+ * Menggunakan fungsi getNewsByDate yang sudah ada di news.js
  */
 async function getTodayNews(today) {
   try {
     console.log('📰 [Announcement Service] Getting news with activities for today:', today)
     
-    const newsRef = collection(db, NEWS_COLLECTION)
+    // Gunakan fungsi getNewsByDate yang sudah ada di news.js
+    const todayNews = await getNewsByDate(today)
     
-    // ✅ SIMPLIFIED: Ambil semua published news dan filter manual
-    console.log('📰 [Announcement Service] Getting all published news for manual filtering...')
+    console.log(`� [Announcement Service] Found ${todayNews.length} news with activities for ${today}`)
     
-    const publishedQuery = query(newsRef, where('isPublished', '==', true))
-    const publishedSnapshot = await getDocs(publishedQuery)
-    
-    console.log(`📰 [Announcement Service] Found ${publishedSnapshot.size} published news items`)
-    
-    const todayNews = []
-    
-    publishedSnapshot.forEach((doc) => {
-      const newsData = { id: doc.id, ...doc.data() }
-      
-      // Check all possible date fields
-      const dateFields = [
-        newsData.date,
-        newsData.eventDate, 
-        newsData.activityDate, 
-        newsData.scheduleDate,
-        newsData.publishDate
-      ]
-      
-      console.log(`🔍 [Announcement Service] Checking news "${newsData.title}":`)
-      
-      // Check if any date field matches today
-      const hasEventToday = dateFields.some((dateValue, index) => {
-        const fieldNames = ['date', 'eventDate', 'activityDate', 'scheduleDate', 'publishDate']
-        const fieldName = fieldNames[index]
-        
-        if (!dateValue) {
-          console.log(`   - ${fieldName}: null`)
-          return false
-        }
-        
-        const matches = isDateToday(dateValue, today)
-        
-        // Enhanced debug logging
-        let dateStr = 'unknown'
-        if (dateValue && typeof dateValue === 'object' && dateValue.seconds) {
-          dateStr = new Date(dateValue.seconds * 1000).toISOString().split('T')[0]
-        } else if (dateValue instanceof Date) {
-          dateStr = dateValue.toISOString().split('T')[0]
-        } else if (typeof dateValue === 'string') {
-          dateStr = dateValue
-        }
-        
-        console.log(`   - ${fieldName}: ${dateStr} (${typeof dateValue}) -> matches: ${matches}`)
-        
-        return matches
+    if (todayNews.length > 0) {
+      console.log('📰 [Announcement Service] Today news titles:')
+      todayNews.forEach(news => {
+        console.log(`  - ${news.title} (date: ${news.date})`)
       })
-      
-      if (hasEventToday) {
-        console.log(`✅ [Announcement Service] News "${newsData.title}" has activity today!`)
-        todayNews.push(newsData)
-      } else {
-        console.log(`❌ [Announcement Service] News "${newsData.title}" does not have activity today`)
-      }
-    })
+    }
     
-    console.log(`📰 [Announcement Service] Found ${todayNews.length} news with activities for ${today}`)
     return todayNews
     
   } catch (error) {

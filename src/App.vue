@@ -8,6 +8,7 @@ import { useStreakStore } from '@/stores/streakStore'
 
 export default {
   name: 'App',
+  
   async created() {
     const userStore = useUserStore()
     const streakStore = useStreakStore()

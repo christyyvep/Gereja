@@ -125,7 +125,7 @@
 import HeaderWithBack from '@/components/layout/HeaderWithBack.vue'
 import DesktopNavbar from '@/components/layout/DesktopNavbar.vue'
 import BreadcrumbDesktop from '@/components/common/BreadcrumbDesktop.vue'
-// import { getNewsThumbnail, getScheduleThumbnail, getDevotionalThumbnail, getGivingThumbnail, getAboutThumbnail } from '@/utils/imageUtils'
+import { getNewsThumbnail, getScheduleThumbnail, getDevotionalThumbnail, getGivingThumbnail, getAboutThumbnail } from '@/utils/imageUtils'
 import { 
   ArrowLeft, 
   Calendar, 
@@ -244,14 +244,15 @@ export default {
         contentType: this.contentType
       })
 
-      // ✅ PRIORITY 1: STRICT mode untuk news dengan images atau thumbnails object
-      if (this.newsData && (this.newsData.images || this.newsData.thumbnails) && this.contentType === 'news') {
+      // ✅ PRIORITY 1: STRICT mode untuk content dengan images atau thumbnails object  
+      if (this.newsData && (this.newsData.images || this.newsData.thumbnails)) {
         // ⭐ PERBAIKAN: Support both 'images' and 'thumbnails' field
         const images = this.newsData.images || this.newsData.thumbnails
         let selectedImage = null
 
         console.log('📦 [DetailLayout] Available images from newsData:', images)
         console.log('📦 [DetailLayout] Field used:', this.newsData.images ? 'images' : 'thumbnails')
+        console.log('🏷️ [DetailLayout] Content type:', this.contentType)
 
         // ✅ IMPROVED SELECTION dengan fallback
         if (this.isDesktop) {
@@ -268,7 +269,9 @@ export default {
 
         if (selectedImage) {
           console.log('✅ [DetailLayout] Using image selection:', selectedImage)
-          return selectedImage
+          // Force refresh untuk menghindari cache browser
+          const cacheBuster = `${selectedImage.includes('?') ? '&' : '?'}cb=${Date.now()}`
+          return selectedImage + cacheBuster
         } else {
           console.log('❌ [DetailLayout] No image found for', this.isDesktop ? 'desktop' : 'mobile', 
                      '- available images:', Object.keys(images))
@@ -316,14 +319,7 @@ export default {
       
       console.log('📦 [DetailLayout] ItemObject for imageUtils:', itemObject)
       
-      const { 
-        getNewsThumbnail, 
-        getScheduleThumbnail, 
-        getDevotionalThumbnail, 
-        getGivingThumbnail, 
-        getAboutThumbnail 
-      } = require('@/utils/imageUtils')
-      
+      // ✅ MENGGUNAKAN STATIC IMPORT yang sudah ada di bagian atas
       switch (detectedType) {
         case 'news': {
           console.log('📰 [DetailLayout] Using getNewsThumbnail')
@@ -331,8 +327,11 @@ export default {
         }
         case 'schedule':
         case 'jadwal': {
-          console.log('📅 [DetailLayout] Using getScheduleThumbnail')
-          return getScheduleThumbnail(itemObject, this.isDesktop ? 'large' : 'small')
+          console.log('📅 [DetailLayout] Using getScheduleThumbnail for DETAIL PAGE')
+          // ✅ PERBAIKAN: Gunakan detail-desktop dan detail-mobile untuk detail page
+          const detailSize = this.isDesktop ? 'detail-desktop' : 'detail-mobile'
+          console.log(`📏 [DetailLayout] Schedule detail size: ${detailSize}`)
+          return getScheduleThumbnail(itemObject, detailSize)
         }
         case 'devotional':
         case 'renungan': {
@@ -346,7 +345,10 @@ export default {
         case 'church':
         case 'tentang-gereja': {
           console.log('🏛️ [DetailLayout] Using getAboutThumbnail')
-          return getAboutThumbnail(itemObject, this.isDesktop ? 'large' : 'small')
+          // ⭐ RESPONSIVE: Gunakan detail-mobile/detail-desktop untuk church
+          const churchSize = this.isDesktop ? 'detail-desktop' : 'detail-mobile'
+          console.log(`🏛️ [DetailLayout] Church detail size: ${churchSize}`)
+          return getAboutThumbnail(itemObject, churchSize)
         }
         default: {
           console.log('📰 [DetailLayout] Using default getNewsThumbnail')
@@ -689,6 +691,7 @@ export default {
   line-height: 1.7;
   color: #4a4a4a;
   margin: 0;
+  white-space: pre-wrap; /* Preserve spaces and line breaks */
 }
 
 /* Simple closing text */
@@ -776,6 +779,7 @@ export default {
   line-height: 1.6;
   color: #4a4a4a;
   margin: 0 0 20px 0;
+  white-space: pre-wrap; /* Preserve spaces and line breaks */
 }
 
 .detail-extra,
@@ -823,6 +827,7 @@ export default {
   
   .content-text p {
     font-size: 15px;
+    white-space: pre-wrap; /* Preserve spaces and line breaks on mobile */
   }
 }
 </style>

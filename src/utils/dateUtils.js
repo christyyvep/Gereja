@@ -294,3 +294,127 @@ export function getTodayString() {
     
     return dateString >= start && dateString <= end
   }
+  
+  /**
+   * ⭐ Format timestamp to relative time (e.g., "2m", "3h", "1d", "today")
+   * @param {Date|string|Object} timestamp - Timestamp to format
+   * @returns {string} Formatted relative time
+   */
+  export function formatRelativeTime(timestamp) {
+    if (!timestamp) return 'Unknown'
+    
+    // Ensure timestamp is a Date object
+    let date = timestamp
+    if (typeof timestamp === 'string') {
+      date = new Date(timestamp)
+    }
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      date = timestamp.toDate()
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid timestamp:', timestamp)
+      return 'Unknown'
+    }
+    
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    
+    // Handle future dates (shouldn't happen but just in case)
+    if (diffMs < 0) {
+      return 'Future'
+    }
+    
+    const diffSeconds = Math.floor(diffMs / 1000)
+    const diffMinutes = Math.floor(diffSeconds / 60)
+    const diffHours = Math.floor(diffMinutes / 60)
+    const diffDays = Math.floor(diffHours / 24)
+    
+    // Less than 1 minute
+    if (diffSeconds < 60) {
+      return 'Baru saja'
+    }
+    
+    // Less than 1 hour
+    if (diffMinutes < 60) {
+      return `${diffMinutes}m`
+    }
+    
+    // Less than 24 hours
+    if (diffHours < 24) {
+      return `${diffHours}h`
+    }
+    
+    // Check if it's today (same calendar day)
+    const today = new Date()
+    const isToday = date.getDate() === today.getDate() && 
+                   date.getMonth() === today.getMonth() && 
+                   date.getFullYear() === today.getFullYear()
+    
+    if (isToday) {
+      return 'Today'
+    }
+    
+    // Check if it's yesterday
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const isYesterday = date.getDate() === yesterday.getDate() && 
+                        date.getMonth() === yesterday.getMonth() && 
+                        date.getFullYear() === yesterday.getFullYear()
+    
+    if (isYesterday) {
+      return 'Yesterday'
+    }
+    
+    // More than 1 day
+    if (diffDays < 7) {
+      return `${diffDays}d`
+    }
+    
+    // More than 1 week
+    if (diffDays < 30) {
+      const weeks = Math.floor(diffDays / 7)
+      return `${weeks}w`
+    }
+    
+    // More than 1 month
+    if (diffDays < 365) {
+      const months = Math.floor(diffDays / 30)
+      return `${months}mo`
+    }
+    
+    // More than 1 year
+    const years = Math.floor(diffDays / 365)
+    return `${years}y`
+  }
+
+  /**
+   * ⭐ Format timestamp to readable Indonesian format
+   * @param {Date|string|Object} timestamp - Timestamp to format
+   * @returns {string} Formatted date string
+   */
+  export function formatReadableDate(timestamp) {
+    if (!timestamp) return 'Tanggal tidak valid'
+    
+    let date = timestamp
+    if (typeof timestamp === 'string') {
+      date = new Date(timestamp)
+    }
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      date = timestamp.toDate()
+    }
+    
+    if (isNaN(date.getTime())) {
+      return 'Tanggal tidak valid'
+    }
+    
+    return date.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }

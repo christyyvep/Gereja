@@ -45,6 +45,7 @@ class AltarServantsTemplateFactory {
       // Basic info
       jenisIbadah: basicInfo.jenisIbadah,
       tanggal: basicInfo.tanggal,
+      description: basicInfo.description || '', // Support admin description
       
       // Pelayan info
       pelayananInfo: {
@@ -119,6 +120,8 @@ export async function getAltarServantsSchedules() {
           
           // Ensure required properties exist
           title: getCategoryLabel(data.jenisIbadah) || 'Jadwal Pelayanan',
+          description: data.description || data.specialNotes || '', // Support for admin description
+          category: data.jenisIbadah, // Ensure category is set for compatibility
           
           // Ensure pelayananInfo exists
           pelayananInfo: data.pelayananInfo || {
@@ -196,7 +199,12 @@ export async function getAltarServantsSchedule(scheduleId) {
         version: data.version,
         pelayananInfo: data.pelayananInfo || {},
         displayDate: formatDateForDisplay(data.tanggal),
-        categoryLabel: getCategoryLabel(data.jenisIbadah)
+        categoryLabel: getCategoryLabel(data.jenisIbadah),
+        
+        // Add properties required by DetailJadwal
+        title: getCategoryLabel(data.jenisIbadah) || 'Jadwal Pelayanan',
+        description: data.description || data.specialNotes || '',
+        category: data.jenisIbadah
       }
       
       return result

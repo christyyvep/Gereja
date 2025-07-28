@@ -307,6 +307,9 @@ import { EyeOff, Check, Send, Zap, ArrowLeft } from 'lucide-vue-next'
 import { addPrayerRequest, getPrayerCategories } from '@/services/prayerRequests.js'
 import { useUserStore } from '@/stores/userStore.js'
 
+// Toast notification
+import { useToast } from '@/composables/useToast.js'
+
 export default {
   name: 'AddPrayerReq',
   components: {
@@ -358,6 +361,11 @@ export default {
         }
       ]
     }
+  },
+
+  setup() {
+    const { showError } = useToast()
+    return { showError }
   },
   
   computed: {
@@ -430,12 +438,22 @@ export default {
         
         console.log('👤 [AddPrayer] User data:', userData)
         
-        // ⭐ EXTRACT: Ambil user ID dari userData object
+        // ⭐ EXTRACT: Ambil user ID dan userName dari userData object
         const userId = userData.id || userData.nama || userData.userId || 'demo-user'
+        const userName = userData.nama || userData.displayName || userData.name || 'User'
         console.log('🔑 [AddPrayer] Using user ID:', userId)
+        console.log('🔑 [AddPrayer] Using user name:', userName)
         
-        // Submit prayer request dengan user ID
-        const prayerId = await addPrayerRequest(this.formData, userId)
+        // ⭐ ADD: Tambahkan userName ke formData
+        const formDataWithUser = {
+          ...this.formData,
+          userName: userName
+        }
+        console.log('🔑 [AddPrayer] Form data for submission:', formDataWithUser)
+        
+        // Submit prayer request dengan user ID dan userName
+        console.log('📤 [AddPrayer] Calling addPrayerRequest with:', { formData: formDataWithUser, userId })
+        const prayerId = await addPrayerRequest(formDataWithUser, userId)
         
         console.log('✅ [AddPrayer] Prayer request submitted successfully:', prayerId)
         
@@ -521,8 +539,8 @@ export default {
       } else if (error.message.includes('Permintaan doa') || error.message.includes('karakter')) {
         this.errors.prayerText = error.message
       } else {
-        // General error with alert fallback
-        alert('❌ Gagal mengirim permintaan doa!\n\nError: ' + error.message)
+        // General error with toast notification
+        this.showError('Gagal mengirim permintaan doa: ' + error.message)
       }
     }
   }

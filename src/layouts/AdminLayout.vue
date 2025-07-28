@@ -18,6 +18,10 @@
           <Newspaper class="nav-icon" />
           Kelola Berita
         </button>
+        <button @click="navigateToRenungan" class="nav-item nav-button">
+          <BookOpen class="nav-icon" />
+          Kelola Renungan
+        </button>
         <router-link to="/admin/schedules" class="nav-item">
           <Calendar class="nav-icon" />
           Kelola Jadwal
@@ -30,13 +34,9 @@
           <Heart class="nav-icon" />
           Prayer Requests
         </router-link>
-        <router-link to="/admin/reports" class="nav-item">
+        <router-link to="/admin/laporan-jemaat" class="nav-item">
           <FileText class="nav-icon" />
           Laporan Jemaat
-        </router-link>
-        <router-link to="/admin/announcements" class="nav-item">
-          <Megaphone class="nav-icon" />
-          Pengumuman
         </router-link>
         <router-link to="/home" class="nav-item back-to-app">
           <Home class="nav-icon" />
@@ -70,11 +70,11 @@ import { useRouter } from 'vue-router'
 import { 
   LayoutDashboard, 
   Newspaper, 
+  BookOpen,
   Calendar, 
   CalendarHeart,
   Heart, 
   FileText, 
-  Megaphone, 
   Home 
 } from 'lucide-vue-next'
 
@@ -83,11 +83,11 @@ export default {
   components: {
     LayoutDashboard,
     Newspaper,
+    BookOpen,
     Calendar,
     CalendarHeart,
     Heart,
     FileText,
-    Megaphone,
     Home
   },
   setup() {
@@ -101,9 +101,52 @@ export default {
     
     return { userStore, logout }
   },
+  mounted() {
+    // Load Cloudinary debugging tools in admin panel
+    if (process.env.NODE_ENV === 'development') {
+      this.loadCloudinaryDebugTools()
+    }
+  },
   methods: {
     navigateToNews() {
       this.$router.push('/admin/news')
+    },
+    navigateToRenungan() {
+      this.$router.push('/admin/renungan')
+    },
+    loadCloudinaryDebugTools() {
+      try {
+        // Load debugging script if not already loaded
+        if (!window.testMultiplePresets) {
+          const script = document.createElement('script')
+          script.src = '/test-cloudinary-browser.js'
+          script.onload = () => {
+            console.log('🛠️ Cloudinary debug tools loaded! Available commands:')
+            console.log('- testMultiplePresets()')
+            console.log('- testUploadWithPreset("ml_default")')
+            console.log('- testCloudinaryConnection()')
+          }
+          script.onerror = () => {
+            console.warn('⚠️ Could not load Cloudinary debug tools')
+          }
+          document.head.appendChild(script)
+        }
+        
+        // Load thumbnail debug tools
+        if (!window.runAllThumbnailTests) {
+          const thumbnailScript = document.createElement('script')
+          thumbnailScript.src = '/debug-thumbnail-renungan.js'
+          thumbnailScript.onload = () => {
+            console.log('🖼️ Thumbnail debug tools loaded! Available commands:')
+            console.log('- runAllThumbnailTests()')
+            console.log('- testThumbnailUrls()')
+            console.log('- checkCurrentPageThumbnails()')
+          }
+          document.head.appendChild(thumbnailScript)
+        }
+      } catch (error) {
+        console.warn('⚠️ Error loading debug tools:', error)
+      }
     }
   }
 }

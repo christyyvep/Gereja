@@ -176,6 +176,9 @@ import { EyeOff, Check, Save, CheckCircle, ArrowLeft } from 'lucide-vue-next'
 import { updatePrayerRequest, getPrayerRequestById, getPrayerCategories } from '@/services/prayerRequests.js'
 import { useUserStore } from '@/stores/userStore.js'
 
+// Toast notification
+import { useToast } from '@/composables/useToast.js'
+
 export default {
   name: 'EditPrayerReq',
   components: {
@@ -217,6 +220,11 @@ export default {
       // Success popup state
       showSuccessPopup: false
     }
+  },
+
+  setup() {
+    const { showError } = useToast()
+    return { showError }
   },
   
   computed: {
@@ -366,8 +374,8 @@ export default {
       } else if (error.message.includes('Permintaan doa') || error.message.includes('karakter')) {
         this.errors.prayerText = error.message
       } else {
-        // General error with alert fallback
-        alert('❌ Gagal memperbarui permintaan doa!\n\nError: ' + error.message)
+        // General error with toast notification
+        this.showError('Gagal memperbarui permintaan doa: ' + error.message)
       }
     },
 

@@ -1,0 +1,264 @@
+// Enhanced Firestore Security Rules untuk MyRajawali
+// UPDATED: Support for Hybrid Authentication (Custom Auth + Firebase Security)
+// File ini untuk firestore.rules di Firebase Console atau firebase.json
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions untuk role-based access
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isRegisteredUser() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/jemaat/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/jemaat/$(request.auth.uid)).data.isRegistered == true;
+    }
+    
+    function getUserRole() {
+      return isRegisteredUser() ? 
+             get(/databases/$(database)/documents/jemaat/$(request.auth.uid)).data.role : 
+             null;
+    }
+    
+    function isAdmin() {
+      return getUserRole() in ['admin', 'super_admin'];
+    }
+    
+    function isModerator() {
+      return getUserRole() in ['moderator', 'admin', 'super_admin'];
+    }
+    
+    function isSuperAdmin() {
+      return getUserRole() == 'super_admin';
+    }
+    
+    function isOwnerOrAdmin(userId) {
+      return isAuthenticated() && (request.auth.uid == userId || isAdmin());
+    }
+    
+    // Validasi data input
+    function isValidEmail(email) {
+      return email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+    
+    function hasRequiredJemaatFields(data) {
+      return data.keys().hasAll(['nama']) &&
+             data.nama is string &&
+             data.nama.size() > 0;
+    }
+    
+    function isValidRole(role) {
+      return role in ['jemaat', 'moderator', 'admin', 'super_admin'];
+    }
+    
+    // Rate limiting helper (simplified - lebih baik pakai Cloud Functions)
+    function checkRateLimit() {
+      return true; // Implementasi sederhana, gunakan Cloud Functions untuk rate limiting yang proper
+    }
+    
+    // === JEMAAT COLLECTION ===
+    match /jemaat/{jemaatId} {
+      // Read: User bisa read data sendiri, admin bisa read semua
+      allow read: if isOwnerOrAdmin(jemaatId) || isModerator();
+      
+      // Create: Hanya admin yang bisa create jemaat baru
+      allow create: if isAdmin() && 
+                    hasRequiredJemaatFields(resource.data) &&
+                    checkRateLimit();
+      
+      // Update: User bisa update data sendiri (kecuali role dan security fields),
+      // Admin bisa update semua
+      allow update: if (
+        // User update data sendiri
+        (isAuthenticated() && request.auth.uid == jemaatId &&
+         // Tidak boleh mengubah security-sensitive fields
+         !request.resource.data.diff(resource.data).affectedKeys()
+           .hasAny(['role', 'isRegistered', 'password', 'loginAttempts', 'isLocked'])) ||
+        
+        // Admin bisa update semua
+        isAdmin()
+      ) && checkRateLimit();
+      
+      // Delete: Hanya super admin
+      allow delete: if isSuperAdmin();
+    }
+    
+    // === NEWS COLLECTION ===
+    match /news/{newsId} {
+      // Read: Semua registered user bisa read
+      allow read: if isRegisteredUser();
+      
+      // Write: Hanya moderator ke atas
+      allow create, update, delete: if isModerator() && checkRateLimit();
+    }
+    
+    // === SCHEDULES COLLECTION ===
+    match /schedules/{scheduleId} {
+      // Read: Semua registered user bisa read
+      allow read: if isRegisteredUser();
+      
+      // Write: Hanya moderator ke atas
+      allow create, update, delete: if isModerator() && checkRateLimit();
+    }
+    
+    // === ALTAR SERVANTS SCHEDULES ===
+    match /altarServantsSchedules/{scheduleId} {
+      // Read: Semua registered user bisa read
+      allow read: if isRegisteredUser();
+      
+      // Write: Hanya moderator ke atas
+      allow create, update, delete: if isModerator() && checkRateLimit();
+    }
+    
+    // === DEVOTIONALS COLLECTION ===
+    match /devotionals/{devotionalId} {
+      // Read: Semua registered user bisa read
+      allow read: if isRegisteredUser();
+      
+      // Write: Hanya moderator ke atas
+      allow create, update, delete: if isModerator() && checkRateLimit();
+    }
+    
+    // === ANNOUNCEMENTS COLLECTION ===
+    match /announcements/{announcementId} {
+      // Read: Semua registered user bisa read
+      allow read: if isRegisteredUser();
+      
+      // Write: Hanya moderator ke atas
+      allow create, update, delete: if isModerator() && checkRateLimit();
+    }
+    
+    // === PRAYER REQUESTS COLLECTION ===
+    match /prayerRequests/{requestId} {
+      // Read: Semua registered user bisa read
+      allow read: if isRegisteredUser();
+      
+      // Create: Registered user bisa create
+      allow create: if isRegisteredUser() && 
+                    request.resource.data.createdBy == request.auth.uid &&
+                    checkRateLimit();
+      
+      // Update: Owner atau moderator
+      allow update: if (isRegisteredUser() && 
+                       resource.data.createdBy == request.auth.uid) || 
+                       isModerator();
+      
+      // Delete: Owner atau admin
+      allow delete: if (isRegisteredUser() && 
+                       resource.data.createdBy == request.auth.uid) || 
+                       isAdmin();
+    }
+    
+    // === LAPORAN JEMAAT COLLECTION ===
+    match /laporanJemaat/{laporanId} {
+      // Read: Owner bisa read laporan sendiri, admin bisa read semua
+      allow read: if (isRegisteredUser() && 
+                     resource.data.jemaatId == request.auth.uid) || 
+                     isModerator();
+      
+      // Create: Registered user bisa create laporan sendiri
+      allow create: if isRegisteredUser() && 
+                    request.resource.data.jemaatId == request.auth.uid &&
+                    checkRateLimit();
+      
+      // Update: Owner atau moderator
+      allow update: if (isRegisteredUser() && 
+                       resource.data.jemaatId == request.auth.uid) || 
+                       isModerator();
+      
+      // Delete: Hanya admin
+      allow delete: if isAdmin();
+    }
+    
+    // === ACTIVITY LOGS COLLECTION ===
+    match /activityLogs/{logId} {
+      // Read: Hanya admin
+      allow read: if isAdmin();
+      
+      // Create: System only (via Cloud Functions)
+      allow create: if false; // Only Cloud Functions can create
+      
+      // Update/Delete: Tidak diizinkan (immutable logs)
+      allow update, delete: if false;
+    }
+    
+    // === SECURITY LOGS COLLECTION ===
+    match /failedLogins/{loginId} {
+      // Read: Hanya admin untuk monitoring
+      allow read: if isAdmin();
+      
+      // Create: System only (via Cloud Functions)
+      allow create: if false; // Only Cloud Functions can create
+      
+      // Update/Delete: Tidak diizinkan
+      allow update, delete: if false;
+    }
+    
+    match /rateLimits/{rateLimitId} {
+      // Read: Hanya admin
+      allow read: if isAdmin();
+      
+      // Create: System only (via Cloud Functions)
+      allow create: if false; // Only Cloud Functions can create
+      
+      // Update/Delete: Tidak diizinkan
+      allow update, delete: if false;
+    }
+    
+    // === SECURITY EVENTS COLLECTION (NEW for Hybrid Auth) ===
+    match /securityEvents/{eventId} {
+      // Read: Hanya admin untuk monitoring security
+      allow read: if isAdmin();
+      
+      // Create: Authenticated users dapat create events untuk tracking
+      allow create: if isAuthenticated();
+      
+      // Update/Delete: Hanya super admin
+      allow update, delete: if isSuperAdmin();
+    }
+    
+    // === SESSION MANAGEMENT COLLECTION (NEW for Hybrid Auth) ===
+    match /sessions/{sessionId} {
+      // Read: Hanya owner session atau admin
+      allow read: if isAuthenticated() && 
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      
+      // Create: User dapat create session sendiri
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid;
+      
+      // Update: User dapat update session sendiri
+      allow update: if isAuthenticated() && 
+                       resource.data.userId == request.auth.uid;
+      
+      // Delete: Owner atau admin
+      allow delete: if isAuthenticated() && 
+                       (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    // === USER ACTIVITY/STREAK COLLECTION ===
+    match /userActivities/{activityId} {
+      // Read: Owner atau admin
+      allow read: if (isRegisteredUser() && 
+                     resource.data.userId == request.auth.uid) || 
+                     isAdmin();
+      
+      // Create/Update: Owner atau system
+      allow create, update: if isRegisteredUser() && 
+                            request.resource.data.userId == request.auth.uid &&
+                            checkRateLimit();
+      
+      // Delete: Hanya admin
+      allow delete: if isAdmin();
+    }
+    
+    // === DEFAULT DENY RULE ===
+    // Semua collection lain ditolak secara default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

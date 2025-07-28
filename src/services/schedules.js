@@ -1,761 +1,606 @@
-// services/schedules.js - COMPLETE TEMPLATE CRUD SYSTEM
+// services/schedules.js - UNIFIED SERVICE untuk Admin & User
 import { db } from './firebase'
 import { 
   collection, 
   getDocs, 
-  updateDoc,  // eslint-disable-line no-unused-vars
-  deleteDoc,  // eslint-disable-line no-unused-vars
+  addDoc,        // ➕ ADD untuk admin
+  updateDoc,     // ✏️ UPDATE untuk admin  
+  deleteDoc,     // 🗑️ DELETE untuk admin
+  doc,           // 📄 GET single doc
+  getDoc,        // 📄 GET single doc
   query, 
-  where,      // eslint-disable-line no-unused-vars
-  orderBy
+  where,
+  orderBy,
+  limit
 } from 'firebase/firestore'
 
 const COLLECTION_NAME = 'worship_schedules'
 
 // =======================================
-// 🎯 TEMPLATE FACTORY - AUTO GENERATE STRUCTURE
+// 🏷️ KATEGORI IBADAH (SHARED)
 // =======================================
 
-// Temporarily disable TemplateFactory class
-/*
-class TemplateFactory {
-  
-  // Generate template baru dengan structure yang consistent
-  static createNewTemplate(basicInfo) {
-    const now = new Date().toISOString()
-    
-    return {
-      // Basic info dari admin input
-      id: this.generateTemplateId(basicInfo.title),
-      title: basicInfo.title,
-      description: basicInfo.description || '',
-      
-      // Static info (setting dasar)
-      staticInfo: {
-        dayOfWeek: basicInfo.dayOfWeek,           // 0-6 atau 'daily'
-        defaultTime: basicInfo.defaultTime,       // '08:00'
-        location: basicInfo.location,             // 'Gedung Utama'
-        category: basicInfo.category || 'ibadah-umum',
-        isActive: true
-      },
-      
-      // Dynamic content (yang bisa admin edit tiap minggu)
-      dynamicContent: {
-        currentTheme: basicInfo.initialTheme || 'Berkat Tuhan',
-        currentWeekDate: this.getCurrentWeekDate(),
-        
-        weeklyUpdate: {
-          theme: basicInfo.initialTheme || 'Berkat Tuhan',
-          speaker: '',
-          specialTime: null,          // null = pakai defaultTime
-          announcements: [],
-          specialNotes: '',
-          isSpecialEvent: false
-        }
-      },
-      
-      // Template settings
-      templateSettings: {
-        allowTimeOverride: true,      // Boleh ganti waktu per minggu
-        allowLocationOverride: false, // Lokasi tetap
-        requireSpeaker: basicInfo.requireSpeaker || false,
-        maxAnnouncements: 5
-      },
-      
-      // Metadata
-      createdAt: now,
-      createdBy: basicInfo.adminId || 'system',
-      lastUpdated: now,
-      updatedBy: basicInfo.adminId || 'system',
-      version: 1
-    }
-  }
-  
-  // Auto-generate ID dari title
-  static generateTemplateId(title) {
-    const cleaned = title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')    // Remove special chars
-      .replace(/\s+/g, '_')           // Space to underscore
-      .substring(0, 30)               // Max 30 chars
-    
-    return `worship_${cleaned}_${Date.now().toString().slice(-6)}`
-  }
-  
-  // Get current week date (untuk weekly templates)
-  static getCurrentWeekDate() {
-    const today = new Date()
-    const dayOfWeek = today.getDay()
-    const sunday = new Date(today)
-    sunday.setDate(today.getDate() - dayOfWeek)
-    return sunday.toISOString().split('T')[0]
-  }
-}
-*/
+export const WORSHIP_CATEGORIES = [
+  { value: 'doa-fajar', label: 'Doa Fajar' },
+  { value: 'doa-puasa', label: 'Doa Puasa' },
+  { value: 'pelnap', label: 'Pelnap' },
+  { value: 'pelprap', label: 'Pelprap' },
+  { value: 'pelwap', label: 'Pelwap' },
+  { value: 'pelprip', label: 'Pelprip' },
+  { value: 'pendalaman-alkitab', label: 'Pendalaman Alkitab' },
+  { value: 'raya', label: 'Raya' },
+  { value: 'sektor-anugerah', label: 'Sektor Anugerah' },
+  { value: 'sektor-tesalonika', label: 'Sektor Tesalonika' }
+]
 
 // =======================================
-// 🛠️ ADMIN TEMPLATE MANAGER - CRUD OPERATIONS
-// TEMPORARILY DISABLED FOR DEVELOPMENT
-// =======================================
-
-/*
-class AdminTemplateManager {
-  
-  // CREATE: Tambah template baru
-  static async createTemplate(templateData) {
-    try {
-      // Validate input
-      this.validateTemplateData(templateData)
-      
-      // Generate template dengan factory
-      const newTemplate = TemplateFactory.createNewTemplate(templateData)
-      
-      // Check if ID already exists
-      const existingTemplate = await this.getTemplate(newTemplate.id)
-      if (existingTemplate) {
-        // Generate new ID if conflict
-        newTemplate.id = TemplateFactory.generateTemplateId(templateData.title)
-      }
-      
-      // Save to database
-      await this.saveTemplate(newTemplate.id, newTemplate)
-      
-      console.log(`✅ New template created: ${newTemplate.id}`)
-      return newTemplate
-      
-    } catch (error) {
-      console.error('❌ Failed to create template:', error)
-      throw error
-    }
-  }
-  
-  // READ: Get all templates untuk admin panel
-  static async getAllTemplatesForAdmin() {
-    try {
-      const templates = await getWorshipTemplates()
-      
-      // Return dengan additional info untuk admin
-      return templates.map(template => ({
-        ...template,
-        
-        // Display info
-        displayName: template.title,
-        scheduleInfo: this.formatScheduleInfo(template),
-        lastUpdateFormatted: this.formatDate(template.lastUpdated),
-        isActive: template.staticInfo?.isActive !== false,
-        
-        // Stats
-        hasAnnouncements: template.dynamicContent?.weeklyUpdate?.announcements?.length > 0,
-        hasSpecialTime: template.dynamicContent?.weeklyUpdate?.specialTime !== null,
-        
-        // Actions available
-        canEdit: true,
-        canDelete: true,
-        canDuplicate: true
-      }))
-      
-    } catch (error) {
-      console.error('❌ Failed to get templates:', error)
-      throw error
-    }
-  }
-  
-  // UPDATE: Edit template content
-  static async updateTemplate(templateId, updateData) {
-    try {
-      const template = await this.getTemplate(templateId)
-      if (!template) {
-        throw new Error(`Template not found: ${templateId}`)
-      }
-      
-      // Determine update type
-      if (updateData.staticInfo) {
-        // Update basic info (structure)
-        await this.updateTemplateStructure(templateId, updateData)
-      } else {
-        // Update weekly content (normal admin edit)
-        await this.updateWeeklyContent(templateId, updateData)
-      }
-      
-      console.log(`✅ Template updated: ${templateId}`)
-      return true
-      
-    } catch (error) {
-      console.error('❌ Failed to update template:', error)
-      throw error
-    }
-  }
-  
-  // UPDATE: Update template structure (admin advanced edit)
-  static async updateTemplateStructure(templateId, structureData) {
-    const template = await this.getTemplate(templateId)
-    
-    const updatedTemplate = {
-      ...template,
-      
-      // Update basic info if provided
-      ...(structureData.title && { title: structureData.title }),
-      ...(structureData.description && { description: structureData.description }),
-      
-      // Update static info
-      staticInfo: {
-        ...template.staticInfo,
-        ...structureData.staticInfo
-      },
-      
-      // Update template settings if provided
-      ...(structureData.templateSettings && {
-        templateSettings: {
-          ...template.templateSettings,
-          ...structureData.templateSettings
-        }
-      }),
-      
-      // Metadata
-      lastUpdated: new Date().toISOString(),
-      updatedBy: 'admin_current', // TODO: get from auth
-      version: (template.version || 1) + 1
-    }
-    
-    await this.saveTemplate(templateId, updatedTemplate)
-  }
-  
-  // UPDATE: Update weekly content (normal admin edit)
-  static async updateWeeklyContent(templateId, contentData) {
-    const template = await this.getTemplate(templateId)
-    
-    const updatedTemplate = {
-      ...template,
-      dynamicContent: {
-        ...template.dynamicContent,
-        weeklyUpdate: {
-          ...template.dynamicContent?.weeklyUpdate,
-          ...contentData
-        }
-      },
-      lastUpdated: new Date().toISOString(),
-      updatedBy: 'admin_current' // TODO: get from auth
-    }
-    
-    await this.saveTemplate(templateId, updatedTemplate)
-  }
-  
-  // DELETE: Hapus template (soft delete)
-  static async deleteTemplate(templateId) {
-    try {
-      const template = await this.getTemplate(templateId)
-      if (!template) {
-        throw new Error(`Template not found: ${templateId}`)
-      }
-      
-      // Soft delete: set inactive instead of hard delete
-      const updatedTemplate = {
-        ...template,
-        staticInfo: {
-          ...template.staticInfo,
-          isActive: false
-        },
-        deletedAt: new Date().toISOString(),
-        deletedBy: 'admin_current' // TODO: get from auth
-      }
-      
-      await this.saveTemplate(templateId, updatedTemplate)
-      
-      console.log(`✅ Template deleted (soft): ${templateId}`)
-      return true
-      
-    } catch (error) {
-      console.error('❌ Failed to delete template:', error)
-      throw error
-    }
-  }
-  
-  // DUPLICATE: Copy template dengan nama baru
-  static async duplicateTemplate(templateId, newTitle) {
-    try {
-      const originalTemplate = await this.getTemplate(templateId)
-      if (!originalTemplate) {
-        throw new Error(`Template not found: ${templateId}`)
-      }
-      
-      // Create new template based on original
-      const duplicatedTemplate = {
-        ...originalTemplate,
-        id: TemplateFactory.generateTemplateId(newTitle),
-        title: newTitle,
-        createdAt: new Date().toISOString(),
-        createdBy: 'admin_current', // TODO: get from auth
-        lastUpdated: new Date().toISOString(),
-        updatedBy: 'admin_current', // TODO: get from auth
-        version: 1
-      }
-      
-      await this.saveTemplate(duplicatedTemplate.id, duplicatedTemplate)
-      
-      console.log(`✅ Template duplicated: ${templateId} → ${duplicatedTemplate.id}`)
-      return duplicatedTemplate
-      
-    } catch (error) {
-      console.error('❌ Failed to duplicate template:', error)
-      throw error
-    }
-  }
-  
-  // Helper: Get single template
-  static async getTemplate(templateId) {
-    try {
-      const templateRef = doc(db, COLLECTION_NAME, templateId)
-      const templateSnap = await getDoc(templateRef)
-      
-      if (templateSnap.exists()) {
-        return {
-          id: templateSnap.id,
-          ...templateSnap.data()
-        }
-      }
-      return null
-    } catch (error) {
-      console.error('❌ Error getting template:', error)
-      return null
-    }
-  }
-  
-  // Helper: Save template
-  static async saveTemplate(templateId, templateData) {
-    try {
-      const templateRef = doc(db, COLLECTION_NAME, templateId)
-      await setDoc(templateRef, templateData)
-      return true
-    } catch (error) {
-      console.error('❌ Error saving template:', error)
-      throw error
-    }
-  }
-  
-  // Validation helper
-  static validateTemplateData(data) {
-    const required = ['title', 'dayOfWeek', 'defaultTime', 'location']
-    const missing = required.filter(field => !data[field])
-    
-    if (missing.length > 0) {
-      throw new Error(`Missing required fields: ${missing.join(', ')}`)
-    }
-    
-    // Validate dayOfWeek
-    if (data.dayOfWeek !== 'daily' && (data.dayOfWeek < 0 || data.dayOfWeek > 6)) {
-      throw new Error('dayOfWeek must be 0-6 or "daily"')
-    }
-    
-    // Validate time format
-    if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(data.defaultTime)) {
-      throw new Error('defaultTime must be in HH:MM format')
-    }
-  }
-  
-  // Helper methods
-  static formatScheduleInfo(template) {
-    const { dayOfWeek, defaultTime } = template.staticInfo || {}
-    
-    if (dayOfWeek === 'daily') {
-      return `Setiap hari, ${defaultTime}`
-    }
-    
-    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-    return `${days[dayOfWeek]}, ${defaultTime}`
-  }
-  
-  static formatDate(isoString) {
-    if (!isoString) return 'Tidak diketahui'
-    return new Date(isoString).toLocaleString('id-ID')
-  }
-}
-*/
-
-// =======================================
-// 📅 CORE SCHEDULE FUNCTIONS (USER SIDE)
+// 📊 READ OPERATIONS (USER + ADMIN)
 // =======================================
 
 /**
- * 🎯 Get weekly worship overview (untuk user - main function)
- * @returns {Promise<Array>} Array worship cards untuk user
+ * 👥 USER FUNCTION: Get jadwal untuk jemaat (published only)
+ * Ini function yang sudah ada, tetap sama
  */
 export async function getWeeklyWorshipOverview() {
   try {
-    console.log(`📅 [Worship Service] Getting weekly worship overview...`)
+    console.log('📊 [Schedules] Getting weekly worship overview for users...')
     
-    // Ambil semua active templates
-    const templates = await getWorshipTemplates()
-    const activeTemplates = templates.filter(t => t.staticInfo?.isActive !== false)
+    const schedulesRef = collection(db, COLLECTION_NAME)
     
-    // Generate cards untuk user
-    const weeklyCards = []
-    
-    for (const template of activeTemplates) {
-      const card = generateUserCard(template)
-      weeklyCards.push(card)
-    }
-    
-    // Sort berdasarkan dayOfWeek, lalu time
-    weeklyCards.sort((a, b) => {
-      // Daily (Doa Fajar) selalu di atas
-      if (a.dayOfWeek === 'daily' && b.dayOfWeek !== 'daily') return -1
-      if (a.dayOfWeek !== 'daily' && b.dayOfWeek === 'daily') return 1
-      if (a.dayOfWeek === 'daily' && b.dayOfWeek === 'daily') return 0
-      
-      // Sort berdasarkan hari, lalu waktu
-      if (a.dayOfWeek !== b.dayOfWeek) {
-        return a.dayOfWeek - b.dayOfWeek
-      }
-      return compareTimeStrings(a.time, b.time)
-    })
-    
-    console.log(`✅ [Worship Service] Generated ${weeklyCards.length} worship cards`)
-    return weeklyCards
-    
-  } catch (error) {
-    console.error('❌ [Worship Service] Error getting weekly overview:', error)
-    return []
-  }
-}
-
-/**
- * 🏗️ Generate user card dari template - FIXED VERSION
- * @param {Object} template - Worship template
- * @returns {Object} User-friendly card
- */
-function generateUserCard(template) {
-  const dynamicContent = template.dynamicContent || {}
-  const weeklyUpdate = dynamicContent.weeklyUpdate || {}
-  const staticInfo = template.staticInfo || {}
-  
-  console.log(`🔧 [generateUserCard] Processing template: ${template.id}`, {
-    hasTime: !!template.time,
-    hasLocation: !!template.location,
-    hasStaticInfo: !!staticInfo.defaultTime,
-    template: template
-  })
-  
-  return {
-    // IDs
-    id: template.id,
-    templateId: template.id,
-    
-    // Basic info
-    title: template.title,
-    description: template.description || '',
-    category: template.category || staticInfo.category || 'ibadah-umum',
-    
-    // ✅ FIXED: Schedule info - Ambil dari berbagai sumber dengan prioritas
-    dayOfWeek: template.dayOfWeek || staticInfo.dayOfWeek,
-    time: weeklyUpdate.specialTime || template.time || staticInfo.defaultTime,
-    location: template.location || staticInfo.location,
-    
-    // ✅ FIXED: Dynamic content (fresh dari admin)
-    theme: weeklyUpdate.theme || template.theme || dynamicContent.currentTheme || template.defaultTheme || 'Berkat Tuhan',
-    speaker: weeklyUpdate.speaker || template.speaker || '',
-    announcements: weeklyUpdate.announcements || template.announcements || [],
-    specialNotes: weeklyUpdate.specialNotes || template.specialNotes || '',
-    
-    // ✅ FIXED: Display info
-    scheduleText: generateScheduleText(template),
-    lastUpdated: template.lastUpdated,
-    
-    // For ContentCard navigation (simple ID, no date needed!)
-    detailUrl: `/jadwal/${template.id}`,
-    
-    // Metadata
-    source: 'template-dynamic'
-  }
-}
-
-/**
- * 📝 Generate readable schedule text - UPDATED VERSION
- * @param {Object} template - Template object
- * @returns {string} Text jadwal yang readable
- */
-function generateScheduleText(template) {
-  // ✅ FIXED: Try multiple sources for dayOfWeek and time
-  const dayOfWeek = template.dayOfWeek || template.staticInfo?.dayOfWeek
-  const defaultTime = template.time || template.staticInfo?.defaultTime
-  const specialTime = template.dynamicContent?.weeklyUpdate?.specialTime
-  const time = specialTime || defaultTime
-  
-  if (dayOfWeek === 'daily') {
-    return `Setiap hari • ${time || '00:00'}`
-  }
-  
-  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-  const dayName = days[dayOfWeek] || 'Tidak diketahui'
-  
-  return `${dayName} • ${time || '00:00'}`
-}
-
-/**
- * 📋 Get semua worship templates (untuk internal use)
- * @returns {Promise<Array>} Array worship templates
- */
-export async function getWorshipTemplates() {
-  try {
-    const templatesRef = collection(db, COLLECTION_NAME)
-    const q = query(templatesRef, orderBy('createdAt', 'desc'))
+    // SIMPLIFIED QUERY: Hanya ambil published schedules, filter status di client
+    const q = query(
+      schedulesRef, 
+      where('isPublished', '==', true),
+      limit(20) // Ambil lebih banyak untuk filter di client
+    )
     
     const querySnapshot = await getDocs(q)
-    const templates = []
+    
+    if (querySnapshot.empty) {
+      console.log('📋 [Schedules] No published schedules found for users')
+      return []
+    }
+    
+    const schedules = []
     
     querySnapshot.forEach((doc) => {
-      templates.push({
+      const data = doc.data()
+      
+      // FILTER DI CLIENT: Hanya yang status active
+      if (data.status !== 'active') {
+        console.log(`⏭️ [Schedules] Skipping non-active schedule: ${doc.id}`)
+        return
+      }
+      
+      const scheduleItem = {
         id: doc.id,
-        ...doc.data()
-      })
+        
+        // User-focused fields
+        title: data.title || data.theme || 'Jadwal Ibadah',
+        category: data.category || 'ibadah-umum',
+        dayOfWeek: data.dayOfWeek,
+        time: data.time,
+        location: data.location || 'Gedung Gereja Utama',
+        theme: data.theme || data.title || 'Berkat Tuhan',
+        speaker: data.speaker || '',
+        description: data.specialNotes || '',
+        
+        // Display helpers
+        categoryLabel: getCategoryLabel(data.category),
+        dayLabel: getDayLabel(data.dayOfWeek),
+        scheduleText: generateScheduleText(data),
+        
+        // Basic metadata  
+        lastUpdated: data.lastUpdated,
+        isPublished: data.isPublished,
+        status: data.status
+      }
+      
+      schedules.push(scheduleItem)
     })
     
-    console.log(`📋 [Worship Service] Found ${templates.length} worship templates`)
-    return templates
+    // Sort by dayOfWeek di client side
+    schedules.sort((a, b) => {
+      // Handle 'daily' as -1 untuk tampil pertama
+      const aDaySort = a.dayOfWeek === 'daily' ? -1 : (typeof a.dayOfWeek === 'number' ? a.dayOfWeek : parseInt(a.dayOfWeek))
+      const bDaySort = b.dayOfWeek === 'daily' ? -1 : (typeof b.dayOfWeek === 'number' ? b.dayOfWeek : parseInt(b.dayOfWeek))
+      
+      if (aDaySort !== bDaySort) {
+        return aDaySort - bDaySort
+      }
+      return (a.time || '').localeCompare(b.time || '')
+    })
+    
+    console.log(`✅ [Schedules] User schedules loaded: ${schedules.length}`)
+    console.log('📋 [Schedules] Sample schedule:', schedules[0])
+    return schedules
+    
   } catch (error) {
-    console.error('❌ [Worship Service] Error getting templates:', error)
+    console.error('❌ [Schedules] Error getting user schedules:', error)
+    console.error('❌ [Schedules] Error details:', {
+      code: error.code,
+      message: error.message
+    })
     return []
   }
 }
 
 /**
- * 🎯 Get single worship schedule by template ID (untuk DetailJadwal)
- * @param {string} templateId - Template ID
- * @param {string} [_date] - Date (optional, for future use)
- * @returns {Promise<Object>} Worship schedule
+ * 👨‍💼 ADMIN FUNCTION: Get semua jadwal untuk admin (including drafts)
+ * Function baru untuk admin - bisa lihat semua data
  */
-export async function getWorshipSchedule(templateId, _date = null) {  // eslint-disable-line no-unused-vars
+export async function getWorshipSchedules(includeUnpublished = false) {
   try {
-    // TEMPORARILY DISABLED - AdminTemplateManager is commented out
-    console.log('⚠️ getWorshipSchedule temporarily disabled')
-    return null
+    console.log('🔍 [Schedules] Getting schedules for admin...', { includeUnpublished })
     
-    /*
-    const template = await AdminTemplateManager.getTemplate(templateId)
+    const schedulesRef = collection(db, COLLECTION_NAME)
     
-    if (!template) {
-      throw new Error(`Template tidak ditemukan: ${templateId}`)
+    let q
+    if (includeUnpublished) {
+      // Admin bisa lihat semua (published + unpublished)  
+      q = query(schedulesRef, orderBy('lastUpdated', 'desc'))
+    } else {
+      // Admin lihat published only (same as user but with more fields)
+      q = query(
+        schedulesRef,
+        where('isPublished', '==', true), 
+        orderBy('lastUpdated', 'desc')
+      )
     }
     
-    console.log(`🎯 [getWorshipSchedule] Raw template data:`, template)
+    const querySnapshot = await getDocs(q)
     
-    // Return template dengan format yang sesuai untuk DetailJadwal
-    const schedule = generateUserCard(template)
+    if (querySnapshot.empty) {
+      console.log('📋 [Schedules] No schedules found for admin')
+      return []
+    }
     
-    console.log(`✅ [Worship Service] Generated schedule:`, schedule)
-    return schedule
-    */
+    const schedules = []
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data()
+      
+      const scheduleItem = {
+        id: doc.id,
+        
+        // Basic info (sama seperti user)
+        title: data.title || 'Jadwal Tanpa Judul',
+        category: data.category || 'ibadah-umum', 
+        dayOfWeek: data.dayOfWeek,
+        time: data.time,
+        location: data.location || 'Gedung Gereja Utama',
+        theme: data.theme || 'Berkat Tuhan',
+        speaker: data.speaker || '',
+        
+        // Admin-specific fields (yang user tidak perlu)
+        specialNotes: data.specialNotes || '',
+        announcements: data.announcements || [],
+        status: data.status || 'active',
+        isPublished: data.isPublished !== false,
+        isSpecialEvent: data.isSpecialEvent || false,
+        
+        // Metadata (penting untuk admin)
+        createdAt: data.createdAt,
+        createdBy: data.createdBy || 'system',
+        lastUpdated: data.lastUpdated,
+        updatedBy: data.updatedBy || 'system',
+        version: data.version || 1,
+        
+        // Display helpers
+        categoryLabel: getCategoryLabel(data.category),
+        dayLabel: getDayLabel(data.dayOfWeek),
+        lastUpdatedFormatted: formatDateForDisplay(data.lastUpdated),
+        createdAtFormatted: formatDateForDisplay(data.createdAt)
+      }
+      
+      schedules.push(scheduleItem)
+    })
+    
+    console.log(`✅ [Schedules] Admin schedules loaded: ${schedules.length}`)
+    return schedules
     
   } catch (error) {
-    console.error('❌ [Worship Service] Error getting worship schedule:', error)
+    console.error('❌ [Schedules] Error getting admin schedules:', error)
+    
+    // Handle specific errors
+    if (error.code === 'permission-denied') {
+      throw new Error('Tidak memiliki akses untuk melihat jadwal')
+    }
+    
+    throw new Error('Gagal mengambil data jadwal')
+  }
+}
+
+/**
+ * 🎯 SHARED FUNCTION: Get single schedule (user + admin)
+ */
+export async function getWorshipSchedule(scheduleId) {
+  try {
+    console.log(`🎯 [Schedules] Getting single schedule: ${scheduleId}`)
+    
+    if (!scheduleId) {
+      throw new Error('Schedule ID tidak boleh kosong')
+    }
+    
+    const scheduleRef = doc(db, COLLECTION_NAME, scheduleId)
+    const scheduleSnap = await getDoc(scheduleRef)
+    
+    if (!scheduleSnap.exists()) {
+      throw new Error('Jadwal tidak ditemukan')
+    }
+    
+    const data = scheduleSnap.data()
+    
+    // Return full data (admin bisa pakai semua, user pakai yang perlu aja)
+    const result = {
+      id: scheduleSnap.id,
+      
+      // Spread remaining data first
+      ...data,
+      
+      // Override with normalized values (important: do this AFTER spread)
+      title: data.title || data.theme || 'Jadwal Ibadah',
+      category: data.category || 'ibadah-umum',
+      dayOfWeek: data.dayOfWeek,
+      time: data.time,
+      location: data.location || 'Gedung Gereja Utama',
+      theme: data.theme || data.title || 'Berkat Tuhan',
+      speaker: data.speaker || '',
+      description: data.specialNotes || data.description || '', // Prioritize specialNotes
+      
+      // Display helpers
+      categoryLabel: getCategoryLabel(data.category),
+      dayLabel: getDayLabel(data.dayOfWeek),
+      scheduleText: generateScheduleText(data),
+      lastUpdatedFormatted: formatDateForDisplay(data.lastUpdated),
+      createdAtFormatted: formatDateForDisplay(data.createdAt)
+    }
+    
+    console.log('✅ [Schedules] Single schedule loaded')
+    return result
+    
+  } catch (error) {
+    console.error('❌ [Schedules] Error getting single schedule:', error)
     throw error
   }
 }
 
-/**
- * ⏰ Compare time strings untuk sorting
- * @param {string} time1 - Time string (HH:MM)
- * @param {string} time2 - Time string (HH:MM)
- * @returns {number} Comparison result
- */
-function compareTimeStrings(time1, time2) {
-  // Handle range format (HH:MM-HH:MM) - ambil waktu mulai
-  const t1 = (time1 || '00:00').split('-')[0].trim()
-  const t2 = (time2 || '00:00').split('-')[0].trim()
-  
-  return t1.localeCompare(t2)
-}
-
 // =======================================
-// 🔄 COMPATIBILITY WRAPPERS (untuk existing code)
+// ✏️ ADMIN WRITE OPERATIONS
 // =======================================
 
 /**
- * 🔄 Wrapper function untuk compatibility dengan kode lama
- * @param {string|Date} _date - Target date (unused for now)
- * @returns {Promise<Array>} Array schedules
+ * ➕ ADMIN ONLY: Create new schedule
  */
-export async function getSchedulesByDate(_date) {  // eslint-disable-line no-unused-vars
+export async function createWorshipSchedule(scheduleData) {
   try {
-    // Untuk saat ini, return semua active templates
-    // Di masa depan bisa di-filter berdasarkan tanggal jika perlu
-    return await getWeeklyWorshipOverview()
+    console.log('➕ [Schedules] Creating new schedule...', scheduleData)
+    
+    // Validate input
+    validateScheduleInput(scheduleData)
+    
+    const now = new Date().toISOString()
+    
+    // Prepare data for database
+    const newSchedule = {
+      // Basic info
+      title: scheduleData.title.trim(),
+      category: scheduleData.category,
+      dayOfWeek: scheduleData.dayOfWeek,
+      time: scheduleData.time,
+      location: scheduleData.location?.trim() || 'Gedung Gereja Utama',
+      
+      // Content
+      theme: scheduleData.theme?.trim() || 'Berkat Tuhan',
+      speaker: scheduleData.speaker?.trim() || '',
+      specialNotes: scheduleData.specialNotes?.trim() || '',
+      announcements: scheduleData.announcements || [],
+      
+      // Status
+      status: 'active',
+      isPublished: scheduleData.isPublished !== false,
+      isSpecialEvent: scheduleData.isSpecialEvent || false,
+      
+      // Metadata
+      createdAt: now,
+      createdBy: scheduleData.adminId || 'admin',
+      lastUpdated: now,
+      updatedBy: scheduleData.adminId || 'admin',
+      version: 1
+    }
+    
+    // Save to database
+    const schedulesRef = collection(db, COLLECTION_NAME)
+    const docRef = await addDoc(schedulesRef, newSchedule)
+    
+    console.log('✅ [Schedules] Schedule created with ID:', docRef.id)
+    
+    return {
+      id: docRef.id,
+      ...newSchedule
+    }
+    
   } catch (error) {
-    console.error('❌ [Schedule Service] Error in getSchedulesByDate:', error)
-    return []
+    console.error('❌ [Schedules] Error creating schedule:', error)
+    
+    if (error.message.includes('Validasi gagal')) {
+      throw error
+    }
+    
+    if (error.code === 'permission-denied') {
+      throw new Error('Tidak memiliki akses untuk membuat jadwal')
+    }
+    
+    throw new Error('Gagal membuat jadwal baru')
   }
 }
 
 /**
- * 🔄 Wrapper function untuk getSchedules
- * @param {number} [_limitDays=7] - Number of days to look ahead (unused for now)
- * @returns {Promise<Array>} Array schedules
+ * 📝 ADMIN ONLY: Update existing schedule
  */
-export async function getSchedules(_limitDays = 7) {  // eslint-disable-line no-unused-vars
+export async function updateWorshipSchedule(scheduleId, updateData) {
   try {
-    return await getWeeklyWorshipOverview()
+    console.log(`📝 [Schedules] Updating schedule: ${scheduleId}`, updateData)
+    
+    if (!scheduleId) {
+      throw new Error('Schedule ID tidak boleh kosong')
+    }
+    
+    // Get existing data first
+    const existingSchedule = await getWorshipSchedule(scheduleId)
+    
+    // Validate update data
+    const mergedData = { ...existingSchedule, ...updateData }
+    validateScheduleInput(mergedData)
+    
+    const now = new Date().toISOString()
+    
+    // Prepare update data
+    const updatedData = {
+      title: updateData.title?.trim() || existingSchedule.title,
+      category: updateData.category || existingSchedule.category,
+      dayOfWeek: updateData.dayOfWeek !== undefined ? updateData.dayOfWeek : existingSchedule.dayOfWeek,
+      time: updateData.time || existingSchedule.time,
+      location: updateData.location?.trim() || existingSchedule.location,
+      theme: updateData.theme?.trim() || existingSchedule.theme,
+      speaker: updateData.speaker?.trim() || existingSchedule.speaker,
+      specialNotes: updateData.specialNotes?.trim() || existingSchedule.specialNotes,
+      
+      // Ensure status is active (important for user visibility)
+      status: updateData.status || 'active',
+      
+      // Update metadata
+      lastUpdated: now,
+      updatedBy: updateData.adminId || existingSchedule.updatedBy,
+      version: (existingSchedule.version || 1) + 1
+    }
+    
+    // Handle optional fields
+    if (updateData.isPublished !== undefined) {
+      updatedData.isPublished = updateData.isPublished
+    }
+    
+    if (updateData.isSpecialEvent !== undefined) {
+      updatedData.isSpecialEvent = updateData.isSpecialEvent
+    }
+    
+    if (updateData.status) {
+      updatedData.status = updateData.status
+    }
+    
+    // Update in database
+    const scheduleRef = doc(db, COLLECTION_NAME, scheduleId)
+    await updateDoc(scheduleRef, updatedData)
+    
+    console.log('✅ [Schedules] Schedule updated successfully')
+    
+    return {
+      id: scheduleId,
+      ...existingSchedule,
+      ...updatedData
+    }
+    
   } catch (error) {
-    console.error('❌ [Schedule Service] Error in getSchedules:', error)
-    return []
+    console.error('❌ [Schedules] Error updating schedule:', error)
+    
+    if (error.message.includes('Validasi gagal')) {
+      throw error
+    }
+    
+    if (error.message.includes('tidak ditemukan')) {
+      throw error
+    }
+    
+    if (error.code === 'permission-denied') {
+      throw new Error('Tidak memiliki akses untuk mengupdate jadwal')
+    }
+    
+    throw new Error('Gagal mengupdate jadwal')
   }
+}
+
+/**
+ * 🗑️ ADMIN ONLY: Delete schedule
+ */
+export async function deleteWorshipSchedule(scheduleId) {
+  try {
+    console.log(`🗑️ [Schedules] Deleting schedule: ${scheduleId}`)
+    
+    if (!scheduleId) {
+      throw new Error('Schedule ID tidak boleh kosong')
+    }
+    
+    // Check if schedule exists first
+    const existingSchedule = await getWorshipSchedule(scheduleId)
+    
+    if (!existingSchedule) {
+      throw new Error('Jadwal tidak ditemukan')
+    }
+    
+    // Delete from database
+    const scheduleRef = doc(db, COLLECTION_NAME, scheduleId)
+    await deleteDoc(scheduleRef)
+    
+    console.log('✅ [Schedules] Schedule deleted successfully')
+    return true
+    
+  } catch (error) {
+    console.error('❌ [Schedules] Error deleting schedule:', error)
+    
+    if (error.message.includes('tidak ditemukan')) {
+      throw error
+    }
+    
+    if (error.code === 'permission-denied') {
+      throw new Error('Tidak memiliki akses untuk menghapus jadwal')
+    }
+    
+    throw new Error('Gagal menghapus jadwal')
+  }
+}
+
+// =======================================
+// 🔄 LEGACY WRAPPER FUNCTIONS (untuk compatibility)
+// =======================================
+
+/**
+ * Wrapper untuk getWeeklyWorshipOverview (backward compatibility)
+ */
+export async function getSchedules() {
+  return await getWeeklyWorshipOverview()
+}
+
+/**
+ * Get single schedule (alias)
+ */
+export async function getSchedule(id) {
+  return await getWorshipSchedule(id)
 }
 
 /**
  * Get schedules by category
- * @param {string} category - Category to filter by
- * @param {number} [_days=7] - Number of days to check (unused for now)
- * @returns {Promise<Array>} Filtered schedules
  */
-export async function getSchedulesByCategory(category, _days = 7) {  // eslint-disable-line no-unused-vars
+export async function getSchedulesByCategory(category) {
   try {
     const schedules = await getWeeklyWorshipOverview()
     return schedules.filter(schedule => 
       schedule.category?.toLowerCase() === category.toLowerCase()
     )
   } catch (error) {
-    console.error('❌ [Schedule Service] Error getting schedules by category:', error)
+    console.error('❌ [Schedules] Error getting schedules by category:', error)
     return []
   }
 }
 
+// =======================================
+// 🛠️ HELPER FUNCTIONS
+// =======================================
+
 /**
- * Get single schedule by ID
- * @param {string} id - Schedule ID
- * @returns {Promise<Object>} Schedule data
+ * Validate schedule input
  */
-export async function getSchedule(id) {
-  try {
-    return await getWorshipSchedule(id)
-  } catch (error) {
-    console.error('❌ [Schedule Service] Error getting schedule:', error)
-    throw error
+function validateScheduleInput(inputData) {
+  const errors = []
+  
+  // Required fields
+  if (!inputData.title || inputData.title.trim().length === 0) {
+    errors.push('Judul jadwal harus diisi')
+  } else if (inputData.title.trim().length < 3) {
+    errors.push('Judul minimal 3 karakter')
+  }
+  
+  if (!inputData.category) {
+    errors.push('Kategori ibadah harus dipilih')
+  }
+  
+  if (inputData.dayOfWeek === undefined || inputData.dayOfWeek === null) {
+    errors.push('Hari ibadah harus dipilih')
+  }
+  
+  if (!inputData.time) {
+    errors.push('Waktu ibadah harus diisi')
+  }
+  
+  // Validate category
+  const validCategories = WORSHIP_CATEGORIES.map(c => c.value)
+  if (inputData.category && !validCategories.includes(inputData.category)) {
+    errors.push('Kategori ibadah tidak valid')
+  }
+  
+  // Validate dayOfWeek
+  const validDays = [0, 1, 2, 3, 4, 5, 6, 'daily']
+  if (inputData.dayOfWeek !== undefined && !validDays.includes(inputData.dayOfWeek)) {
+    errors.push('Hari ibadah tidak valid')
+  }
+  
+  // Validate time format
+  if (inputData.time && !/^\d{2}:\d{2}$/.test(inputData.time)) {
+    errors.push('Format waktu harus HH:mm (contoh: 08:00)')
+  }
+  
+  if (errors.length > 0) {
+    throw new Error(`Validasi gagal: ${errors.join(', ')}`)
   }
 }
 
 /**
- * Legacy function for compatibility
- * @param {number} [_days=7] - Number of days to look ahead (unused for now)
- * @returns {Promise<Array>} Array schedules
+ * Get category label by value
  */
-export async function getUpcomingSchedules(_days = 7) {  // eslint-disable-line no-unused-vars
-  return await getWeeklyWorshipOverview()
+export function getCategoryLabel(categoryValue) {
+  const category = WORSHIP_CATEGORIES.find(c => c.value === categoryValue)
+  return category ? category.label : 'Tidak diketahui'
 }
-
-// =======================================
-// 🎯 ADMIN EXPORTS (untuk admin panel)
-// TEMPORARILY DISABLED FOR DEVELOPMENT
-// =======================================
-
-// Export admin functions untuk admin panel
-/*
-export const AdminAPI = {
-  // CRUD Operations
-  createTemplate: AdminTemplateManager.createTemplate.bind(AdminTemplateManager),
-  getAllTemplatesForAdmin: AdminTemplateManager.getAllTemplatesForAdmin.bind(AdminTemplateManager),
-  updateTemplate: AdminTemplateManager.updateTemplate.bind(AdminTemplateManager),
-  updateWeeklyContent: AdminTemplateManager.updateWeeklyContent.bind(AdminTemplateManager),
-  updateTemplateStructure: AdminTemplateManager.updateTemplateStructure.bind(AdminTemplateManager),
-  deleteTemplate: AdminTemplateManager.deleteTemplate.bind(AdminTemplateManager),
-  duplicateTemplate: AdminTemplateManager.duplicateTemplate.bind(AdminTemplateManager),
-  
-  // Utility functions
-  getTemplate: AdminTemplateManager.getTemplate.bind(AdminTemplateManager),
-  validateTemplateData: AdminTemplateManager.validateTemplateData.bind(AdminTemplateManager)
-}
-*/
-
-// =======================================
-// 🎯 INITIALIZATION (untuk setup default templates)
-// =======================================
 
 /**
- * 🏗️ Initialize default templates (run once)
- * @returns {Promise<boolean>} Success status
+ * Get day label
  */
-export async function initializeDefaultTemplates() {
+function getDayLabel(dayOfWeek) {
+  const dayLabels = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+  
+  if (dayOfWeek === 'daily') {
+    return 'Setiap Hari'
+  }
+  
+  if (dayOfWeek >= 0 && dayOfWeek <= 6) {
+    return dayLabels[dayOfWeek]
+  }
+  
+  return 'Tidak diketahui'
+}
+
+/**
+ * Generate schedule text for display
+ */
+function generateScheduleText(scheduleData) {
+  const day = getDayLabel(scheduleData.dayOfWeek)
+  const time = scheduleData.time || 'Waktu belum ditentukan'
+  const location = scheduleData.location || 'Lokasi belum ditentukan'
+  
+  return `${day}, ${time} - ${location}`
+}
+
+/**
+ * Format date for display
+ */
+function formatDateForDisplay(dateString) {
+  if (!dateString) return 'Tidak diketahui'
+  
   try {
-    console.log('🏗️ [Worship Service] Initializing default templates...')
+    const date = new Date(dateString)
     
-    const defaultTemplates = [
-      {
-        title: 'Doa Membangunkan Fajar',
-        description: 'Doa pagi setiap hari',
-        dayOfWeek: 'daily',
-        defaultTime: '05:00',
-        location: 'Gedung Gereja Utama',
-        category: 'doa-fajar',
-        initialTheme: 'Memulai Hari Bersama Tuhan'
-      },
-      {
-        title: 'Ibadah Minggu Pagi',
-        description: 'Ibadah umum hari Minggu',
-        dayOfWeek: 0,
-        defaultTime: '08:00',
-        location: 'Gedung Gereja Utama',
-        category: 'ibadah-minggu',
-        initialTheme: 'Kasih Tuhan yang Sempurna',
-        requireSpeaker: true
-      },
-      {
-        title: 'Pemahaman Alkitab',
-        description: 'Pemahaman Alkitab mingguan',
-        dayOfWeek: 3,
-        defaultTime: '19:00',
-        location: 'Ruang Persekutuan',
-        category: 'pemahaman-alkitab',
-        initialTheme: 'Firman yang Hidup'
-      },
-      {
-        title: 'Doa dan Puasa',
-        description: 'Ibadah doa dan puasa bersama',
-        dayOfWeek: 5,
-        defaultTime: '18:00',
-        location: 'Ruang Doa',
-        category: 'doa-puasa',
-        initialTheme: 'Kuasa Doa dan Puasa'
-      },
-      {
-        title: 'Ibadah PELPRIP',
-        description: 'Persekutuan Lanjut Usia Pria',
-        dayOfWeek: 6,
-        defaultTime: '17:00',
-        location: 'Ruang PELPRIP',
-        category: 'pelprip',
-        initialTheme: 'Kekuatan dalam Persekutuan'
-      },
-      {
-        title: 'Ibadah PELWAP',
-        description: 'Persekutuan Lanjut Usia Wanita',
-        dayOfWeek: 6,
-        defaultTime: '15:00',
-        location: 'Ruang PELWAP',
-        category: 'pelwap',
-        initialTheme: 'Kasih dan Kebijaksanaan'
-      }
-    ]
-    
-    for (const templateData of defaultTemplates) {
-      // TEMPORARILY DISABLED - AdminTemplateManager not available
-      /*
-      const existingTemplate = await AdminTemplateManager.getTemplate(
-        TemplateFactory.generateTemplateId(templateData.title)
-      )
-      
-      if (!existingTemplate) {
-        await AdminTemplateManager.createTemplate({
-          ...templateData,
-          adminId: 'system'
-        })
-        console.log(`✅ Created template: ${templateData.title}`)
-      }
-      */
-      console.log(`⏸️ Skipped template creation: ${templateData.title} (admin features disabled)`)
+    if (isNaN(date.getTime())) {
+      return 'Invalid date'
     }
     
-    console.log('✅ [Worship Service] All default templates initialized!')
-    return true
-    
+    return date.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
   } catch (error) {
-    console.error('❌ [Worship Service] Error initializing templates:', error)
-    throw error
+    console.warn('Error formatting date:', error)
+    return 'Invalid date'
   }
 }

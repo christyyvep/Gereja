@@ -109,6 +109,7 @@ export default {
   
   data() {
     return {
+      windowWidth: window.innerWidth, // ⭐ Track window width untuk responsive
       breadcrumbItems: [
         { text: 'Tentang Gereja' }
       ],
@@ -157,12 +158,33 @@ export default {
     churchThumbnail() {
       // Use getAboutThumbnail from imageUtils for proper church image handling
       console.log('🏛️ [TentangGereja] Getting church thumbnail...')
-      return getAboutThumbnail({ contentType: 'church' }, 'large')
+      
+      // ⭐ RESPONSIVE: Pilih size berdasarkan window width reactive
+      const isMobile = this.windowWidth <= 768
+      const size = isMobile ? 'detail-mobile' : 'detail-desktop'
+      
+      console.log(`📱💻 [TentangGereja] Device size: ${size} (width: ${this.windowWidth}px)`)
+      return getAboutThumbnail({ contentType: 'church' }, size)
     }
   },
   
   created() {
     this.loadChurchImages()
+  },
+  
+  mounted() {
+    // ⭐ Add window resize listener untuk responsive thumbnail
+    this.handleResize = () => {
+      this.windowWidth = window.innerWidth
+      console.log(`📏 [TentangGereja] Window resized to: ${this.windowWidth}px`)
+    }
+    
+    window.addEventListener('resize', this.handleResize)
+  },
+  
+  beforeUnmount() {
+    // ⭐ Cleanup resize listener
+    window.removeEventListener('resize', this.handleResize)
   },
   
   methods: {

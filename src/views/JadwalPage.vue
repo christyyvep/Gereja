@@ -12,7 +12,7 @@
         
         <!-- Header dengan judul dan tombol refresh -->
         <div class="page-header">
-          <h1 class="page-title">Jadwal Kegiatan</h1>
+          <h1 class="page-title">Jadwal Ibadah</h1>
           <button @click="fetchSchedules" class="refresh-button" :disabled="loading">
             <RefreshCw :class="{ 'rotating': loading }" />
             <span>Refresh</span>
@@ -22,7 +22,7 @@
         <!-- Loading state: Seperti loading di game -->
         <div v-if="loading" class="loading-container desktop-loading">
           <div class="loading-spinner"></div>
-          <p>Memuat jadwal kegiatan...</p>
+          <p>Memuat jadwal ibadah mingguan...</p>
         </div>
 
         <!-- Error state: Kalau ada masalah -->
@@ -56,7 +56,7 @@
           <div class="empty-card">
             <CalendarDays class="empty-icon" />
             <h3>Belum Ada Jadwal</h3>
-            <p>Tidak ada jadwal kegiatan yang tersedia saat ini.</p>
+            <p>Tidak ada jadwal ibadah yang tersedia saat ini.</p>
             <button @click="fetchSchedules" class="refresh-button-primary">
               <RefreshCw />
               <span>Refresh</span>
@@ -69,11 +69,11 @@
     <!-- Mobile Layout (yang sudah ada) -->
     <div class="mobile-layout">
       <div class="jadwal-wrapper">
-        <HeaderWithBack title="Jadwal Kegiatan" />
+        <HeaderWithBack title="Jadwal Ibadah" />
         <!-- Loading state mobile -->
         <div v-if="loading" class="loading-container">
           <div class="loading-spinner"></div>
-          <p>Memuat jadwal kegiatan...</p>
+          <p>Memuat jadwal ibadah...</p>
         </div>
 
         <!-- Error state mobile -->
@@ -100,7 +100,7 @@
           <div class="empty-content">
             <CalendarDays class="empty-icon" />
             <h3>Belum Ada Jadwal</h3>
-            <p>Tidak ada jadwal kegiatan yang tersedia untuk ditampilkan.</p>
+            <p>Tidak ada jadwal ibadah yang tersedia untuk ditampilkan.</p>
             <ButtonPrimary @click="fetchSchedules">Refresh</ButtonPrimary>
           </div>
         </div>
@@ -171,6 +171,12 @@ export default {
         const schedulesData = await getWeeklyWorshipOverview()
         
         console.log('✅ [JadwalPage] Jadwal berhasil dimuat:', schedulesData.length)
+        console.log('📋 [JadwalPage] Raw data sample:', schedulesData[0])
+        
+        if (schedulesData.length > 0) {
+          console.log('🔍 [JadwalPage] Schedule IDs:', schedulesData.map(s => s.id))
+          console.log('🔍 [JadwalPage] Published status:', schedulesData.map(s => ({ id: s.id, isPublished: s.isPublished, status: s.status })))
+        }
         
         this.schedules = schedulesData
       } catch (error) {

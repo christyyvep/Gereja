@@ -161,13 +161,14 @@
         
         console.log(`🖼️ [ContentCard] Getting thumbnail for "${this.item?.title}" with computed size: ${this.computedThumbnailSize}`)
         
-        // 🎯 MENGGUNAKAN LOGIC YANG SAMA DENGAN DETAILLAYOUT
-        if (this.item && (this.item.images || this.item.thumbnails) && this.contentType === 'news') {
+        // 🎯 MENGGUNAKAN LOGIC YANG SAMA DENGAN DETAILLAYOUT - SUPPORT ALL CONTENT TYPES
+        if (this.item && (this.item.images || this.item.thumbnails)) {
           const images = this.item.images || this.item.thumbnails
           let selectedImage = null
           
           console.log('📦 [ContentCard] Available images from item:', images)
           console.log('📦 [ContentCard] Field used:', this.item.images ? 'images' : 'thumbnails')
+          console.log('🏷️ [ContentCard] Content type:', this.contentType)
           
           // ✅ SELECTION berdasarkan computed size
           if (this.computedThumbnailSize === 'card-desktop') {
@@ -180,7 +181,9 @@
           
           if (selectedImage) {
             console.log('✅ [ContentCard] Using direct image selection:', selectedImage)
-            return selectedImage
+            // Force refresh untuk menghindari cache browser
+            const cacheBuster = `${selectedImage.includes('?') ? '&' : '?'}cb=${Date.now()}`
+            return selectedImage + cacheBuster
           }
           
           console.log('❌ [ContentCard] No image found for', this.computedThumbnailSize, '- available images:', Object.keys(images))
@@ -209,6 +212,11 @@
       
       categoryLabel() {
         if (!this.item || !this.item.category) return null
+        
+        // 🚫 TIDAK MENAMPILKAN KATEGORI UNTUK DEVOTIONAL/RENUNGAN
+        if (this.contentType === 'devotional') {
+          return null
+        }
         
         // Category labels berdasarkan content type
         const labels = {
@@ -245,12 +253,6 @@
             'doa': 'Doa',
             'fellowship': 'Fellowship',
             'event': 'Acara'
-          },
-          devotional: {
-            'kasih': 'Kasih',
-            'pengharapan': 'Pengharapan', 
-            'iman': 'Iman',
-            'doa': 'Doa'
           }
         }
         
@@ -316,6 +318,17 @@
       },
       
       handleImageError(e) {
+        console.warn('🖼️ [ContentCard] Image load error for:', e.target.src)
+        
+        // Force reload dengan cache busting lebih kuat
+        const originalSrc = e.target.src
+        if (!originalSrc.includes('&retry=')) {
+          const cacheBuster = `&retry=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`
+          e.target.src = originalSrc + cacheBuster
+          console.log('🔄 [ContentCard] Retrying with cache bust:', e.target.src)
+          return
+        }
+        
         // Fallback berdasarkan content type
         switch (this.contentType) {
           case 'news':
@@ -384,7 +397,7 @@
         const width = isSmall ? 80 : 400
         const height = isSmall ? 80 : 250
         
-        // Generate simple SVG placeholder
+        // Generate simple SVG erar
         const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
           <rect width="${width}" height="${height}" fill="#f5f5f5"/>
           <text x="${width/2}" y="${height/2}" font-family="Arial" font-size="14" fill="#999" text-anchor="middle" dominant-baseline="middle">📰 News</text>
@@ -461,7 +474,7 @@
     .size-large {
       width: 120px;
       min-width: 120px;
-      height: 120px;
+      height: 150px;
     }
   }
   
@@ -551,10 +564,14 @@
     color: #666;
     line-height: 1.4;
     margin: 0;
+    /* Batasi ke 1 baris saja */
     display: -webkit-box;
-    line-clamp: 3;
+    line-clamp: 1;
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   
   /* ========================================
@@ -589,8 +606,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-top: auto;
-    padding-top: 16px;
+    margin-top: 8px; /* Diperkecil dari 16px */
+    padding-top: 8px; /* Diperkecil dari 16px */
     border-top: 1px solid #f0f0f0;
   }
   
@@ -713,27 +730,29 @@
     display: flex;
     flex-direction: column;
     height: auto;
-    min-height: 280px; /* Lebih kecil dari 350px */
-    max-height: 320px; /* Batasi tinggi maksimal */
+    min-height: 360px; /* Diperkecil dari 500px */
+    max-height: 400px; /* Diperkecil dari 560px */
   }
   
   .layout-desktop-grid .card-thumbnail {
-    height: 160px; /* Tinggi thumbnail lebih kecil */
+    height: 226px; /* Tinggi thumbnail sesuai permintaan 403x226 */
     width: 100%;
+    max-width: 403px; /* Lebar maksimal sesuai permintaan */
   }
   
   .layout-desktop-grid .card-content {
     flex: 1;
-    padding: 16px; /* Padding lebih kecil dari 20px */
+    padding: 12px; /* Diperkecil dari 16px */
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px; /* Diperkecil dari 8px */
+    min-height: 100px; /* Ditambahkan untuk membatasi tinggi content */
   }
   
   .layout-desktop-grid .card-title {
     font-size: 15px; /* Lebih kecil dari 16px */
     line-height: 1.3;
-    margin-bottom: 8px; /* Lebih kecil dari 12px */
+    margin-bottom: 4px; /* Diperkecil dari 8px */
     display: -webkit-box;
     line-clamp: 2;
     -webkit-line-clamp: 2;
@@ -742,15 +761,18 @@
   }
   
   .layout-desktop-grid .card-subtitle {
-    font-size: 13px; /* Lebih kecil dari 14px */
+    font-size: 13px; 
     line-height: 1.4;
-    line-clamp: 2; /* Kurangi dari 3 menjadi 2 baris */
-    -webkit-line-clamp: 2;
-    margin-bottom: 12px; /* Lebih kecil dari 16px */
+    margin-bottom: 8px; /* Diperkecil dari 12px */
+    color: #666;
+    /* Batasi ke 1 baris saja untuk desktop grid */
     display: -webkit-box;
+    line-clamp: 1;
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    color: #666;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   
   /* Desktop List Layout (alternative) */
@@ -835,16 +857,17 @@
   /* Desktop responsive - untuk layar medium */
   @media (max-width: 950px) and (min-width: 769px) {
     .layout-desktop-grid {
-      min-height: 260px; /* Lebih kecil lagi */
-      max-height: 300px;
+      min-height: 320px; /* Diperkecil dari 460px */
+      max-height: 360px; /* Diperkecil dari 520px */
     }
     
     .layout-desktop-grid .card-thumbnail {
-      height: 140px; /* Thumbnail lebih kecil */
+      height: 200px; /* Thumbnail diproporsikan untuk layar medium */
+      max-width: 356px; /* Proporsional dengan 403x226 */
     }
     
     .layout-desktop-grid .card-content {
-      padding: 14px; /* Padding lebih kecil */
+      padding: 10px; /* Diperkecil dari 14px */
     }
     
     .layout-desktop-grid .card-title {

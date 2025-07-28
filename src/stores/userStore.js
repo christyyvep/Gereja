@@ -1,5 +1,11 @@
 import { defineStore } from 'pinia'
-import { loginJemaat, logoutJemaat, getCurrentJemaat, getRememberedUser, autoLoginRememberedUser} from '@/services/auth'
+// UPDATED: Import hybrid auth services
+import { 
+  loginUser, 
+  logoutUser, 
+  getCurrentUser, 
+  isLoggedIn as checkLogin 
+} from '@/services/auth-hybrid'
 import { useStreakStore } from './streakStore'
 
 export const useUserStore = defineStore('user', {
@@ -14,6 +20,21 @@ export const useUserStore = defineStore('user', {
      * @returns {string}
      */
     namaUser: (state) => state.user?.nama || 'Jemaat',
+    
+    /**
+     * Get full user name for activity logging (prioritizes nama field)
+     * @returns {string}
+     */
+    fullUserName: (state) => {
+      if (!state.user) return 'Jemaat'
+      
+      // Priority: nama (primary field in MyRajawali) > displayName > name > id
+      return state.user.nama || 
+             state.user.displayName || 
+             state.user.name || 
+             state.user.id || 
+             'Jemaat'
+    },
     
     /**
      * Get user ID (consistent between id and nama)
@@ -40,10 +61,13 @@ export const useUserStore = defineStore('user', {
     userRole: (state) => state.user?.role || 'jemaat',
 
     /**
-     * Check if user is admin
+     * Check if user is admin or gembala
      * @returns {boolean}
      */
-    isAdmin: (state) => (state.user?.role || 'jemaat') === 'admin',
+    isAdmin: (state) => {
+      const role = state.user?.role || 'jemaat'
+      return role === 'admin' || role === 'gembala'
+    },
 
     /**
      * Check if user is pengurus or admin
@@ -52,8 +76,8 @@ export const useUserStore = defineStore('user', {
      */
     isPengurus: (state) => {
       const role = state.user?.role || 'jemaat'
-      // Only admin now, pengurus role is hidden
-      return role === 'admin'
+      // Only admin and gembala now, pengurus role is hidden
+      return role === 'admin' || role === 'gembala'
     },
 
     /**
@@ -64,6 +88,7 @@ export const useUserStore = defineStore('user', {
       const role = state.user?.role || 'jemaat'
       const roleMap = {
         'admin': 'Administrator',
+        'gembala': 'Gembala',
         'pengurus': 'Pengurus',
         'jemaat': 'Jemaat'
       }
@@ -73,44 +98,49 @@ export const useUserStore = defineStore('user', {
   
   actions: {
     /**
-     * Login user with credentials
+     * Login user with credentials - UPDATED for Hybrid Auth
      * @param {string} nama - User name
      * @param {string} password - User password
      * @returns {Promise<Object>} User data
      */
     async login(nama, password) {
       try {
-        console.log('🔐 [UserStore] Starting login process...')
+        console.log('🔐 [UserStore] Starting hybrid auth login process...')
         
         // Clear any existing data first
         this.clearUserData()
 
-        // Authenticate user
-        const userData = await loginJemaat(nama, password)
-        console.log('✅ [UserStore] Authentication successful')
+        // UPDATED: Use hybrid auth
+        const result = await loginUser(nama, password)
         
-        // Set user data
-        this.user = userData
-        this.isLoggedIn = true
-        
-        console.log('👤 [UserStore] User role:', userData.role || 'jemaat')
+        if (result.success) {
+          console.log('✅ [UserStore] Hybrid authentication successful')
+          
+          // Set user data from hybrid auth result
+          this.user = result.user
+          this.isLoggedIn = true
+          
+          console.log('👤 [UserStore] User role:', result.user.role || 'jemaat')
 
-        // Save to localStorage
-        localStorage.setItem('user', JSON.stringify(userData))
-        
-        // Initialize user-specific data
-        await this.initializeUserData(userData.id || userData.nama)
-        
-        return userData
+          // Save to localStorage (hybrid auth already handles this but for compatibility)
+          localStorage.setItem('user', JSON.stringify(result.user))
+          
+          // Initialize user-specific data
+          await this.initializeUserData(result.user.id || result.user.nama)
+          
+          return result.user
+        } else {
+          throw new Error('Login failed: Invalid response from hybrid auth')
+        }
       } catch (error) {
-        console.error('❌ [UserStore] Login failed:', error)
+        console.error('❌ [UserStore] Hybrid login failed:', error)
         this.clearUserData()
         throw error
       }
     },
     
     /**
-     * Logout current user
+     * Logout current user - UPDATED for Hybrid Auth
      */
     logout(forgetMe = false) {
       console.log('🚪 [UserStore] Logging out user...', forgetMe ? '(forget me)' : '(respect remember me)')
@@ -120,8 +150,8 @@ export const useUserStore = defineStore('user', {
         this.clearUserSpecificData(this.user.id || this.user.nama)
       }
       
-      // Call enhanced auth logout
-      logoutJemaat(forgetMe)  // ← Pass forgetMe parameter
+      // UPDATED: Call hybrid auth logout
+      logoutUser()  // Hybrid auth handles session cleanup
       
       // Clear store data
       this.clearUserData()
@@ -158,10 +188,10 @@ export const useUserStore = defineStore('user', {
     
     async getSavedUserData() {
       try {
-        // Use getCurrentJemaat for consistency
-        const userData = await getCurrentJemaat()
+        // UPDATED: Use hybrid auth getCurrentUser
+        const userData = getCurrentUser()
         if (userData && userData.nama) {
-          console.log('📋 [UserStore] Found saved user:', userData.nama)
+          console.log('📋 [UserStore] Found saved user via hybrid auth:', userData.nama)
           return userData
         }
         return null
@@ -172,15 +202,15 @@ export const useUserStore = defineStore('user', {
     },
     
     /**
-     * Check and restore login status from localStorage (ENHANCED)
+     * Check and restore login status from localStorage - UPDATED for Hybrid Auth
      * @returns {boolean} Login status
      */
     async checkLoginStatus() {
       try {
-        console.log('🔍 [UserStore] Checking login status...')
+        console.log('🔍 [UserStore] Checking hybrid auth login status...')
         
-        // First check current session - this includes remembered users
-        const savedUser = await getCurrentJemaat()
+        // UPDATED: Check current session via hybrid auth
+        const savedUser = getCurrentUser()
         
         if (savedUser && savedUser.nama) {
           if (this.validateUserData(savedUser)) {
@@ -189,35 +219,31 @@ export const useUserStore = defineStore('user', {
             // Initialize streak data saat restore session
             await this.initializeUserData(savedUser.id || savedUser.nama)
             
-            const loginType = savedUser.rememberMe ? 'remembered user' : 'session user'
-            console.log(`✅ [UserStore] ${loginType} restored:`, savedUser.nama)
+            console.log(`✅ [UserStore] Hybrid auth session restored:`, savedUser.nama)
             return true
           }
         }
         
-        // If no current session, check for legacy remembered user (fallback)
-        const rememberedUser = getRememberedUser()
+        // UPDATED: Use hybrid auth to check login status
+        const isCurrentlyLoggedIn = checkLogin()
         
-        if (rememberedUser && rememberedUser.nama !== savedUser?.nama) {
-          try {
-            console.log('🔄 [UserStore] Found legacy remembered user, migrating...')
-            
-            // Auto-login with remembered user
-            const autoLoginData = await autoLoginRememberedUser(rememberedUser)
-            this.setUser(autoLoginData)
-            
-            // Initialize streak data untuk auto-login
-            await this.initializeUserData(autoLoginData.id || autoLoginData.nama)
-            
-            console.log('✅ [UserStore] Legacy auto-login successful with remembered user')
-            return true
-          } catch (error) {
-            console.error('❌ [UserStore] Auto-login failed:', error)
-          }
+        if (!isCurrentlyLoggedIn) {
+          console.log('ℹ️ [UserStore] No valid hybrid auth session found')
+          this.clearUserData()
+          return false
+        }
+        
+        // If login status is true but no user data, try to get it again
+        const retryUser = getCurrentUser()
+        if (retryUser) {
+          this.setUser(retryUser)
+          await this.initializeUserData(retryUser.id || retryUser.nama)
+          console.log('✅ [UserStore] Hybrid auth session recovered on retry')
+          return true
         }
         
         // No valid session or remembered user
-        console.log('ℹ️ [UserStore] No valid user session found')
+        console.log('ℹ️ [UserStore] No valid hybrid auth user session found')
         this.clearUserData()
         return false
         
@@ -234,7 +260,7 @@ export const useUserStore = defineStore('user', {
      * @returns {boolean} Success status
      */
     setUserRole(role) {
-      const validRoles = ['jemaat', 'pengurus', 'admin']
+      const validRoles = ['jemaat', 'gembala', 'pengurus', 'admin']
       
       if (!validRoles.includes(role)) {
         console.error('❌ [UserStore] Invalid role:', role)
@@ -270,6 +296,13 @@ export const useUserStore = defineStore('user', {
      */
     setAsPengurus() {
       return this.setUserRole('pengurus')
+    },
+
+    /**
+     * Development helper: Set as gembala
+     */
+    setAsGembala() {
+      return this.setUserRole('gembala')
     },
 
     /**

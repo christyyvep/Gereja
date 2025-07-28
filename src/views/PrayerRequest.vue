@@ -95,7 +95,7 @@
     <div class="mobile-layout">
       <div class="prayer-wrapper">
         <!-- Header dengan tombol back -->
-        <HeaderWithBack title="Prayer Request" />
+        <HeaderWithBack title="Prayer Request" :customBackAction="goToHomepage" />
 
         <!-- Loading state -->
         <div v-if="loading" class="loading-container">
@@ -328,6 +328,9 @@ import { useUserStore } from '@/stores/userStore.js'
 // ⭐ IMPORT PERSONAL FUNCTIONS - hanya untuk user sendiri
 import { getPrayerRequestsByUser, addTestimony, getPrayerCategories, deletePrayerRequest } from '@/services/prayerRequests.js'
 
+// Toast notification
+import { useToast } from '@/composables/useToast.js'
+
 export default {
   name: 'PrayerRequestPage',
   components: {
@@ -417,12 +420,34 @@ export default {
       ]
     }
   },
+
+  setup() {
+    const {
+      showSuccess,
+      showError,
+      showInfo,
+      validationError
+    } = useToast()
+
+    return {
+      showSuccess,
+      showError,
+      showInfo,
+      validationError
+    }
+  },
   
   async created() {
     await this.fetchMyPrayerRequests() // ⭐ FETCH PERSONAL PRAYERS
   },
   
   methods: {
+    // ⭐ NAVIGATION: Go back to homepage instead of previous page
+    goToHomepage() {
+      console.log('🏠 [PrayerRequest] Navigating to homepage')
+      this.$router.push('/home')
+    },
+
     // ⭐ FETCH PERSONAL PRAYERS - dengan fallback
     async fetchMyPrayerRequests() {
       try {
@@ -570,7 +595,7 @@ export default {
     async submitTestimony() {
       try {
         if (!this.testimonyText.trim()) {
-          alert('Testimoni tidak boleh kosong!')
+          this.validationError('Testimoni tidak boleh kosong!')
           return
         }
 
@@ -586,11 +611,11 @@ export default {
         await this.fetchMyPrayerRequests()
         
         this.closeTestimonyModal()
-        alert('✅ Testimoni berhasil ditambahkan!')
+        this.showSuccess('Testimoni berhasil ditambahkan!')
 
       } catch (error) {
         console.error('Error submitting testimony:', error)
-        alert('❌ Gagal menambahkan testimoni: ' + error.message)
+        this.showError('Gagal menambahkan testimoni: ' + error.message)
       } finally {
         this.isSubmittingTestimony = false
       }

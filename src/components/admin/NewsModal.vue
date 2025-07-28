@@ -54,21 +54,21 @@
                 <option value="kegiatan">Kegiatan</option>
                 <option value="informasi">Informasi</option>
                 <option value="event">Event</option>
-                <option value="ibadah">Ibadh</option>
+                <option value="ibadah">Ibadah</option>
                 <option value="komunitas">Komunitas</option>
               </select>
             </div>
 
-            <!-- Summary -->
+            <!-- Informasi -->
             <div class="form-group">
               <label for="summary" class="form-label">
-                Ringkasan <span class="required">*</span>
+               Informasi <span class="required">*</span>
               </label>
               <textarea 
                 id="summary"
                 v-model="formData.summary" 
                 class="form-textarea"
-                placeholder="Ringkasan singkat berita yang akan ditampilkan di card"
+                placeholder="Isi informasi pengumuman"
                 rows="3"
                 required
               />
@@ -453,7 +453,7 @@
             >
               <Save v-if="!saving" class="button-icon" />
               <div v-else class="loading-spinner-small"></div>
-              {{ saving ? 'Menyimpan...' : (mode === 'add' ? 'Tambah Berita' : 'Simpan Perubahan') }}
+              {{ saving ? 'Menyimpan...' : (mode === 'add' ? 'Simpan Berita' : 'Simpan Perubahan') }}
             </button>
           </div>
         </form>
@@ -477,6 +477,9 @@ import {
 } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/userStore'
 import { CLOUDINARY_CONFIG } from '@/utils/cloudinary'
+
+// Toast notification
+import { useToast } from '@/composables/useToast.js'
 
 export default {
   name: 'NewsModal',
@@ -551,6 +554,11 @@ export default {
         attachLinks: []
       }
     }
+  },
+
+  setup() {
+    const { showError } = useToast()
+    return { showError }
   },
   
   computed: {
@@ -723,7 +731,7 @@ export default {
       } catch (error) {
         console.error(`❌ [NewsModal] Upload failed for ${type}:`, error)
         this.uploadStates[type] = { loading: false, error: error.message }
-        alert(`Gagal upload ${type}: ${error.message}`)
+        this.showError(`Gagal upload ${type}: ${error.message}`)
       }
     },
     
@@ -755,6 +763,9 @@ export default {
           fd.append('file', file)
           fd.append('upload_preset', 'myrajawali_preset')
           fd.append('folder', `myrajawali/thumbnails/news/${type}`)
+          // Add unique public_id to prevent cache issues
+          const uniqueId = `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+          fd.append('public_id', uniqueId)
           return fd
         },
         // Strategy 2: Use ml_default preset  
@@ -763,6 +774,9 @@ export default {
           fd.append('file', file)
           fd.append('upload_preset', 'ml_default')
           fd.append('folder', `myrajawali/thumbnails/news/${type}`)
+          // Add unique public_id to prevent cache issues
+          const uniqueId = `${type}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+          fd.append('public_id', uniqueId)
           return fd
         },
         // Strategy 3: Direct upload without preset (if enabled)

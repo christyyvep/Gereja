@@ -15,7 +15,6 @@ export const CLOUDINARY_CONFIG = {
   
   // Folder structure dengan UKURAN YANG BENAR
   folders: {
-    church: 'myrajawali/church',           
     gembala: 'myrajawali/gembala',         
     dailyVerse: 'myrajawali/daily-verse',  
     featureIcons: 'myrajawali/icons/features', 
@@ -38,18 +37,27 @@ export const CLOUDINARY_CONFIG = {
       cardDesktop: 'myrajawali/thumbnails/renungan/card-desktop',
       detailMobile: 'myrajawali/thumbnails/renungan/detail-mobile',
       detailDesktop: 'myrajawali/thumbnails/renungan/detail-desktop'
+    },
+    giving: {
+      detailMobile: 'myrajawali/thumbnails/giving/detail-mobile',
+      detailDesktop: 'myrajawali/thumbnails/giving/detail-desktop'
+    },
+    church: {
+      legacy: 'myrajawali/church',           // For legacy church images (visi, misi, etc)
+      detailMobile: 'myrajawali/church/detail-mobile',
+      detailDesktop: 'myrajawali/church/detail-desktop'
     }
   },
   
-  // 🎯 SIZE TRANSFORMS dengan ukuran yang BENAR
+  // 🎯 SIZE TRANSFORMS dengan ukuran yang BENAR dan crop setting yang natural
   transforms: {
-    'card-mobile': 'w_80,h_80,c_fill,f_auto,q_auto',           // 80x80 - HP di NewsPage
-    'card-desktop': 'w_1200,h_675,c_fill,f_auto,q_auto',       // 1200x675 - Desktop di NewsPage  
-    'detail-mobile': 'w_1200,h_675,c_fill,f_auto,q_auto',      // 1200x675 - HP di DetailNews
-    'detail-desktop': 'w_1435,h_498,c_fill,f_auto,q_auto',     // 1435x498 - Desktop di DetailNews
+    'card-mobile': 'w_80,h_80,c_fit,f_auto,q_auto',           // 80x80 - HP di NewsPage
+    'card-desktop': 'w_400,h_250,c_fit,f_auto,q_auto',        // 400x250 - Desktop di NewsPage  
+    'detail-mobile': 'w_400,h_250,c_fit,f_auto,q_auto',       // 400x250 - HP di DetailNews
+    'detail-desktop': 'w_800,h_450,c_fit,f_auto,q_auto',      // 800x450 - Desktop di DetailNews
     // Legacy support
-    'large': 'w_1200,h_675,c_fill,f_auto,q_auto',
-    'small': 'w_80,h_80,c_fill,f_auto,q_auto'
+    'large': 'w_400,h_250,c_fit,f_auto,q_auto',
+    'small': 'w_80,h_80,c_fit,f_auto,q_auto'
   }
 }
 
@@ -64,12 +72,12 @@ export function getNewsCloudinaryUrl(filename, size = 'card-desktop') {
   try {
     console.log(`📰 [getNewsCloudinaryUrl] Processing: "${filename}", size: "${size}"`)
     
-    // ✅ SIMPLE TRANSFORM: Cuma 2 ukuran aja
+    // ✅ SIMPLE TRANSFORM: Menggunakan c_fit untuk menghindari crop berlebihan
     let transform
     if (size === 'card-mobile') {
-      transform = 'w_80,h_80,c_fill,f_auto,q_auto'  // 80x80 untuk mobile
+      transform = 'w_80,h_80,c_fit,f_auto,q_auto'  // 80x80 untuk mobile
     } else {
-      transform = 'w_1200,h_675,c_fill,f_auto,q_auto'  // 1200x675 untuk desktop
+      transform = 'w_400,h_250,c_fit,f_auto,q_auto'  // 400x250 untuk desktop
     }
     
     console.log(`🎯 [getNewsCloudinaryUrl] Using transform: ${transform}`)
@@ -88,8 +96,10 @@ export function getNewsCloudinaryUrl(filename, size = 'card-desktop') {
     
     console.log(`🧹 [getNewsCloudinaryUrl] Public ID: "${publicId}"`)
     
-    // ✅ GENERATE URL: Base URL + transform + public ID
-    const finalUrl = `${CLOUDINARY_CONFIG.baseUrl}/${transform}/${publicId}`
+    // ✅ GENERATE URL: Base URL + transform + public ID + cache busting
+    const timestamp = Date.now()
+    const randomSeed = Math.random().toString(36).substring(2, 15)
+    const finalUrl = `${CLOUDINARY_CONFIG.baseUrl}/${transform}/${publicId}?v=${timestamp}&r=${randomSeed}`
     console.log(`🔗 [getNewsCloudinaryUrl] Final URL: ${finalUrl}`)
     
     return finalUrl
@@ -101,31 +111,67 @@ export function getNewsCloudinaryUrl(filename, size = 'card-desktop') {
   }
 }
 
-// ⭐ PERBAIKAN: getJadwalCloudinaryUrl yang BENAR
-export function getJadwalCloudinaryUrl(filename, size = 'card-desktop') {
+// ⭐ JADWAL CLOUDINARY URL FUNCTION - SIMPLIFIED
+export function getJadwalCloudinaryUrl(filename, size = 'card-desktop', forceRefresh = false) {
   try {
-    console.log(`📅 [getJadwalCloudinaryUrl] Processing: ${filename}, size: ${size}`)
+    console.log(`📅 [getJadwalCloudinaryUrl] Processing: ${filename}, size: ${size}, forceRefresh: ${forceRefresh}`)
     
-    // Get transform parameters
-    const transform = CLOUDINARY_CONFIG.transforms[size] || CLOUDINARY_CONFIG.transforms['card-desktop']
-    console.log(`🎯 Using transform: ${transform}`)
+    // ✅ TRANSFORM MAPPING: Menggunakan c_fit untuk mencegah crop yang berlebihan
+    let transform
+    switch (size) {
+      case 'card-mobile':
+        transform = 'w_80,h_80,c_fit,f_auto,q_auto'  // 80x80 untuk mobile card
+        break
+      case 'card-desktop':
+        transform = 'w_400,h_250,c_fit,f_auto,q_auto'  // 400x250 untuk desktop card
+        break
+      case 'detail-mobile':
+        transform = 'w_400,h_250,c_fit,f_auto,q_auto'  // 400x250 untuk mobile detail
+        break
+      case 'detail-desktop':
+        transform = 'w_800,h_450,c_fit,f_auto,q_auto'  // 800x450 untuk desktop detail
+        break
+      default:
+        transform = 'w_400,h_250,c_fit,f_auto,q_auto'  // Default ke desktop card
+    }
     
-    // Get folder based on size
-    const folder = CLOUDINARY_CONFIG.folders.jadwal[size] || CLOUDINARY_CONFIG.folders.jadwal.cardDesktop
-    console.log(`📁 Using folder: ${folder}`)
+    console.log(`🎯 [getJadwalCloudinaryUrl] Using transform: ${transform}`)
     
-    // Clean filename
+    // ✅ FOLDER MAPPING: Sesuaikan dengan size
+    const folderMap = {
+      'card-mobile': CLOUDINARY_CONFIG.folders.jadwal.cardMobile,
+      'card-desktop': CLOUDINARY_CONFIG.folders.jadwal.cardDesktop,
+      'detail-mobile': CLOUDINARY_CONFIG.folders.jadwal.detailMobile,
+      'detail-desktop': CLOUDINARY_CONFIG.folders.jadwal.detailDesktop
+    }
+    
+    const folder = folderMap[size] || CLOUDINARY_CONFIG.folders.jadwal.cardDesktop
+    console.log(`📁 [getJadwalCloudinaryUrl] Using folder: ${folder}`)
+    
+    // ✅ CLEAN FILENAME: Hapus extension
     let cleanFilename = filename
     if (filename.includes('.')) {
       cleanFilename = filename.replace(/\.(jpg|jpeg|png|webp|gif)$/i, '')
     }
     
-    const directUrl = `${CLOUDINARY_CONFIG.baseUrl}/${transform}/${folder}/${cleanFilename}`
-    console.log(`🔗 Generated Jadwal URL: ${directUrl}`)
-    return directUrl
+    console.log(`🧹 [getJadwalCloudinaryUrl] Clean filename: "${cleanFilename}"`)
+    
+    // ✅ GENERATE URL: Base URL + transform + folder + filename + cache busting
+    let finalUrl = `${CLOUDINARY_CONFIG.baseUrl}/${transform}/${folder}/${cleanFilename}`
+    
+    // Add cache busting if needed
+    if (forceRefresh) {
+      const timestamp = Date.now()
+      finalUrl += `?v=${timestamp}`
+      console.log(`🔄 [getJadwalCloudinaryUrl] Added cache busting: v=${timestamp}`)
+    }
+    
+    console.log(`🔗 [getJadwalCloudinaryUrl] Final URL: ${finalUrl}`)
+    
+    return finalUrl
     
   } catch (error) {
-    console.error('❌ Error in getJadwalCloudinaryUrl:', error)
+    console.error('❌ [getJadwalCloudinaryUrl] Error:', error)
     throw new Error(`Failed to generate Jadwal Cloudinary URL for ${filename}`)
   }
 }
@@ -134,6 +180,49 @@ export function getJadwalCloudinaryUrl(filename, size = 'card-desktop') {
 export function getRenunganCloudinaryUrl(filename, size = 'card-desktop') {
   try {
     console.log(`🙏 [getRenunganCloudinaryUrl] Processing: ${filename}, size: ${size}`)
+    
+    // ✅ HANDLE URL LENGKAP: Jika filename sudah URL lengkap dari upload, return as-is dengan transform
+    if (filename && filename.startsWith('https://res.cloudinary.com/')) {
+      console.log(`🔗 [getRenunganCloudinaryUrl] Full URL detected, extracting public ID...`)
+      
+      try {
+        // Extract public ID dari URL
+        const urlParts = filename.split('/')
+        const uploadIndex = urlParts.findIndex(part => part === 'upload')
+        
+        if (uploadIndex !== -1 && uploadIndex + 1 < urlParts.length) {
+          // Skip transform part (v_xxxxx atau transformations)
+          let publicIdPart = urlParts.slice(uploadIndex + 1).join('/')
+          
+          // Remove existing transformations if any
+          if (publicIdPart.includes('/')) {
+            const parts = publicIdPart.split('/')
+            publicIdPart = parts[parts.length - 1] // Take the last part
+          }
+          
+          // Remove extension
+          const publicId = publicIdPart.replace(/\.(jpg|jpeg|png|webp|gif)$/i, '')
+          console.log(`📄 [getRenunganCloudinaryUrl] Extracted public ID: ${publicId}`)
+          
+          // Apply new transform
+          const transform = CLOUDINARY_CONFIG.transforms[size] || CLOUDINARY_CONFIG.transforms['card-desktop']
+          const resizedUrl = `${CLOUDINARY_CONFIG.baseUrl}/${transform}/${publicId}`
+          console.log(`🎯 [getRenunganCloudinaryUrl] Generated resized URL: ${resizedUrl}`)
+          return resizedUrl
+        }
+        
+        // Fallback: return original URL
+        console.log(`⚠️ [getRenunganCloudinaryUrl] Could not extract public ID, returning original`)
+        return filename
+        
+      } catch (error) {
+        console.warn(`⚠️ [getRenunganCloudinaryUrl] URL parsing failed: ${error.message}`)
+        return filename
+      }
+    }
+    
+    // ✅ HANDLE FILENAME: Process as filename
+    console.log(`📄 [getRenunganCloudinaryUrl] Processing as filename...`)
     
     // Get transform parameters
     const transform = CLOUDINARY_CONFIG.transforms[size] || CLOUDINARY_CONFIG.transforms['card-desktop']
@@ -159,14 +248,26 @@ export function getRenunganCloudinaryUrl(filename, size = 'card-desktop') {
   }
 }
 
-// ⭐ PERBAIKAN: getGivingCloudinaryUrl yang BENAR
-export function getGivingCloudinaryUrl(filename) {
+// ⭐ PERBAIKAN: getGivingCloudinaryUrl untuk detail page only
+export function getGivingCloudinaryUrl(filename, size = 'detail-desktop') {
   try {
-    console.log(`💝 [getGivingCloudinaryUrl] Processing: ${filename}`)
+    console.log(`💝 [getGivingCloudinaryUrl] Processing: ${filename}, size: ${size}`)
     
-    // Giving biasanya ga perlu resize, atau pakai default size
-    const transform = 'w_1200,h_675,c_fill,f_auto,q_auto'
-    const folder = 'myrajawali/thumbnails/giving'
+    // Map size ke yang ada untuk giving (hanya detail)
+    let mappedSize = size
+    if (size.includes('card')) {
+      // Kalau ada yang request card, redirect ke detail
+      mappedSize = size.includes('mobile') ? 'detail-mobile' : 'detail-desktop'
+      console.log(`🔄 Mapping ${size} -> ${mappedSize} untuk giving`)
+    }
+    
+    // Get transform parameters
+    const transform = CLOUDINARY_CONFIG.transforms[mappedSize] || CLOUDINARY_CONFIG.transforms['detail-desktop']
+    console.log(`🎯 Using transform: ${transform}`)
+    
+    // Get folder based on size
+    const folder = CLOUDINARY_CONFIG.folders.giving[mappedSize] || CLOUDINARY_CONFIG.folders.giving.detailDesktop
+    console.log(`📁 Using folder: ${folder}`)
     
     // Clean filename
     let cleanFilename = filename
@@ -184,39 +285,103 @@ export function getGivingCloudinaryUrl(filename) {
   }
 }
 
-// ⭐ MINIMAL CHANGE: Hanya tambah logic untuk gembala (KEEP original)
-export function getChurchCloudinaryUrl(filename) {
+// ⭐ PERBAIKAN: getChurchCloudinaryUrl untuk detail page only  
+export function getChurchCloudinaryUrl(filename, size = 'detail-desktop') {
   try {
-    console.log(`🏛️ [getChurchCloudinaryUrl] Processing: ${filename}`)
+    console.log(`🏛️ [getChurchCloudinaryUrl] Processing: ${filename}, size: ${size}`)
     
-    // ⭐ NEW: Detect gembala vs church
-    let folder
-    if (filename.includes('pdt-')) {
-      folder = CLOUDINARY_CONFIG.folders.gembala
-      console.log(`👨‍💼 Using gembala folder for: ${filename}`)
-    } else {
-      folder = CLOUDINARY_CONFIG.folders.church
-      console.log(`🏛️ Using church folder for: ${filename}`)
-    }
-    
-    // ⭐ KEEP original logic untuk extension
-    if (!filename.includes('.')) {
-      // Try common extensions
-      const extensions = ['jpg', 'png', 'jpeg', 'webp']
-      for (const ext of extensions) {
-        const urlWithExt = getCloudinaryImageUrl(folder, `${filename}.${ext}`)
-        console.log(`🔍 Trying: ${urlWithExt}`)
-        return urlWithExt
+    // ⭐ HARDCODED URLs untuk tentang-gereja (uploaded by user)
+    if (filename === 'tentang-gereja' || filename === 'tentang-gereja.png') {
+      if (size.includes('mobile') || size === 'detail-mobile' || size === 'card-mobile') {
+        const mobileUrl = 'https://res.cloudinary.com/df74ywsgg/image/upload/v1753346300/myrajawali/church/detail-mobile/tentang-gereja.png'
+        // ⭐ Add cache busting untuk force refresh
+        const cacheBuster = `${mobileUrl.includes('?') ? '&' : '?'}cb=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`
+        const finalMobileUrl = mobileUrl + cacheBuster
+        console.log(`📱 Using hardcoded mobile URL: ${finalMobileUrl}`)
+        return finalMobileUrl
+      } else {
+        const desktopUrl = 'https://res.cloudinary.com/df74ywsgg/image/upload/v1753346275/myrajawali/church/detail-desktop/tentang-gereja.png'
+        // ⭐ Add cache busting untuk force refresh
+        const cacheBuster = `${desktopUrl.includes('?') ? '&' : '?'}cb=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`
+        const finalDesktopUrl = desktopUrl + cacheBuster
+        console.log(`💻 Using hardcoded desktop URL: ${finalDesktopUrl}`)
+        return finalDesktopUrl
       }
     }
     
-    const url = getCloudinaryImageUrl(folder, filename)
-    console.log(`🖼️ Final URL: ${url}`)
-    return url
+    // ⭐ LEGACY URLs untuk visi-gereja & misi-gereja (ambil dari myrajawali/church)
+    if (filename === 'visi-gereja' || filename === 'misi-gereja') {
+      const legacyUrl = `https://res.cloudinary.com/df74ywsgg/image/upload/myrajawali/church/${filename}`
+      console.log(`🏛️ Using legacy church URL: ${legacyUrl}`)
+      return legacyUrl
+    }
+    
+    // ⭐ Detect gembala vs church
+    if (filename.includes('pdt-')) {
+      // ✅ Gembala images masih menggunakan folder gembala
+      const folderConfig = CLOUDINARY_CONFIG.folders.gembala
+      console.log(`👨‍💼 Using gembala folder for: ${filename}`)
+      
+      // Clean filename - pastikan tidak ada double extension
+      let cleanFilename = filename
+      if (filename.includes('.')) {
+        cleanFilename = filename.replace(/\.(jpg|jpeg|png|webp|gif)$/i, '')
+      }
+      
+      // Try common extensions for gembala
+      const extensions = ['jpg', 'png', 'jpeg', 'webp']
+      for (const ext of extensions) {
+        const urlWithExt = getCloudinaryImageUrl(folderConfig, `${cleanFilename}.${ext}`)
+        console.log(`🔍 Trying gembala: ${urlWithExt}`)
+        return urlWithExt
+      }
+      
+      return getCloudinaryImageUrl(folderConfig, cleanFilename)
+    } else {
+      // ⭐ Church images - PRIORITASKAN folder detail
+      // Map size ke yang ada untuk church (hanya detail)
+      let mappedSize = size
+      if (size.includes('card')) {
+        // Kalau ada yang request card, redirect ke detail
+        mappedSize = size.includes('mobile') ? 'detail-mobile' : 'detail-desktop'
+        console.log(`🔄 Mapping ${size} -> ${mappedSize} untuk church`)
+      }
+      
+      // Clean filename - pastikan tidak ada double extension
+      let cleanFilename = filename
+      if (filename.includes('.')) {
+        cleanFilename = filename.replace(/\.(jpg|jpeg|png|webp|gif)$/i, '')
+      }
+      
+      // ⭐ CONVERT kebab-case ke camelCase untuk key mapping
+      let folderKey = mappedSize
+      if (mappedSize === 'detail-mobile') folderKey = 'detailMobile'
+      if (mappedSize === 'detail-desktop') folderKey = 'detailDesktop'
+      
+      // ⭐ PRIORITASKAN folder detail - generate URL langsung tanpa fallback
+      if (CLOUDINARY_CONFIG.folders.church[folderKey]) {
+        const folderConfig = CLOUDINARY_CONFIG.folders.church[folderKey]
+        console.log(`🏛️ Using church ${mappedSize} folder: ${folderConfig}`)
+        
+        // Use transform for detail thumbnails
+        const transform = CLOUDINARY_CONFIG.transforms[mappedSize] || CLOUDINARY_CONFIG.transforms['detail-desktop']
+        console.log(`🎯 Using transform: ${transform}`)
+        
+        const directUrl = `${CLOUDINARY_CONFIG.baseUrl}/${transform}/${folderConfig}/${cleanFilename}`
+        console.log(`�️ Final church URL (prioritized detail): ${directUrl}`)
+        return directUrl
+      } else {
+        // ⚠️ Fallback ke legacy hanya jika benar-benar tidak ada mapping detail
+        console.warn(`⚠️ [getChurchCloudinaryUrl] No detail folder for ${mappedSize}, falling back to legacy`)
+        const folderConfig = CLOUDINARY_CONFIG.folders.church.legacy
+        const directUrl = getCloudinaryImageUrl(folderConfig, cleanFilename)
+        console.log(`🖼️ Final church URL (legacy fallback): ${directUrl}`)
+        return directUrl
+      }
+    }
     
   } catch (error) {
     console.error('❌ Error getting church image:', error)
-    // ⭐ IMPORTANT: Jangan throw error, return null
     console.log('🔄 Returning null for fallback to placeholder')
     return null
   }
@@ -314,7 +479,12 @@ export function testAllDailyVerseImages() {
     'ayat2', 
     'ayat3',
     'ayat4',
-    'ayat5'
+    'ayat5',
+    'ayat6',
+    'ayat7',
+    'ayat8',
+    'ayat9',
+    'ayat10'
   ]
   
   testImages.forEach(filename => {
@@ -376,31 +546,123 @@ export function testNewsImages() {
 /**
  * Upload single image to Cloudinary (manual tanpa preset)
  */
-export async function uploadToCloudinary(file, type) {
-  const folderMap = {
-    cardMobile: 'myrajawali/thumbnails/news/card-mobile',
-    cardDesktop: 'myrajawali/thumbnails/news/card-desktop',
-    detailMobile: 'myrajawali/thumbnails/news/detail-mobile',
-    detailDesktop: 'myrajawali/thumbnails/news/detail-desktop'
+export async function uploadToCloudinary(file, type, contentType = 'news') {
+  // Support untuk berbagai content type
+  const folderMaps = {
+    news: {
+      cardMobile: 'myrajawali/thumbnails/news/card-mobile',
+      cardDesktop: 'myrajawali/thumbnails/news/card-desktop',
+      detailMobile: 'myrajawali/thumbnails/news/detail-mobile',
+      detailDesktop: 'myrajawali/thumbnails/news/detail-desktop'
+    },
+    renungan: {
+      cardMobile: 'myrajawali/thumbnails/renungan/card-mobile',
+      cardDesktop: 'myrajawali/thumbnails/renungan/card-desktop',
+      detailMobile: 'myrajawali/thumbnails/renungan/detail-mobile',
+      detailDesktop: 'myrajawali/thumbnails/renungan/detail-desktop'
+    },
+    jadwal: {
+      cardMobile: 'myrajawali/thumbnails/jadwal/card-mobile',
+      cardDesktop: 'myrajawali/thumbnails/jadwal/card-desktop',
+      detailMobile: 'myrajawali/thumbnails/jadwal/detail-mobile',
+      detailDesktop: 'myrajawali/thumbnails/jadwal/detail-desktop'
+    },
+    giving: {
+      detailMobile: 'myrajawali/thumbnails/giving/detail-mobile',
+      detailDesktop: 'myrajawali/thumbnails/giving/detail-desktop'
+    }
   }
 
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset) // Use config
-  formData.append('folder', folderMap[type])
-
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/upload`, {
-    method: 'POST',
-    body: formData
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.message || 'Upload failed')
+  // Auto-detect content type jika tidak disediakan
+  if (contentType === 'news' && type && (
+    type.includes('renungan') || 
+    type.includes('devotional') ||
+    (typeof window !== 'undefined' && window.location?.pathname?.includes('/renungan'))
+  )) {
+    contentType = 'renungan'
   }
 
-  const result = await response.json()
-  return result.secure_url
+  const folderMap = folderMaps[contentType]
+  if (!folderMap || !folderMap[type]) {
+    throw new Error(`Unsupported upload type: ${type} for content: ${contentType}`)
+  }
+
+  console.log(`📤 [uploadToCloudinary] Uploading ${contentType}/${type} to folder: ${folderMap[type]}`)
+
+  // List of presets to try (fallback mechanism)
+  const presetsToTry = [
+    CLOUDINARY_CONFIG.uploadPreset,
+    'ml_default',
+    'unsigned_uploads',
+    'default',
+    'myrajawali_preset'
+  ].filter(Boolean) // Remove undefined values
+
+  let lastError = null
+
+  // Try each preset until one works
+  for (const preset of presetsToTry) {
+    try {
+      console.log(`🔧 [uploadToCloudinary] Trying preset: ${preset}`)
+      
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('upload_preset', preset)
+      formData.append('folder', folderMap[type])
+
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/image/upload`
+      console.log(`🌐 [uploadToCloudinary] Uploading to: ${uploadUrl}`)
+      console.log(`📁 [uploadToCloudinary] Target folder: ${folderMap[type]}`)
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData
+      })
+
+      console.log(`📊 [uploadToCloudinary] Response status: ${response.status} with preset: ${preset}`)
+
+      if (response.ok) {
+        const result = await response.json()
+        console.log(`✅ [uploadToCloudinary] Upload successful with preset "${preset}":`, result.secure_url)
+        return result.secure_url
+      } else {
+        const errorText = await response.text()
+        console.warn(`⚠️ [uploadToCloudinary] Preset "${preset}" failed:`, errorText)
+        
+        let error
+        try {
+          error = JSON.parse(errorText)
+        } catch {
+          error = { message: errorText || `Upload failed with status ${response.status}` }
+        }
+        
+        lastError = error
+        
+        // If it's an API key error, don't try other presets
+        if (errorText.includes('API key') || errorText.includes('Invalid API key')) {
+          throw new Error(`API Key error: ${error.message}`)
+        }
+        
+        // Continue to try next preset
+        continue
+      }
+    } catch (fetchError) {
+      console.warn(`⚠️ [uploadToCloudinary] Network/fetch error with preset "${preset}":`, fetchError)
+      lastError = fetchError
+      
+      // If it's a network error, don't try other presets
+      if (fetchError.message.includes('API key') || fetchError.message.includes('fetch')) {
+        throw fetchError
+      }
+      
+      // Continue to try next preset
+      continue
+    }
+  }
+
+  // If we get here, all presets failed
+  console.error(`❌ [uploadToCloudinary] All presets failed. Last error:`, lastError)
+  throw new Error(lastError?.message || 'All upload presets failed. Please check Cloudinary configuration.')
 }
 
 // ⭐ Export test functions untuk console (UPDATE dengan semua functions)
@@ -455,11 +717,11 @@ export function getCloudinaryUrlByType(contentType, filename, size = 'card-deskt
         
       case 'giving':
       case 'persembahan':
-        return getGivingCloudinaryUrl(filename)
+        return getGivingCloudinaryUrl(filename, size)
         
       case 'church':
       case 'gereja':
-        return getChurchCloudinaryUrl(filename)
+        return getChurchCloudinaryUrl(filename, size)
         
       case 'daily-verse':
       case 'ayat':
@@ -716,7 +978,7 @@ export function testAllCloudinaryFunctions() {
   
   // Test Daily Verse
   console.log('\n📖 Testing Daily Verse...')
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 10; i++) {
     try {
       const url = getDailyVerseCloudinaryUrl(`ayat${i}`)
       console.log(`✅ Daily Verse ${i}: ${url}`)
@@ -741,3 +1003,27 @@ export function testAllCloudinaryFunctions() {
 //   validateImageFile,
 //   testAllCloudinaryFunctions
 // }
+
+// ⭐ FORCE CLEAR CACHE FUNCTION
+export function forceClearImageCache(imageUrl) {
+  try {
+    if (!imageUrl) return imageUrl
+    
+    // Remove old cache busters
+    let cleanUrl = imageUrl.split('?')[0]
+    
+    // Add strong cache busters
+    const timestamp = Date.now()
+    const randomSeed = Math.random().toString(36).substring(2, 15)
+    const forceRefresh = `v=${timestamp}&r=${randomSeed}&cache=false`
+    
+    const finalUrl = `${cleanUrl}?${forceRefresh}`
+    console.log(`🔄 [forceClearImageCache] Force refreshing: ${finalUrl}`)
+    
+    return finalUrl
+    
+  } catch (error) {
+    console.error('❌ [forceClearImageCache] Error:', error)
+    return imageUrl
+  }
+}

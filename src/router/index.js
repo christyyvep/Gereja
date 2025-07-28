@@ -1,5 +1,16 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getCurrentJemaat } from '../services/auth'
+// UPDATED: Import hybrid auth  
+import { getCurrentUser } from '../services/auth-hybrid'
+// Enhanced Security Guards
+import {
+  requireAuth,
+  requireAdmin,
+  requireModerator,
+  requireGuest,
+  requireRole,
+  setupGlobalGuards,
+  startSecurityMonitoring
+} from '../middleware/authGuard'
 
 import LoginPage from '../views/LoginPage.vue'
 import RegisterPage from '../views/RegisterPage.vue'
@@ -28,36 +39,44 @@ import GivingPage from '@/views/GivingPage.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
 import AdminDashboard from '@/views/admin/AdminDashboard.vue'
 import AdminNews from '@/views/admin/AdminNews.vue'
+import AdminRenungan from '@/views/admin/AdminRenungan.vue'
+import AdminLaporanJemaat from '@/views/admin/AdminLaporanJemaat.vue'
+import LaporanJemaat from '@/views/LaporanJemaat.vue'
 
 const routes = [
-  // Public routes
+  // Public routes (guest only)
   { 
     path: '/', 
     name: 'LoginPage',
-    component: LoginPage
+    component: LoginPage,
+    beforeEnter: requireGuest
   },
   {
     path: '/register',
     name: 'RegisterPage',
-    component: RegisterPage
+    component: RegisterPage,
+    beforeEnter: requireGuest
   },
   {
     path: '/success-register',
     name: 'SuccessRegister',
-    component: SuccessRegister
+    component: SuccessRegister,
+    beforeEnter: requireGuest
   },
   
-  // Protected routes
+  // Protected routes (require authentication)
   {
     path: '/home',
     name: 'HomePage',
     component: HomePage,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   {
     path: '/account',
     name: 'AccountPage',
     component: AccountPage,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   
@@ -72,138 +91,144 @@ const routes = [
   //   }
   // },
   
-  // Jadwal routes
+  // Jadwal routes (require authentication)
   {
     path: '/jadwal',
     name: 'JadwalPage',
     component: JadwalPage,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   {
     path: '/jadwal/:id',
     name: 'DetailJadwal',
     component: DetailJadwal,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   
-  // Jadwal Pelayan Altar routes
+  // Jadwal Pelayan Altar routes (require authentication)
   {
     path: '/jadwal-peltar',
     name: 'JadwalPeltarPage',
     component: JadwalPeltarPage,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   {
     path: '/jadwal-peltar/:id',
     name: 'DetailJadwalPeltar',
     component: DetailJadwalPeltar,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   
-  // News routes
+  // News routes (require authentication)
   {
     path: '/news',
     name: 'NewsPage',
     component: NewsPage,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   {
     path: '/news/:id',
     name: 'DetailNews',
     component: DetailNews,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   
-  // Renungan routes
+  // Renungan routes (require authentication)
   {
     path: '/renungan',
     name: 'RenunganPage',
     component: RenunganPage,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   {
     path: '/renungan/bookmarks',
     name: 'BookmarksPage',
     component: BookmarksPage,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   {
     path: '/renungan/:id',
     name: 'DetailRenungan',
     component: DetailRenungan,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
 
-  // Prayer Detail Route
+  // Prayer routes (require authentication)
   {
     path: '/prayer-request',
     name: 'PrayerRequest',
     component: PrayerRequest,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   {
     path: '/prayer-request/add',
     name: 'AddPrayerReq', 
     component: AddPrayerReq,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   {
     path: '/prayer-request/:id',
     name: 'PrayerDetail',
     component: PrayerDetail,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   {
     path: '/giving',
     name: 'GivingPage',
     component: GivingPage,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
 
-  // Other routes
-  // {
-  //   path: '/notifikasi',
-  //   name: 'NotifikasiPage',
-  //   component: () => import('../views/NotifikasiPage.vue'),
-  //   meta: { requiresAuth: true }
-  // },
+  // Profile routes (require authentication)
   {
-  path: '/detail-profile',
-  name: 'DetailProfile',
-  component: DetailProfile,
-  meta: { requiresAuth: true }
+    path: '/detail-profile',
+    name: 'DetailProfile',
+    component: DetailProfile,
+    beforeEnter: requireAuth,
+    meta: { requiresAuth: true }
   },
   {
     path: '/tentang-gereja',
     name: 'TentangGereja',
     component: TentangGereja,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
   {
-    path: '/update-structure',
-    name: 'UpdateStructure', 
-    component: () => import('@/views/UpdateStructurePage.vue')
-  },
-  {
-    path: '/admin/altar-schedules',
-    name: 'AdminAltarSchedules',
-    component: AdminAltarSchedules,
-    meta: { 
-      requiresAuth: true,
-      requiresAdmin: true 
-    }
-  },
-  {
-    path: '/lapor-bantuan',
-    name: 'LaporBantuanPage',
-    component: () => import('@/views/LaporBantuanPage.vue'),
+    path: '/laporan-jemaat',
+    name: 'LaporanJemaat',
+    component: LaporanJemaat,
+    beforeEnter: requireAuth,
     meta: { requiresAuth: true }
   },
 
-  // ===== NEW ADMIN ROUTES =====
+  // Special utility routes
+  {
+    path: '/update-structure',
+    name: 'UpdateStructure', 
+    component: () => import('@/views/UpdateStructurePage.vue'),
+    beforeEnter: requireRole(['admin', 'super_admin']),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+
+  // ===== ADMIN ROUTES (require admin role) =====
   {
     path: '/admin',
     component: AdminLayout,
+    beforeEnter: requireAdmin,
     meta: { 
       requiresAuth: true, 
       requiresAdmin: true,
@@ -236,21 +261,98 @@ const routes = [
         path: 'news',
         name: 'AdminNews', 
         component: AdminNews,
+        beforeEnter: requireModerator,
+        meta: { 
+          requiresAuth: true,
+          requiresModerator: true,
+          title: 'Kelola Berita'
+        }
+      },
+      {
+        path: 'renungan',
+        name: 'AdminRenungan', 
+        component: AdminRenungan,
+        beforeEnter: requireModerator,
+        meta: { 
+          requiresAuth: true,
+          requiresModerator: true,
+          title: 'Kelola Renungan',
+          breadcrumb: 'Kelola Renungan'
+        }
+      },
+      {
+        path: 'schedules',
+        name: 'AdminSchedules',
+        component: () => import('@/views/admin/AdminSchedules.vue'),
+        beforeEnter: requireModerator,
+        meta: { 
+          requiresAuth: true,
+          requiresModerator: true,
+          title: 'Kelola Jadwal',
+          breadcrumb: 'Kelola Jadwal'
+        }
+      },
+      {
+        path: 'altar-schedules',
+        name: 'AdminAltarSchedules',
+        component: AdminAltarSchedules,
+        beforeEnter: requireModerator,
+        meta: { 
+          requiresAuth: true,
+          requiresModerator: true,
+          title: 'Kelola Jadwal Pelayan Altar',
+          breadcrumb: 'Jadwal Peltar'
+        }
+      },
+      {
+        path: 'prayer-requests',
+        name: 'AdminPrayerRequests',
+        component: () => import('@/views/admin/AdminPrayerRequests.vue'),
+        beforeEnter: requireModerator,
+        meta: { 
+          requiresAuth: true,
+          requiresModerator: true,
+          title: 'Kelola Prayer Requests',
+          breadcrumb: 'Prayer Requests'
+        }
+      },
+      {
+        path: 'laporan-jemaat',
+        name: 'AdminLaporanJemaat',
+        component: AdminLaporanJemaat,
+        beforeEnter: requireAdmin,
         meta: { 
           requiresAuth: true,
           requiresAdmin: true,
-          title: 'Kelola Berita'
+          title: 'Laporan Jemaat',
+          breadcrumb: 'Laporan Jemaat'
+        }
+      },
+      // Admin-only routes
+      {
+        path: 'users',
+        name: 'AdminUsers',
+        component: () => import('@/views/admin/AdminUsers.vue'),
+        beforeEnter: requireAdmin,
+        meta: { 
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Kelola Jemaat',
+          breadcrumb: 'Kelola Jemaat'
+        }
+      },
+      {
+        path: 'security',
+        name: 'AdminSecurity',
+        component: () => import('@/views/admin/AdminSecurity.vue'),
+        beforeEnter: requireAdmin,
+        meta: { 
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Security Monitoring',
+          breadcrumb: 'Security'
         }
       }
-      // {
-      //   path: 'schedules',
-      //   name: 'AdminSchedules',
-      //   component: () => import('@/views/admin/AdminSchedules.vue'),
-      //   meta: { 
-      //     title: 'Kelola Jadwal',
-      //     breadcrumb: 'Kelola Jadwal'
-      //   }
-      // },
       // {
       //   path: 'announcements',
       //   name: 'AdminAnnouncements',
@@ -275,34 +377,40 @@ const router = createRouter({
   routes
 })
 
-// Route guard
+// Setup enhanced security guards
+setupGlobalGuards(router)
+
+// Start security monitoring
+startSecurityMonitoring()
+
+// Legacy route guard (keeping for backward compatibility)
 router.beforeEach(async (to, from, next) => {
-  const currentUser = getCurrentJemaat()
+  // Skip if enhanced guards already handled the route
+  if (to.meta.handledByEnhancedGuard) {
+    next()
+    return
+  }
+
+  const currentUser = getCurrentUser()
   
   // Clear user data when going to login
   if (to.path === '/') {
     await clearUserDataFromMemory()
   }
   
-  // Check authentication
+  // Legacy auth check (fallback)
   if (to.meta.requiresAuth && !currentUser) {
     next('/')
     return
   }
   
-  // Check pengurus permission - RESTRICTED TO ADMIN ONLY (pengurus role hidden)
-  if (to.meta.requiresPengurus) {
-    if (!currentUser) {
-      next('/home')
-      return
-    }
-    
+  // Legacy admin check (fallback)
+  if (to.meta.requiresAdmin && currentUser) {
     const userRole = currentUser.role || 'jemaat'
-    // Only admin can access pengurus features now
     const isAdmin = userRole === 'admin'
     
     if (!isAdmin) {
-      // Development bypass for admin only
+      // Development bypass
       if (process.env.NODE_ENV === 'development') {
         const localUser = localStorage.getItem('user')
         if (localUser) {
@@ -314,12 +422,12 @@ router.beforeEach(async (to, from, next) => {
               return
             }
           } catch (error) {
-            // Silent fail in production
+            // Silent fail
           }
         }
       }
       
-      alert('❌ Akses ditolak! Hanya admin yang dapat mengakses fitur ini.')
+      alert('❌ Akses ditolak! Hanya admin yang dapat mengakses panel admin.')
       next('/home')
       return
     }

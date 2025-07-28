@@ -20,7 +20,7 @@
     :title="devotional.title || 'Renungan Tanpa Judul'"
     :description="devotional.content || 'Tidak ada konten'"
     :thumbnail="thumbnailSrc"
-    :category="devotional.category"
+    :news-data="devotional"
     content-type="devotional"
     :breadcrumb-items="breadcrumbItems"
     :hide-back-button="false"

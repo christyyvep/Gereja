@@ -158,27 +158,82 @@ export default {
     }
   },
   async created() {
+    // Load debugging tools in development
+    if (process.env.NODE_ENV === 'development') {
+      this.loadDebugTools()
+    }
+    
     // Load data renungan ketika komponen dibuat
     await this.fetchDevotionals()
   },
   methods: {
+    loadDebugTools() {
+      try {
+        if (!window.quickDiagnosis) {
+          const script = document.createElement('script')
+          script.src = '/debug-renungan-loading.js'
+          script.onload = () => {
+            console.log('🛠️ Renungan debug tools loaded!')
+          }
+          document.head.appendChild(script)
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not load debug tools:', error)
+      }
+    },
+    
     async fetchDevotionals() {
       try {
         this.loading = true
         this.error = null
         
         console.log('🔍 [RenunganPage] Fetching devotionals...')
+        const startTime = Date.now()
+        
+        // Add timeout to prevent infinite loading
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000)
+        })
         
         // Ambil data dari Firebase (sudah terurut dari terbaru)
-        const devotionalsData = await getDevotionals(20) // Ambil maksimal 20 renungan
+        const devotionalsData = await Promise.race([
+          getDevotionals(20), // Ambil maksimal 20 renungan
+          timeoutPromise
+        ])
         
-        console.log('✅ [RenunganPage] Devotionals loaded:', devotionalsData.length)
+        const endTime = Date.now()
+        console.log(`✅ [RenunganPage] Devotionals loaded in ${endTime - startTime}ms:`, devotionalsData.length)
         console.log('📅 [RenunganPage] Data already sorted by newest first from database')
         
         this.devotionals = devotionalsData
+        
+        // If no data, show helpful message
+        if (devotionalsData.length === 0) {
+          console.log('📭 [RenunganPage] No devotionals found in database')
+          this.error = 'Belum ada renungan tersedia. Admin belum menambahkan konten renungan.'
+        }
+        
       } catch (error) {
+        const errorMessage = error.message || error.toString()
         console.error('❌ [RenunganPage] Error loading devotionals:', error)
-        this.error = 'Gagal memuat renungan. Pastikan koneksi internet Anda stabil.'
+        
+        if (errorMessage.includes('timeout')) {
+          this.error = 'Loading terlalu lama. Cek koneksi internet dan coba lagi.'
+        } else if (errorMessage.includes('permission') || errorMessage.includes('denied')) {
+          this.error = 'Tidak ada akses ke database. Cek konfigurasi Firebase.'
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+          this.error = 'Masalah koneksi internet. Pastikan koneksi stabil dan coba lagi.'
+        } else {
+          this.error = 'Gagal memuat renungan. Pastikan koneksi internet Anda stabil.'
+        }
+        
+        // Log additional debug info
+        console.log('🔧 [DEBUG] Error details:', {
+          message: errorMessage,
+          name: error.name,
+          stack: error.stack
+        })
+        
       } finally {
         this.loading = false
       }

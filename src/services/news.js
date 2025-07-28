@@ -13,6 +13,7 @@ import {
   limit, 
   where
 } from 'firebase/firestore'
+import { logAdminActivity, logUserActivity } from './activityService'
 
 const COLLECTION_NAME = 'news'
 
@@ -203,7 +204,7 @@ function autoDetectNewsFields(newsData) {
   
   // ⭐ EVENT KEYWORDS
   const eventKeywords = [
-    'ibadh', 'pelprap', 'pelatar', 'birthday', 'ulang tahun',
+    'ibadah', 'pelprap', 'pelatar', 'birthday', 'ulang tahun',
     'camp', 'camping', 'retreat', 'seminar', 'workshop', 'acara',
     'kegiatan', 'event', 'pertemuan', 'gathering', 'favored'
   ]
@@ -336,6 +337,17 @@ export async function createNews(newsData) {
     
     console.log('🎉 [createNews] News created with ID:', docRef.id)
     
+    // Log admin activity
+    try {
+      await logAdminActivity(enrichedData.createdBy || 'admin', {
+        action: 'news_create',
+        title: enrichedData.title,
+        category: enrichedData.category
+      })
+    } catch (activityError) {
+      console.warn('⚠️ [createNews] Could not log activity:', activityError)
+    }
+    
     return {
       id: docRef.id,
       ...enrichedData
@@ -431,12 +443,13 @@ export async function updateNews(id, updateData) {
       throw new Error('Data update tidak valid')
     }
     
+    // Get existing data untuk merge dan activity logging
+    const existingNews = await getNewsById(id)
+    
     // ⭐ Re-run auto-detection jika ada perubahan signifikan
     let enrichedUpdateData = { ...updateData }
     
     if (updateData.title || updateData.content || updateData.category) {
-      // Get existing data untuk merge
-      const existingNews = await getNewsById(id)
       const mergedData = { ...existingNews, ...updateData }
       
       // Re-detect fields jika belum ada manual input
@@ -462,6 +475,18 @@ export async function updateNews(id, updateData) {
     })
     
     console.log('✅ [News Service] News updated:', id)
+    
+    // Log admin activity
+    try {
+      await logAdminActivity(updateData.updatedBy || 'admin', {
+        action: 'news_update',
+        title: updateData.title || existingNews.title,
+        category: updateData.category || existingNews.category
+      })
+    } catch (activityError) {
+      console.warn('⚠️ [updateNews] Could not log activity:', activityError)
+    }
+    
     return true
   } catch (error) {
     console.error('Error updating news:', error)
@@ -474,16 +499,32 @@ export async function updateNews(id, updateData) {
  * @param {string} id - ID news yang akan dihapus
  * @returns {Promise<boolean>} Success status
  */
-export async function deleteNews(id) {
+export async function deleteNews(id, adminId = 'admin') {
   try {
     if (!id) {
       throw new Error('ID news harus diisi')
     }
     
+    // Get news data before deletion for activity log
     const newsRef = doc(db, COLLECTION_NAME, id)
+    const newsDoc = await getDoc(newsRef)
+    const newsData = newsDoc.data()
+    
     await deleteDoc(newsRef)
     
     console.log('✅ [News Service] News deleted:', id)
+    
+    // Log admin activity
+    try {
+      await logAdminActivity(adminId, {
+        action: 'news_delete',
+        title: newsData?.title || 'Deleted News',
+        category: newsData?.category || 'unknown'
+      })
+    } catch (activityError) {
+      console.warn('⚠️ [deleteNews] Could not log activity:', activityError)
+    }
+    
     return true
   } catch (error) {
     console.error('Error deleting news:', error)
@@ -531,4 +572,31 @@ export async function getUpcomingNewsEvents(fromDate, limitCount = 5) {
     console.error('Error getting upcoming news events:', error)
     throw error
   }
+}
+
+/**
+ * Get news detail dan log user activity
+ * @param {string} id - ID news
+ * @param {string} userId - ID user yang membaca (optional)
+ * @param {string} userName - Nama user (optional)
+ * @returns {Promise<Object>} News detail
+ */
+export async function getNewsDetailWithActivity(id, userId = null, userName = null) {
+  const newsDetail = await getNewsById(id)
+  
+  // Log user activity jika userId tersedia
+  if (userId) {
+    try {
+      await logUserActivity(userId, {
+        action: 'news_read',
+        title: newsDetail.title,
+        category: newsDetail.category,
+        userName: userName || 'User'
+      })
+    } catch (activityError) {
+      console.warn('⚠️ [getNewsDetail] Could not log user activity:', activityError)
+    }
+  }
+  
+  return newsDetail
 }

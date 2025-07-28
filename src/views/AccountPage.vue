@@ -174,9 +174,20 @@ import BottomNavbar from '@/components/BottomNavbar.vue'
 import DesktopNavbar from '@/components/layout/DesktopNavbar.vue'
 import BreadcrumbDesktop from '@/components/common/BreadcrumbDesktop.vue'
 import { LogOut, ChevronRight, Calendar, HelpCircle } from 'lucide-vue-next'
+import { useToast } from '@/composables/useToast'
 
 export default {
   name: 'AccountPage',
+  
+  setup() {
+    const { showSuccess, showError, showInfo } = useToast()
+    
+    return {
+      showToast: showSuccess,
+      showErrorToast: showError,
+      showInfoToast: showInfo
+    }
+  },
   
   components: {
     BottomNavbar,
@@ -240,10 +251,10 @@ export default {
     
     /**
      * Menu Laporan dan Bantuan
-     * Saat ini masih dalam pengembangan
+     * Mengarahkan ke halaman laporan jemaat
      */
     goToReportsHelp() {
-      this.$router.push('/lapor-bantuan')
+      this.$router.push('/laporan-jemaat')
     },
 
     // === LOGOUT METHODS ===
@@ -302,13 +313,15 @@ export default {
      * @param {string} type - Tipe notifikasi (info, error, success)
      */
     showNotification(message, type = 'info') {
-      // Untuk sementara pakai alert, nanti bisa diganti dengan toast component
-      const icons = {
-        error: '❌',
-        info: 'ℹ️',
-        success: '✅'
+      // Gunakan toast service yang lebih modern
+      const toastMethods = {
+        success: this.showToast,
+        error: this.showErrorToast,
+        info: this.showInfoToast
       }
-      alert(`${icons[type]} ${message}`)
+      
+      const toastMethod = toastMethods[type] || this.showInfoToast
+      toastMethod(message)
     }
   }
 }

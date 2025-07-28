@@ -44,7 +44,7 @@
 
           <!-- Announcements Section -->
           <section class="announcement-section">
-            <h2 class="section-title">Pengumuman Terbaru</h2>
+            <h2 class="section-title">Pengumuman Hari Ini</h2>
             <div class="announcement-grid">
               <AnnouncementCard
                 v-for="(item, index) in announcementList" 

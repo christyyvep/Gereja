@@ -15,6 +15,7 @@ import {
   where,
   serverTimestamp
 } from 'firebase/firestore'
+import { logUserActivity, logAdminActivity } from './activityService'
 
 const COLLECTION_NAME = 'prayer_requests'
 
@@ -94,6 +95,7 @@ export async function addPrayerRequest(prayerData, userId) {
       isAnonymous: Boolean(prayerData.isAnonymous),
       isUrgent: Boolean(prayerData.isUrgent),
       userId: finalUserId,
+      userName: prayerData.userName || 'User', // ⭐ ADDED: Save userName for admin display
       status: 'active',
       isPrayed: false,
       prayedBy: [],
@@ -102,6 +104,40 @@ export async function addPrayerRequest(prayerData, userId) {
     })
     
     console.log('✅ [PrayerService] Prayer request added with ID:', newDoc.id)
+    
+    // Log user activity
+    try {
+      console.log('📊 [PrayerService] Attempting to log user activity...')
+      
+      // ⭐ IMPORTANT: Use userName from prayerData (sent from view) 
+      // This should contain the actual user's name, not generic "User"
+      const correctUserName = prayerData.userName && 
+                              prayerData.userName !== 'User' && 
+                              prayerData.userName.trim() 
+                              ? prayerData.userName 
+                              : null // Let activityService.getUserName() handle fallback
+      
+      const activityData = {
+        action: 'prayer_request',
+        title: title,
+        category: prayerData.category || 'other',
+        userName: correctUserName
+      }
+      console.log('📊 [PrayerService] Activity data:', activityData)
+      console.log('📊 [PrayerService] User ID for activity:', finalUserId)
+      console.log('📊 [PrayerService] User name for activity:', correctUserName)
+      
+      await logUserActivity(finalUserId, activityData)
+      console.log('✅ [PrayerService] User activity logged successfully')
+    } catch (activityError) {
+      console.error('❌ [PrayerService] Activity logging failed:', activityError)
+      console.error('❌ [PrayerService] Activity error details:', {
+        message: activityError.message,
+        code: activityError.code,
+        stack: activityError.stack
+      })
+    }
+    
     return newDoc.id
     
   } catch (error) {
@@ -413,13 +449,21 @@ export async function getAllPrayerRequestsForAdmin(limitCount = 50) {
       const data = doc.data()
       const createdAt = data.createdAt?.toDate?.() || new Date()
       
-      prayers.push({
+      // ⭐ ENHANCED: Better user name handling for backward compatibility
+      const enhancedData = {
         id: doc.id,
         ...data,
         createdAt: createdAt.toISOString(),
         statusText: getStatusText(data.status, data.isPrayedByAdmin),
-        categoryIcon: getCategoryIcon(data.category)
-      })
+        categoryIcon: getCategoryIcon(data.category),
+        // ⭐ FALLBACK: If no userName field, try to extract from userId or set default
+        userName: data.userName || (
+          data.userId && data.userId !== 'demo-user' && data.userId !== 'User' && 
+          !data.userId.startsWith('unknown_user_') ? data.userId : null
+        )
+      }
+      
+      prayers.push(enhancedData)
     })
     
     console.log('✅ [PrayerService] Admin prayers loaded:', prayers.length)
@@ -436,20 +480,46 @@ export async function getAllPrayerRequestsForAdmin(limitCount = 50) {
  */
 export async function markPrayerAsPrayed(prayerId, adminId, adminNotes = '') {
   try {
-    console.log('🙏 [PrayerService] Marking prayer as prayed:', prayerId)
+    console.log('🙏 [PrayerService] Marking prayer as prayed:', { prayerId, adminId, adminNotes })
+    
+    // Validasi input
+    if (!prayerId || !adminId) {
+      throw new Error('Prayer ID dan Admin ID harus diisi')
+    }
     
     const prayerRef = doc(db, COLLECTION_NAME, prayerId)
     
-    await updateDoc(prayerRef, {
+    const updateData = {
       status: 'prayed',
       isPrayedByAdmin: true,
       prayedByAdminAt: serverTimestamp(),
-      prayedByAdminId: adminId,
-      adminNotes: adminNotes,
+      prayedByAdminId: String(adminId), // Pastikan string
+      adminNotes: adminNotes || '',
       updatedAt: serverTimestamp()
-    })
+    }
     
-    console.log('✅ [PrayerService] Prayer marked as prayed')
+    console.log('🔄 [PrayerService] Update data:', updateData)
+    
+    await updateDoc(prayerRef, updateData)
+    
+    console.log('✅ [PrayerService] Prayer marked as prayed successfully')
+    
+    // Log admin activity
+    try {
+      // Get prayer data untuk title
+      const prayerDoc = await getDoc(prayerRef)
+      const prayerData = prayerDoc.data()
+      
+      await logAdminActivity(adminId, {
+        action: 'prayer_respond',
+        title: prayerData?.title || 'Prayer Request',
+        notes: adminNotes,
+        targetPrayerId: prayerId
+      })
+    } catch (activityError) {
+      console.warn('⚠️ [PrayerService] Could not log admin activity:', activityError)
+    }
+    
     return true
     
   } catch (error) {

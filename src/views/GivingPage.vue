@@ -3,7 +3,7 @@
     header-title="Giving"
     title="Persepuluhan & Persembahan"
     :description="givingDescription"
-    thumbnail="giving"
+    :thumbnail="givingThumbnail"
     category="giving"
     content-type="giving"
     :closing="closingMessage"
@@ -57,6 +57,7 @@
 import DetailLayout from '@/components/layout/DetailLayout.vue'
 import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
 import { Copy, Download } from 'lucide-vue-next'
+import { useToast } from '@/composables/useToast'
 
 export default {
   name: 'GivingPage',
@@ -66,12 +67,21 @@ export default {
     Copy,
     Download
   },
+  setup() {
+    const { copySuccess, copyError, showInfo, showError } = useToast()
+    
+    return {
+      copySuccess,
+      copyError,
+      showInfo,
+      showError
+    }
+  },
   data() {
     return {
+      windowWidth: window.innerWidth, // ⭐ Track window width untuk responsive thumbnail
       givingDescription: `
-        Scan QR kode dengan menggunakan aplikasi Mobile Banking, Dana, Shopee atau pun Ovo untuk 
-        memberikan persepuluhan dan persembahan Anda. 
-        Anda juga bisa transfer lewat nomor rekening di bawah ini.
+        Scan QR kode dengan menggunakan aplikasi Mobile Banking, Dana, Shopee atau pun Ovo untuk memberikan persepuluhan dan persembahan Anda. Anda juga bisa transfer lewat nomor rekening di bawah ini.
       `,
       closingMessage: 'Tuhan Yesus memberkati kemurahan hati Anda. Setiap persembahan yang diberikan dengan sukacita akan dipakai untuk kemajuan Kerajaan Allah.',
       // Custom breadcrumb untuk giving
@@ -82,6 +92,26 @@ export default {
       // Loading states untuk better UX
       isCopying: false,
       isDownloading: false
+    }
+  },
+  computed: {
+    givingThumbnail() {
+      // ⭐ RESPONSIVE: Pilih thumbnail berdasarkan window width
+      console.log('💝 [GivingPage] Getting giving thumbnail...')
+      
+      const isMobile = this.windowWidth <= 768
+      const mobileUrl = 'https://res.cloudinary.com/df74ywsgg/image/upload/v1753361156/myrajawali/thumbnails/giving/detail-mobile/giving.png'
+      const desktopUrl = 'https://res.cloudinary.com/df74ywsgg/image/upload/v1753361164/myrajawali/thumbnails/giving/detail-desktop/giving.png'
+      
+      // Add cache busting untuk force refresh
+      const selectedUrl = isMobile ? mobileUrl : desktopUrl
+      const cacheBuster = `${selectedUrl.includes('?') ? '&' : '?'}cb=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`
+      const finalUrl = selectedUrl + cacheBuster
+      
+      console.log(`📱💻 [GivingPage] Device: ${isMobile ? 'Mobile' : 'Desktop'} (${this.windowWidth}px)`)
+      console.log(`💝 [GivingPage] Final URL: ${finalUrl}`)
+      
+      return finalUrl
     }
   },
   mounted() {
@@ -104,7 +134,7 @@ export default {
         // Copy ke clipboard
         if (navigator.clipboard) {
           await navigator.clipboard.writeText(bankNumber)
-          this.showToast('✅ Nomor rekening berhasil disalin!')
+          this.copySuccess('Nomor rekening')
         } else {
           this.fallbackCopy(bankNumber)
         }
@@ -131,12 +161,12 @@ export default {
         document.body.removeChild(textArea)
         
         if (successful) {
-          this.showToast('✅ Nomor rekening berhasil disalin!')
+          this.copySuccess('Nomor rekening')
         } else {
-          this.showToast('❌ Gagal menyalin nomor rekening')
+          this.copyError('nomor rekening')
         }
       } catch (err) {
-        this.showToast('❌ Gagal menyalin nomor rekening')
+        this.copyError('nomor rekening')
       }
     },
     
@@ -148,18 +178,12 @@ export default {
         await new Promise(resolve => setTimeout(resolve, 1000))
         
         // TODO: Implementasi download QR code yang sesungguhnya
-        this.showToast('📱 Fitur download QR akan segera tersedia')
+        this.showInfo('Fitur download QR akan segera tersedia')
       } catch (error) {
-        this.showToast('❌ Gagal mendownload QR code')
+        this.showError('Gagal mendownload QR code')
       } finally {
         this.isDownloading = false
       }
-    },
-    
-    showToast(message) {
-      // Simple toast notification
-      // TODO: Bisa diganti dengan toast component yang lebih baik
-      alert(message)
     }
   }
 }

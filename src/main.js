@@ -3,6 +3,12 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import './services/firebase.js'
+import { ToastPlugin } from './utils/toast.js'
+
+// Enhanced Security Imports
+import { startSecurityMonitoring, stopSecurityMonitoring } from './middleware/authGuard'
+import { logSecurityEvent } from './services/firebase-security'
+import SecuritySessionWarning from './components/SecuritySessionWarning.vue'
 
 // ===== ENVIRONMENT DETECTION =====
 const isDevelopment = process.env.NODE_ENV === 'development'
@@ -272,6 +278,45 @@ const pinia = createPinia()
 
 app.use(router)
 app.use(pinia)
+app.use(ToastPlugin)
+
+// Register global security component
+app.component('SecuritySessionWarning', SecuritySessionWarning)
+
+// ===== SECURITY INITIALIZATION =====
+// Start security monitoring
+startSecurityMonitoring()
+
+// Log app initialization
+logSecurityEvent('app_initialized', {
+  timestamp: new Date().toISOString(),
+  environment: isDevelopment ? 'development' : 'production',
+  userAgent: navigator.userAgent
+})
+
+// Setup security event listeners
+window.addEventListener('beforeunload', () => {
+  logSecurityEvent('app_beforeunload', {
+    timestamp: new Date().toISOString()
+  })
+})
+
+window.addEventListener('unload', () => {
+  stopSecurityMonitoring()
+})
+
+// Handle visibility changes for security
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    logSecurityEvent('app_hidden', {
+      timestamp: new Date().toISOString()
+    })
+  } else {
+    logSecurityEvent('app_visible', {
+      timestamp: new Date().toISOString()
+    })
+  }
+})
 
 // Initialize Service Worker with smart behavior
 registerServiceWorker()
@@ -279,4 +324,49 @@ registerServiceWorker()
 // Mount app
 app.mount('#app')
 
-console.log('🚀 [PWA] MyRajawali initialized with smart Service Worker!')
+console.log('🚀 [PWA] MyRajawali initialized with enhanced security!')
+console.log('🔐 [Security] Security monitoring active')
+
+// Add security debug tools in development
+if (isDevelopment) {
+  window.debugSecurity = {
+    async getCurrentUser() {
+      const { getCurrentUser } = await import('./services/auth-enhanced')
+      return getCurrentUser()
+    },
+    
+    async logEvent(type, details = {}) {
+      logSecurityEvent(type, details)
+      console.log('🔐 [Debug] Security event logged:', type, details)
+    },
+    
+    async checkSession() {
+      const { isSessionValid } = await import('./services/firebase-security')
+      const valid = isSessionValid()
+      console.log('🔐 [Debug] Session valid:', valid)
+      return valid
+    },
+    
+    async forceSessionWarning() {
+      const event = new CustomEvent('sessionWarning', {
+        detail: { timeToExpire: 60000 } // 1 minute
+      })
+      window.dispatchEvent(event)
+      console.log('🔐 [Debug] Session warning triggered')
+    },
+    
+    async testRateLimit(identifier) {
+      const { checkRateLimit } = await import('./services/firebase-security')
+      const result = checkRateLimit(identifier, 3, 60000) // 3 attempts per minute
+      console.log('🔐 [Debug] Rate limit check:', result)
+      return result
+    }
+  }
+  
+  console.log('🔐 [Security] Debug tools loaded:')
+  console.log('   👤 debugSecurity.getCurrentUser() - Get current user')
+  console.log('   📝 debugSecurity.logEvent(type, details) - Log security event')
+  console.log('   ✅ debugSecurity.checkSession() - Check session validity')
+  console.log('   ⚠️ debugSecurity.forceSessionWarning() - Trigger session warning')
+  console.log('   🚫 debugSecurity.testRateLimit(id) - Test rate limiting')
+}

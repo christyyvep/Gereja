@@ -110,6 +110,12 @@ import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
 import { useUserStore } from '@/stores/userStore'
 import { useStreakStore } from '@/stores/streakStore'
 
+// UPDATED: Import hybrid auth
+import { loginUser } from '@/services/auth-hybrid'
+
+// Toast notification
+import { useToast } from '@/composables/useToast.js'
+
 export default {
   name: 'LoginPage',
   
@@ -128,6 +134,11 @@ export default {
       rememberMe: false,
       isLoading: false
     }
+  },
+
+  setup() {
+    const { showInfo } = useToast()
+    return { showInfo }
   },
   
   mounted() {
@@ -170,7 +181,7 @@ export default {
     },
     
     /**
-     * Handle login form submission
+     * Handle login form submission - UPDATED to use Hybrid Auth
      */
     async login() {
       try {
@@ -185,32 +196,40 @@ export default {
         // Set loading state
         this.isLoading = true
         
-        // Get user store
-        const userStore = useUserStore()
+        console.log('🔐 [LoginPage] Starting hybrid auth login for:', this.nama)
         
-        // Attempt login
-        const userData = await userStore.login(this.nama, this.password)
+        // UPDATED: Use hybrid auth directly
+        const result = await loginUser(this.nama, this.password)
         
-        // Handle remember me functionality
-        this.handleRememberMe(userData)
-        
-        // Update streak for returning user
-        await this.updateStreakForReturningUser(userData)
-        
-        // Success notification (optional)
-        this.showSuccessMessage(`Selamat datang, ${userData.nama}!`)
-        
-        // Navigate to home
-        await this.$router.push('/home')
-        
-        // ✨ SOLUSI UNTUK MASALAH CACHE ✨
-        // Tunggu sebentar lalu refresh otomatis untuk tampilan fresh
-        setTimeout(() => {
-          console.log('🔄 Auto refresh untuk tampilan fresh...')
-          window.location.reload()
-        }, 500)
+        if (result.success) {
+          // Get user store for compatibility
+          const userStore = useUserStore()
+          userStore.setUser(result.user)
+          
+          // Handle remember me functionality
+          this.handleRememberMe(result.user)
+          
+          // Update streak for returning user
+          await this.updateStreakForReturningUser(result.user)
+          
+          // Success notification
+          this.showSuccessMessage(`Selamat datang, ${result.user.nama}!`)
+          
+          console.log('✅ [LoginPage] Hybrid auth login successful')
+          
+          // Navigate to home
+          await this.$router.push('/home')
+          
+          // ✨ SOLUSI UNTUK MASALAH CACHE ✨
+          // Tunggu sebentar lalu refresh otomatis untuk tampilan fresh
+          setTimeout(() => {
+            console.log('🔄 Auto refresh untuk tampilan fresh...')
+            window.location.reload()
+          }, 500)
+        }
         
       } catch (error) {
+        console.error('❌ [LoginPage] Hybrid auth login error:', error)
         this.handleLoginError(error)
       } finally {
         this.isLoading = false
@@ -327,7 +346,7 @@ export default {
      * Handle forgot password
      */
     showForgotPassword() {
-      alert(`🔒 Lupa Password?\n\nHubungi admin gereja untuk reset password:\n\n📧 Email: admin@gerejarajawali.org\n📞 Telepon: (0431) 123-4567\n⏰ Jam kerja: Senin-Jumat 08:00-16:00\n\nAdmin akan membantu reset password Anda.`)
+      this.showInfo(`🔒 Lupa Password?\n\nHubungi admin gereja untuk reset password:\n\n📧 Email: admin@gerejarajawali.org\n📞 Telepon: (0431) 123-4567\n⏰ Jam kerja: Senin-Jumat 08:00-16:00\n\nAdmin akan membantu reset password Anda.`)
     }
   }
 }

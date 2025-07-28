@@ -7,6 +7,7 @@ import {
   serverTimestamp,
   getDoc 
 } from 'firebase/firestore'
+import { logUserActivity } from './activityService'
 
 /**
  * Update user profile dengan history tracking untuk admin
@@ -67,6 +68,7 @@ export async function updateUserProfile(userId, newProfileData, updatedBy = 'use
       action: 'profile_updated',
       details: `User mengubah ${changes.length} field profile`,
       changes: changes,
+      userName: newProfileData.nama || oldProfileData.nama || userId, // Add userName from profile data
       timestamp: serverTimestamp()
     })
     
@@ -148,29 +150,6 @@ async function saveProfileHistory(userId, historyData) {
   } catch (error) {
     console.error('❌ [ProfileService] Error saving history:', error)
     // Jangan throw error, history adalah optional
-  }
-}
-
-/**
- * Log aktivitas user untuk admin dashboard
- * @param {string} userId - ID user
- * @param {Object} activityData - Data aktivitas
- */
-async function logUserActivity(userId, activityData) {
-  try {
-    const activityRef = collection(db, 'user_activities')
-    
-    const activityRecord = {
-      userId: userId,
-      ...activityData
-    }
-    
-    await addDoc(activityRef, activityRecord)
-    console.log('📊 [ProfileService] Activity logged')
-    
-  } catch (error) {
-    console.error('❌ [ProfileService] Error logging activity:', error)
-    // Jangan throw error, activity log adalah optional
   }
 }
 

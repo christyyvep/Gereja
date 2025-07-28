@@ -272,9 +272,27 @@ import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
 import { Edit, Check, X, Camera } from 'lucide-vue-next'
 import { useUserStore } from '@/stores/userStore'
 import { updateUserProfile } from '@/services/profile.js'
+import { useToast } from '@/composables/useToast'
 
 export default {
   name: 'DetailProfile',
+  
+  setup() {
+    const {
+      showError,
+      updateSuccess,
+      noChanges,
+      comingSoon
+    } = useToast()
+    
+    return {
+      showError,
+      updateSuccess,
+      noChanges,
+      comingSoon
+    }
+  },
+  
   components: {
     HeaderWithBack,
     DesktopNavbar,
@@ -463,9 +481,9 @@ export default {
             // Tampilkan pesan sukses dengan info changes
             const changesCount = result.changesCount || 0
             if (changesCount > 0) {
-            alert(`✅ Profile berhasil disimpan!\n🔄 ${changesCount} perubahan tersimpan di database`)
+              this.updateSuccess(`Profile - ${changesCount} perubahan tersimpan`)
             } else {
-            alert('ℹ️ Tidak ada perubahan yang terdeteksi')
+              this.noChanges()
             }
             
         } catch (error) {
@@ -474,18 +492,18 @@ export default {
             
             // Handle specific errors
             if (error.message.includes('User tidak ditemukan')) {
-            alert('❌ User tidak ditemukan di database!')
+              this.showError('User tidak ditemukan di database!')
             } else if (error.message.includes('permission')) {
-            alert('❌ Tidak memiliki permission untuk mengubah data!')
+              this.showError('Tidak memiliki permission untuk mengubah data!')
             } else {
-            alert('❌ Gagal menyimpan profile ke database!\n\nError: ' + error.message)
+              this.showError(`Gagal menyimpan profile: ${error.message}`)
             }
         }
         },
       
       changePhoto() {
         // TODO: Implementasi change photo
-        alert('📷 Fitur ubah foto akan tersedia setelah development selesai!')
+        this.comingSoon('Fitur ubah foto')
       }
     }
   }

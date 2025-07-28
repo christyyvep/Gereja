@@ -2,17 +2,18 @@
 <template>
   <div class="admin-news-container">
     <!-- Desktop Layout -->
-    <div class="desktop-layout">
-        <!-- Desktop Breadcrumb -->
-        <BreadcrumbDesktop :items="breadcrumbItems" />
-        
+    <!-- <div class="desktop-layout"> -->
         <!-- Header dengan judul dan tombol add -->
         <div class="page-header">
-          <h1 class="page-title">Kelola Berita</h1>
-          <button @click="showAddModal" class="add-button">
-            <Plus class="add-icon" />
+          <h1 class="page-title">Kelola Berita dan Pengumuman</h1>
+          <AdminButton 
+            @click="showAddModal" 
+            :icon="Plus"
+            variant="primary"
+            size="md"
+          >
             Tambah Berita
-          </button>
+          </AdminButton>
         </div>
 
         <!-- Filter dan Search -->
@@ -50,10 +51,14 @@
             <AlertCircle class="error-icon" />
             <h3>Oops! Terjadi Kesalahan</h3>
             <p class="error-text">{{ error }}</p>
-            <button @click="fetchNews" class="retry-button">
-              <RefreshCw class="retry-icon" />
+            <AdminButton 
+              @click="fetchNews" 
+              :icon="RefreshCw"
+              variant="danger"
+              size="sm"
+            >
               Coba Lagi
-            </button>
+            </AdminButton>
           </div>
         </div>
 
@@ -105,25 +110,27 @@
           
           <!-- Pagination -->
           <div v-if="totalPages > 1" class="pagination">
-            <button 
+            <AdminButton 
               @click="goToPage(currentPage - 1)" 
               :disabled="currentPage === 1" 
-              class="pagination-btn"
+              variant="secondary"
+              size="sm"
             >
               Sebelumnya
-            </button>
+            </AdminButton>
             
             <span class="pagination-info">
               Halaman {{ currentPage }} dari {{ totalPages }}
             </span>
             
-            <button 
+            <AdminButton 
               @click="goToPage(currentPage + 1)" 
               :disabled="currentPage === totalPages" 
-              class="pagination-btn"
+              variant="secondary"
+              size="sm"
             >
               Selanjutnya
-            </button>
+            </AdminButton>
           </div>
         </div>
 
@@ -133,10 +140,14 @@
             <Newspaper class="empty-icon" />
             <h3>Belum Ada Berita</h3>
             <p>Klik tombol "Tambah Berita" untuk membuat berita baru.</p>
-            <button @click="showAddModal" class="add-button-primary">
-              <Plus class="add-icon" />
+            <AdminButton 
+              @click="showAddModal" 
+              :icon="Plus"
+              variant="primary"
+              size="lg"
+            >
               Tambah Berita Pertama
-            </button>
+            </AdminButton>
           </div>
         </div>
     </div>
@@ -160,13 +171,13 @@
       @confirm="confirmDelete"
       @cancel="hideDeleteModal"
     />
-  </div>
+  <!-- </div> -->
 </template>
 
 <script>
-import BreadcrumbDesktop from '@/components/common/BreadcrumbDesktop.vue'
 import NewsModal from '@/components/admin/NewsModal.vue'
 import ConfirmModal from '@/components/common/ConfirmModal.vue'
+import AdminButton from '@/components/admin/AdminButton.vue'
 import { 
   Newspaper,
   Plus,
@@ -182,17 +193,40 @@ import {
   updateNews,
   deleteNews as deleteNewsService
 } from '@/services/news'
+import { useToast } from '@/composables/useToast'
 
 export default {
   name: 'AdminNews',
   
+  setup() {
+    const {
+      showSuccess,
+      showError,
+      saveSuccess,
+      saveError,
+      deleteSuccess,
+      deleteError,
+      updateSuccess,
+      updateError
+    } = useToast()
+    
+    return {
+      showSuccess,
+      showError,
+      saveSuccess,
+      saveError,
+      deleteSuccess,
+      deleteError,
+      updateSuccess,
+      updateError
+    }
+  },
+  
   components: {  
-    BreadcrumbDesktop,
     NewsModal,
-    ConfirmModal,    
+    ConfirmModal,
+    AdminButton,    
     Newspaper,
-    Plus,
-    RefreshCw,
     AlertCircle,
     Edit2,
     Trash2,
@@ -201,6 +235,10 @@ export default {
   
   data() {
     return {
+      // Icon components for AdminButton props
+      Plus,
+      RefreshCw,
+      
       allNews: [],            // All news data
       filteredNews: [],       // Filtered news data
       loading: true,          // Status loading
@@ -221,13 +259,7 @@ export default {
       
       // Delete confirmation
       showDeleteConfirm: false,
-      newsToDelete: null,
-      
-      breadcrumbItems: [
-        { text: 'Home', to: '/home' },
-        { text: 'Admin', to: '/admin' },
-        { text: 'Kelola Berita', to: null }
-      ]
+      newsToDelete: null
     }
   },
   
@@ -351,17 +383,28 @@ export default {
       try {
         console.log('💾 [AdminNews] Menyimpan berita...', newsData)
 
+        // Add admin identifier untuk activity logging
+        const adminId = this.userStore.userId || this.userStore.namaUser || 'admin'
+
         if (this.modalMode === 'add') {
-          const newNews = await createNews(newsData)
+          const enrichedData = { 
+            ...newsData, 
+            createdBy: adminId 
+          }
+          const newNews = await createNews(enrichedData)
           this.allNews.unshift(newNews) // Add to beginning
           this.showNotification('Berita berhasil ditambahkan!', 'success')
         } else {
-          await updateNews(this.selectedNews.id, newsData)
+          const enrichedData = { 
+            ...newsData, 
+            updatedBy: adminId 
+          }
+          await updateNews(this.selectedNews.id, enrichedData)
           
           // Update local data
           const index = this.allNews.findIndex(n => n.id === this.selectedNews.id)
           if (index !== -1) {
-            this.allNews[index] = { ...this.allNews[index], ...newsData }
+            this.allNews[index] = { ...this.allNews[index], ...enrichedData }
           }
           
           this.showNotification('Berita berhasil diperbarui!', 'success')
@@ -400,7 +443,10 @@ export default {
       try {
         console.log('🗑️ [AdminNews] Menghapus berita...', this.newsToDelete.id)
 
-        await deleteNewsService(this.newsToDelete.id)
+        // Get admin ID for activity logging
+        const adminId = this.userStore.userId || this.userStore.namaUser || 'admin'
+        
+        await deleteNewsService(this.newsToDelete.id, adminId)
         
         // Remove from local data
         this.allNews = this.allNews.filter(n => n.id !== this.newsToDelete.id)
@@ -470,14 +516,16 @@ export default {
      * @param {string} type - Tipe notifikasi
      */
     showNotification(message, type = 'info') {
-      // Untuk sementara pakai alert, nanti bisa diganti dengan toast component
-      const icons = {
-        success: '✅',
-        error: '❌',
-        info: 'ℹ️',
-        warning: '⚠️'
+      // Gunakan toast service yang lebih modern
+      const toastMethods = {
+        success: this.showSuccess,
+        error: this.showError,
+        info: this.showSuccess, // info menggunakan success style
+        warning: this.showError // warning menggunakan error style
       }
-      alert(`${icons[type]} ${message}`)
+      
+      const toastMethod = toastMethods[type] || this.showSuccess
+      toastMethod(message)
     }
   }
 }
@@ -488,18 +536,8 @@ export default {
    CONTAINER UTAMA
 ========================================= */
 .admin-news-container {
-  background: #fcfcf7;
+  background: #f8f9fc;
   min-height: 100vh;
-}
-
-/* ========================================
-   DESKTOP LAYOUT
-========================================= */
-
-.desktop-layout {
-  display: block;
-  min-height: 100vh;
-  background: #fcfcf7;
 }
 
 /* === PAGE HEADER === */
@@ -511,38 +549,11 @@ export default {
 }
 
 .page-title {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter';
   font-size: 28px;
   font-weight: 700;
   color: #41442A;
   margin: 0;
-}
-
-.add-button,
-.add-button-primary {
-  background: #10b981;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.add-button:hover,
-.add-button-primary:hover {
-  background: #059669;
-  transform: translateY(-1px);
-}
-
-.add-icon {
-  width: 18px;
-  height: 18px;
 }
 
 /* === FILTERS SECTION === */
@@ -676,31 +687,6 @@ export default {
   font-size: 14px;
   color: #666;
   margin: 0 0 24px 0;
-}
-
-.retry-button {
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.retry-button:hover {
-  background: #dc2626;
-  transform: translateY(-1px);
-}
-
-.retry-icon {
-  width: 16px;
-  height: 16px;
 }
 
 /* === NEWS TABLE === */
@@ -869,28 +855,6 @@ export default {
   padding: 16px 24px;
   border-top: 1px solid #f3f4f6;
   background: #f9fafb;
-}
-
-.pagination-btn {
-  background: #10b981;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.pagination-btn:hover:not(:disabled) {
-  background: #059669;
-}
-
-.pagination-btn:disabled {
-  background: #d1d5db;
-  color: #9ca3af;
-  cursor: not-allowed;
 }
 
 .pagination-info {

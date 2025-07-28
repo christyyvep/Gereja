@@ -24,7 +24,7 @@
     v-else-if="schedule"
     header-title="Detail Jadwal"
     :title="schedule.title || 'Jadwal Tanpa Judul'"
-    :description="schedule.description || 'Tidak ada deskripsi'"
+    :description="getScheduleDescription(schedule)"
     :thumbnail="schedule.thumbnail"
     :category="schedule.category"
     content-type="schedule"
@@ -77,12 +77,7 @@
         </div>
       </div>
 
-      <div v-if="schedule.specialNotes" class="notes-section">
-        <h3>Catatan Khusus</h3>
-        <div class="notes-content">
-          {{ schedule.specialNotes }}
-        </div>
-      </div>
+      <!-- Hapus section "Catatan Khusus" karena sudah ditampilkan sebagai deskripsi -->
     </template>
 
     <template #related-content>
@@ -278,23 +273,20 @@ export default {
     },
 
     formatScheduleDay(schedule) {
-      const dayOfWeek = schedule.dayOfWeek || schedule.staticInfo?.dayOfWeek
+      const dayOfWeek = schedule.dayOfWeek
+      
+      // Simple mapping: 0=Minggu, 1=Senin, dst
+      const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
       
       if (dayOfWeek === 'daily') {
         return 'Setiap Hari'
       }
       
-      const dayNames = [
-        'Hari Minggu',
-        'Hari Senin',
-        'Hari Selasa',
-        'Hari Rabu',
-        'Hari Kamis',
-        'Hari Jumat',
-        'Hari Sabtu'
-      ]
+      if (dayOfWeek >= 0 && dayOfWeek <= 6) {
+        return dayNames[dayOfWeek]
+      }
       
-      return dayNames[dayOfWeek] || 'Hari Tidak Diketahui'
+      return 'Hari Tidak Diketahui'
     },
 
     formatCategory(category) {
@@ -311,6 +303,53 @@ export default {
       }
       
       return categoryMap[category.toLowerCase()] || category
+    },
+
+    getScheduleDescription(schedule) {
+      // Prioritas 1: Jika ada deskripsi/specialNotes dari admin, gunakan itu
+      if (schedule.description && schedule.description.trim()) {
+        return schedule.description.trim()
+      }
+      
+      if (schedule.specialNotes && schedule.specialNotes.trim()) {
+        return schedule.specialNotes.trim()
+      }
+      
+      // Prioritas 2: Jika tidak ada deskripsi, buat deskripsi otomatis berdasarkan kategori
+      const category = schedule.category?.toLowerCase()
+      
+      switch (category) {
+        case 'doa-fajar':
+          return 'Mari memulai hari dengan doa bersama dalam hadirat Tuhan untuk mempersiapkan hati dan pikiran kita.'
+        case 'ibadah-minggu':
+        case 'ibadah-umum':
+          return 'Datanglah bersama-sama untuk memuji dan menyembah Tuhan dalam kasih-Nya yang sempurna.'
+        case 'pemahaman-alkitab':
+        case 'pendalaman-alkitab':
+          return 'Mempelajari Firman Tuhan bersama untuk pertumbuhan rohani dan pemahaman iman yang lebih dalam.'
+        case 'doa-puasa':
+        case 'doa puasa':
+          return 'Waktu berdoa dan puasa bersama untuk mencari kehendak Tuhan dan memperdalam hubungan dengan-Nya.'
+        case 'pelprip':
+          return 'Persekutuan khusus untuk pertumbuhan iman dan pelayanan dalam kasih Kristus.'
+        case 'pelwap':
+          return 'Persekutuan untuk membangun satu sama lain dalam kasih Kristus dan saling menguatkan.'
+        case 'pelnap':
+          return 'Waktu khusus untuk penyembahan dan doa bersama dalam atmosfer yang penuh berkat.'
+        case 'pelprap':
+          return 'Persekutuan dan pendalaman untuk memperkuat iman dan mempersiapkan diri dalam pelayanan.'
+        case 'raya':
+          return 'Perayaan istimewa dalam kalender gereja yang penuh sukacita dan ucapan syukur.'
+        case 'sektor-anugerah':
+          return 'Persekutuan sektor untuk saling membangun dan bertumbuh dalam anugerah Tuhan.'
+        case 'sektor-tesalonika':
+          return 'Persekutuan sektor untuk memperkuat persaudaraan dan iman dalam kasih Kristus.'
+        default: {
+          // Fallback dengan menggunakan categoryLabel jika ada
+          const categoryLabel = schedule.categoryLabel || 'ibadah'
+          return `Kegiatan ${categoryLabel.toLowerCase()} yang memberkati untuk pertumbuhan rohani jemaat.`
+        }
+      }
     },
 
     getClosingMessage() {
@@ -521,35 +560,6 @@ export default {
 }
 
 /* ========================================
-   SPECIAL NOTES
-========================================= */
-
-.notes-section {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  border: 1px solid #e5e7eb;
-}
-
-.notes-section h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0 0 12px 0;
-}
-
-.notes-content {
-  color: #374151;
-  font-size: 14px;
-  line-height: 1.6;
-  background: #fef3c7;
-  padding: 12px;
-  border-radius: 6px;
-  border-left: 4px solid #f59e0b;
-}
-
-/* ========================================
    RELATED SCHEDULES
 ========================================= */
 
@@ -648,7 +658,6 @@ export default {
 @media (max-width: 640px) {
   .schedule-meta-section,
   .announcements-section,
-  .notes-section,
   .related-schedules {
     padding: 16px;
   }
