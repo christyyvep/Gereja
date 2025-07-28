@@ -50,7 +50,7 @@ export async function getNews(limitCount = 10) {
         attachLinks: data.attachLinks || [], // Array link tambahan
         thumbnails: data.thumbnails || {}, // Object thumbnails
         tags: data.tags || [], // Array tags
-        author: data.author || 'Tim Redaksi',
+        author: data.author || '',
         source: data.source || 'Admin',
         views: data.views || 0
       })
