@@ -28,6 +28,14 @@ const SECURITY_CONFIG = {
   HASH_SALT_ROUNDS: 12
 }
 
+// ===== IN-MEMORY CACHE VARIABLES =====
+// eslint-disable-next-line no-unused-vars
+let userCache = null
+// eslint-disable-next-line no-unused-vars
+let lastActivityTime = null
+// eslint-disable-next-line no-unused-vars
+let sessionToken = null
+
 // ===== PASSWORD HASHING FUNCTIONS =====
 
 /**
@@ -690,4 +698,89 @@ export default {
   loginJemaat,
   registerJemaat,
   checkJemaatNameExists
+}
+
+/**
+ * Clear session paksa - untuk debugging atau reset
+ * @returns {boolean} Success status
+ */
+export function clearSession() {
+  try {
+    console.log('🧹 [AuthHybrid] Force clearing all session data...')
+    
+    // Clear all auth-related localStorage
+    localStorage.removeItem('myrajawali_session')
+    localStorage.removeItem('myrajawali_user')
+    localStorage.removeItem('user') // Legacy key
+    localStorage.removeItem('sessionToken')
+    localStorage.removeItem('loginTimestamp')
+    localStorage.removeItem('lastActivity')
+    localStorage.removeItem('sessionExpiry')
+    localStorage.removeItem('userSession')
+    localStorage.removeItem('authToken')
+    localStorage.removeItem('currentUser')
+    
+    // Clear sessionStorage as well
+    sessionStorage.removeItem('myrajawali_session')
+    sessionStorage.removeItem('myrajawali_user')
+    sessionStorage.removeItem('user')
+    sessionStorage.removeItem('sessionToken')
+    sessionStorage.removeItem('loginTimestamp')
+    sessionStorage.removeItem('lastActivity')
+    sessionStorage.removeItem('sessionExpiry')
+    sessionStorage.removeItem('userSession')
+    sessionStorage.removeItem('authToken')
+    sessionStorage.removeItem('currentUser')
+    
+    // Clear any rate limit data
+    const keys = Object.keys(localStorage)
+    keys.forEach(key => {
+      if (key.startsWith('rate_limit_')) {
+        localStorage.removeItem(key)
+      }
+    })
+    
+    // Clear in-memory cache
+    userCache = null
+    lastActivityTime = null
+    sessionToken = null
+    
+    console.log('✅ [AuthHybrid] Session cleared successfully')
+    return true
+  } catch (error) {
+    console.error('❌ [AuthHybrid] Error clearing session:', error)
+    return false
+  }
+}
+
+/**
+ * Force logout - complete session termination
+ * @returns {Promise<boolean>} Success status
+ */
+export async function forceLogout() {
+  try {
+    console.log('🚪 [AuthHybrid] Force logout initiated...')
+    
+    // Clear session first
+    clearSession()
+    
+    // Additional cleanup for any Firebase auth state
+    try {
+      // Clear any Firebase-related session if exists
+      if (typeof window !== 'undefined' && window.firebase) {
+        // This is a fallback - normally we don't use Firebase auth
+        console.log('🔥 [AuthHybrid] Clearing Firebase auth state...')
+        await window.firebase.auth().signOut()
+      }
+    } catch (firebaseError) {
+      // Silent fail - Firebase might not be initialized
+      console.log('ℹ️ [AuthHybrid] Firebase signout not needed or failed (expected)')
+    }
+    
+    console.log('✅ [AuthHybrid] Force logout completed')
+    return true
+  } catch (error) {
+    console.error('❌ [AuthHybrid] Error during force logout:', error)
+    return false
+  }
 }

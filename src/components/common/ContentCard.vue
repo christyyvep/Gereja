@@ -320,28 +320,53 @@
       handleImageError(e) {
         console.warn('🖼️ [ContentCard] Image load error for:', e.target.src)
         
-        // Force reload dengan cache busting lebih kuat
+        // Try different format if first attempt fails
         const originalSrc = e.target.src
-        if (!originalSrc.includes('&retry=')) {
-          const cacheBuster = `&retry=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`
-          e.target.src = originalSrc + cacheBuster
-          console.log('🔄 [ContentCard] Retrying with cache bust:', e.target.src)
+        
+        // First retry: Try with different format (WebP to JPG)
+        if (!originalSrc.includes('&retry=') && originalSrc.includes('f_auto')) {
+          const jpgSrc = originalSrc.replace('f_auto', 'f_jpg') + `&retry=1&cb=${Date.now()}`
+          e.target.src = jpgSrc
+          console.log('🔄 [ContentCard] Retrying with JPG format:', jpgSrc)
           return
         }
         
-        // Fallback berdasarkan content type
+        // Second retry: Try with PNG format
+        if (originalSrc.includes('&retry=1') && !originalSrc.includes('&retry=2')) {
+          const pngSrc = originalSrc.replace('f_jpg', 'f_png').replace('&retry=1', '&retry=2')
+          e.target.src = pngSrc
+          console.log('🔄 [ContentCard] Retrying with PNG format:', pngSrc)
+          return
+        }
+        
+        // Final fallback: Use placeholder based on content type and size
+        console.log('❌ [ContentCard] All retries failed, using placeholder')
+        
+        const size = this.layout === 'desktop-grid' ? '400x250' : '80x80'
+        const bgColor = this.contentType === 'devotional' ? 'E8F4FD' : 
+                       this.contentType === 'schedule' ? 'FFF3E0' : 'F5F5F5'
+        const textColor = '666666'
+        
+        let placeholderText = ''
         switch (this.contentType) {
           case 'news':
           case 'announcement':
-            e.target.src = getNewsThumbnail()
+            placeholderText = 'Berita'
             break
           case 'schedule':
-            e.target.src = getScheduleThumbnail()
+            placeholderText = 'Jadwal'
             break
           case 'devotional':
-            e.target.src = getDevotionalThumbnail()
+            placeholderText = 'Renungan'
             break
+          default:
+            placeholderText = 'Gambar'
         }
+        
+        e.target.src = `https://via.placeholder.com/${size}/${bgColor}/${textColor}?text=${encodeURIComponent(placeholderText)}`
+        
+        // Add error class for styling
+        e.target.classList.add('image-error')
       },
       
       getPreviewText(content) {
@@ -916,6 +941,29 @@
     
     .category-badge {
       border: 1px solid #fff;
+    }
+  }
+  
+  /* ========================================
+     IMAGE ERROR HANDLING
+  ========================================= */
+  .thumbnail-img.image-error {
+    opacity: 0.7;
+    filter: grayscale(20%);
+  }
+  
+  /* Better image loading and rendering */
+  .thumbnail-img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+  }
+  
+  /* Ensure proper image scaling on different devices */
+  @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .thumbnail-img {
+      image-rendering: -webkit-optimize-contrast;
     }
   }
   </style>

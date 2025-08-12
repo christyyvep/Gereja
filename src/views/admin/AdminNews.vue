@@ -194,6 +194,7 @@ import {
   deleteNews as deleteNewsService
 } from '@/services/news'
 import { useToast } from '@/composables/useToast'
+import { useUserStore } from '@/stores/userStore'
 
 export default {
   name: 'AdminNews',
@@ -210,6 +211,9 @@ export default {
       updateError
     } = useToast()
     
+    // Add userStore
+    const userStore = useUserStore()
+    
     return {
       showSuccess,
       showError,
@@ -218,7 +222,8 @@ export default {
       deleteSuccess,
       deleteError,
       updateSuccess,
-      updateError
+      updateError,
+      userStore
     }
   },
   

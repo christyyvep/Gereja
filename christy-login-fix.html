@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyRajawali - Fix Christy Login</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .header p {
+            color: #7f8c8d;
+        }
+        .action-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+            transition: all 0.3s;
+        }
+        .action-button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        .action-button.success {
+            background: #27ae60;
+        }
+        .action-button.danger {
+            background: #e74c3c;
+        }
+        .output {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            background: #ecf0f1;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 MyRajawali Login Fix Tool</h1>
+            <p>Diagnose and fix login issues for Christy Potabuga</p>
+        </div>
+
+        <div class="step">
+            <h3>Step 1: Check Database</h3>
+            <p>Check if users exist in the database and identify any issues.</p>
+            <button class="action-button" onclick="checkDatabase()">🔍 Check Database</button>
+        </div>
+
+        <div class="step">
+            <h3>Step 2: Fix Christy's Account</h3>
+            <p>Migrate Christy's account to the new authentication system.</p>
+            <button class="action-button success" onclick="fixChristyAccount()">🔧 Fix Christy's Account</button>
+        </div>
+
+        <div class="step">
+            <h3>Step 3: Test Login</h3>
+            <p>Test if Christy can now login successfully.</p>
+            <button class="action-button" onclick="testLogin()">🧪 Test Login</button>
+        </div>
+
+        <div class="step">
+            <h3>Emergency: Clear All Sessions</h3>
+            <p>If still having issues, clear all authentication data.</p>
+            <button class="action-button danger" onclick="clearAllData()">🗑️ Clear All Sessions</button>
+        </div>
+
+        <div id="output" class="output" style="display: none;"></div>
+    </div>
+
+    <script type="module">
+        let output = document.getElementById('output');
+        
+        function log(message) {
+            output.style.display = 'block';
+            output.textContent += new Date().toLocaleTimeString() + ' - ' + message + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function clearOutput() {
+            output.textContent = '';
+            output.style.display = 'none';
+        }
+
+        window.checkDatabase = async function() {
+            clearOutput();
+            log('🔍 Starting database check...');
+            
+            try {
+                const { db } = await import('./src/services/firebase-security.js');
+                const { collection, getDocs } = await import('firebase/firestore');
+                
+                log('📡 Connecting to Firebase...');
+                
+                const jemaatRef = collection(db, 'jemaat');
+                const snapshot = await getDocs(jemaatRef);
+                
+                log(`📋 Found ${snapshot.size} users in database:`);
+                
+                if (snapshot.empty) {
+                    log('❌ No users found in database!');
+                    return;
+                }
+                
+                let christyFound = false;
+                snapshot.forEach((doc, index) => {
+                    const data = doc.data();
+                    const isChristy = data.nama && data.nama.toLowerCase().includes('christy');
+                    
+                    if (isChristy) {
+                        christyFound = true;
+                        log(`🎯 FOUND CHRISTY: "${data.nama}"`);
+                        log(`   - Password exists: ${!!data.password}`);
+                        log(`   - Is registered: ${data.isRegistered}`);
+                        log(`   - Role: ${data.role || 'jemaat'}`);
+                    } else {
+                        log(`${index + 1}. ${data.nama || 'No name'}`);
+                    }
+                });
+                
+                if (!christyFound) {
+                    log('❌ Christy Potabuga not found!');
+                    log('💡 Check if name is spelled differently');
+                }
+                
+            } catch (error) {
+                log('❌ Database check failed: ' + error.message);
+            }
+        };
+
+        window.fixChristyAccount = async function() {
+            clearOutput();
+            log('🔧 Starting account fix for Christy...');
+            
+            try {
+                const { db } = await import('./src/services/firebase-security.js');
+                const { collection, getDocs, doc, updateDoc, query, where } = await import('firebase/firestore');
+                
+                // Find Christy
+                log('🔍 Looking for Christy in database...');
+                const jemaatRef = collection(db, 'jemaat');
+                const allSnapshot = await getDocs(jemaatRef);
+                
+                let christyDoc = null;
+                let christyData = null;
+                
+                allSnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if (data.nama && data.nama.toLowerCase().includes('christy')) {
+                        christyDoc = docSnap;
+                        christyData = data;
+                    }
+                });
+                
+                if (!christyDoc) {
+                    log('❌ Christy not found in database!');
+                    return;
+                }
+                
+                log(`✅ Found Christy: "${christyData.nama}"`);
+                
+                // Hash password function
+                function hashPassword(password) {
+                    // Import CryptoJS dynamically
+                    return new Promise((resolve) => {
+                        import('crypto-js').then(CryptoJS => {
+                            const salt = CryptoJS.lib.WordArray.random(128/8);
+                            const hash = CryptoJS.PBKDF2(password, salt, {
+                                keySize: 256/32,
+                                iterations: 10000
+                            });
+                            resolve(salt.toString() + ':' + hash.toString());
+                        });
+                    });
+                }
+                
+                // Update user to hybrid auth
+                log('🔄 Migrating to hybrid auth...');
+                const newPassword = 'christy123';
+                const hashedPassword = await hashPassword(newPassword);
+                
+                await updateDoc(doc(db, 'jemaat', christyDoc.id), {
+                    password: hashedPassword,
+                    isRegistered: true,
+                    isActive: true,
+                    role: christyData.role || 'jemaat',
+                    migratedAt: new Date(),
+                    migratedFrom: 'legacy_system',
+                    updatedAt: new Date()
+                });
+                
+                log('✅ Christy successfully migrated!');
+                log(`🔑 New password: ${newPassword}`);
+                log('🎉 Account is now ready for login!');
+                
+            } catch (error) {
+                log('❌ Account fix failed: ' + error.message);
+            }
+        };
+
+        window.testLogin = async function() {
+            clearOutput();
+            log('🧪 Testing Christy login...');
+            
+            try {
+                const { loginUser } = await import('./src/services/auth-hybrid.js');
+                
+                log('🔐 Attempting login with: Christy Potabuga / christy123');
+                const result = await loginUser('Christy Potabuga', 'christy123');
+                
+                if (result.success) {
+                    log('✅ Login test SUCCESSFUL!');
+                    log(`👤 User: ${result.user.nama}`);
+                    log(`🎭 Role: ${result.user.role}`);
+                    log('🎉 Christy can now login successfully!');
+                } else {
+                    log('❌ Login test failed: ' + result.message);
+                }
+                
+            } catch (error) {
+                log('❌ Login test error: ' + error.message);
+            }
+        };
+
+        window.clearAllData = function() {
+            clearOutput();
+            log('🗑️ Clearing all authentication data...');
+            
+            // Clear localStorage
+            localStorage.removeItem('myrajawali_session');
+            localStorage.removeItem('myrajawali_user');
+            localStorage.removeItem('user');
+            localStorage.removeItem('rememberedUser');
+            
+            // Clear sessionStorage
+            sessionStorage.removeItem('recentLogin');
+            
+            log('✅ All authentication data cleared');
+            log('🔄 You can now try logging in again');
+            
+            // Reload page after 2 seconds
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        };
+    </script>
+</body>
+</html>

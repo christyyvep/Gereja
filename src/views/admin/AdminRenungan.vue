@@ -171,6 +171,7 @@ import {
   deleteDevotional
 } from '@/services/devotionals'
 import { useToast } from '@/composables/useToast'
+import { useUserStore } from '@/stores/userStore'
 
 export default {
   name: 'AdminRenungan',
@@ -187,6 +188,9 @@ export default {
       updateError
     } = useToast()
     
+    // Add userStore
+    const userStore = useUserStore()
+    
     return {
       showSuccess,
       showError,
@@ -195,7 +199,8 @@ export default {
       deleteSuccess,
       deleteError,
       updateSuccess,
-      updateError
+      updateError,
+      userStore
     }
   },
   

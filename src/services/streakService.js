@@ -20,7 +20,7 @@ export async function createNewStreakInFirestore(userId) {
     
     const newStreakData = {
       userId: userId,
-      streakCount: 1,  // ✅ PERBAIKAN: Default = 1, bukan 0
+      streakCount: 1,
       lastLoginDate: today,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),

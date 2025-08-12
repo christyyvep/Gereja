@@ -7,7 +7,9 @@ import { logSecurityEvent, updateSessionActivity } from '../services/firebase-se
 const securityConfig = {
   SESSION_TIMEOUT: 30 * 60 * 1000, // 30 minutes
   MAX_LOGIN_ATTEMPTS: 5,
-  LOCKOUT_DURATION: 15 * 60 * 1000 // 15 minutes
+  LOCKOUT_DURATION: 15 * 60 * 1000, // 15 minutes
+  adminRoles: ['admin', 'super_admin'],
+  moderatorRoles: ['admin', 'super_admin', 'moderator']
 }
 
 /**
@@ -25,7 +27,7 @@ export function requireAuth(to, from, next) {
       
       // Redirect ke login dengan return URL
       next({
-        name: 'Login',
+        name: 'LoginPage',
         query: { 
           redirect: to.fullPath,
           reason: 'auth_required'

@@ -38,6 +38,10 @@
           <FileText class="nav-icon" />
           Laporan Jemaat
         </router-link>
+        <router-link to="/admin/kelola-jemaat" class="nav-item">
+          <Users class="nav-icon" />
+          Kelola Data Jemaat
+        </router-link>
         <router-link to="/home" class="nav-item back-to-app">
           <Home class="nav-icon" />
           Kembali ke App
@@ -75,6 +79,7 @@ import {
   CalendarHeart,
   Heart, 
   FileText, 
+  Users,
   Home 
 } from 'lucide-vue-next'
 
@@ -88,6 +93,7 @@ export default {
     CalendarHeart,
     Heart,
     FileText,
+    Users,
     Home
   },
   setup() {

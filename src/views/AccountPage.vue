@@ -275,7 +275,7 @@ export default {
     },
     
     /**
-     * Proses logout sesungguhnya
+     * Proses logout sesungguhnya - UPDATED untuk Hybrid Auth
      * Menghapus data user dan kembali ke halaman login
      */
     async confirmLogout() {
@@ -286,18 +286,30 @@ export default {
         // Set state loading
         this.isLoggingOut = true
         
-        // Panggil fungsi logout dari store (hapus data user)
-        this.userStore.logout()
+        console.log('🚪 [AccountPage] Starting logout process...')
+        
+        // UPDATED: Use force logout for complete session termination
+        await this.userStore.forceLogoutUser()
         
         // Tutup modal
         this.hideLogoutModal()
+        
+        // Success notification
+        this.showSuccess('Anda telah keluar dari sistem. Terima kasih!')
+        
+        console.log('✅ [AccountPage] Logout completed, redirecting to login...')
         
         // Redirect ke halaman login
         await this.$router.replace('/')
         
       } catch (error) {
-        // Jika ada error, tetap logout dan redirect
-        this.userStore.logout()
+        console.error('❌ [AccountPage] Error during logout:', error)
+        
+        // Error notification
+        this.showError('Terjadi error saat logout, namun Anda tetap akan keluar dari sistem')
+        
+        // Jika ada error, tetap force logout dan redirect
+        await this.userStore.forceLogoutUser()
         await this.$router.replace('/')
       } finally {
         // Reset loading state

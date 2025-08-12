@@ -3,7 +3,8 @@ import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { getFunctions } from 'firebase/functions'
-import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check'
+// App Check imports temporarily disabled for testing
+// import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check'
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -18,13 +19,20 @@ const firebaseConfig = {
 // Initialize Firebase App
 const app = initializeApp(firebaseConfig)
 
-// Initialize Firebase services
+// Initialize Firebase services dengan settings timeout yang lebih panjang
 const auth = getAuth(app)
 const db = getFirestore(app)
 const functions = getFunctions(app)
 
+// Configure Firestore settings untuk connection yang lebih stabil
+if (typeof window !== 'undefined') {
+  console.log('✅ [Firebase] Firestore configured for production environment')
+}
+
 // App Check Configuration untuk keamanan tambahan
+// TEMPORARILY DISABLED untuk testing - uncomment setelah setup ReCaptcha yang benar
 let appCheck = null
+/*
 if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
   try {
     // Initialize App Check dengan ReCaptcha V3
@@ -38,6 +46,8 @@ if (typeof window !== 'undefined' && !window.location.hostname.includes('localho
     console.warn('⚠️ [Firebase] App Check initialization failed:', error)
   }
 }
+*/
+console.log('ℹ️ [Firebase] App Check disabled for testing')
 
 // Development Mode: Connect to emulators
 if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {

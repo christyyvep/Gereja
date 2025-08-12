@@ -4,7 +4,9 @@ import {
   loginUser, 
   logoutUser, 
   getCurrentUser, 
-  isLoggedIn as checkLogin 
+  isLoggedIn as checkLogin,
+  clearSession,
+  forceLogout
 } from '@/services/auth-hybrid'
 import { useStreakStore } from './streakStore'
 
@@ -352,15 +354,50 @@ export const useUserStore = defineStore('user', {
     },
     
     /**
-     * Clear all user data from memory
+     * Clear all user data from memory and session
      */
     clearUserData() {
+      console.log('🧹 [UserStore] Clearing all user data...')
+      
+      // Clear store state
       this.user = null
       this.isLoggedIn = false
+      
+      // Clear session storage
+      clearSession()
       
       // Clear all store data from memory
       const streakStore = useStreakStore()
       streakStore.clearAllStreaks()
+      
+      console.log('✅ [UserStore] All user data cleared')
+    },
+
+    /**
+     * Force logout - complete session termination
+     * @returns {Promise<boolean>} Success status
+     */
+    async forceLogoutUser() {
+      try {
+        console.log('🚪 [UserStore] Force logout initiated...')
+        
+        // Clear store state first
+        this.user = null
+        this.isLoggedIn = false
+        
+        // Force logout via auth service
+        await forceLogout()
+        
+        // Clear all store data from memory
+        const streakStore = useStreakStore()
+        streakStore.clearAllStreaks()
+        
+        console.log('✅ [UserStore] Force logout completed')
+        return true
+      } catch (error) {
+        console.error('❌ [UserStore] Error during force logout:', error)
+        return false
+      }
     },
     
     /**

@@ -41,6 +41,7 @@ import AdminDashboard from '@/views/admin/AdminDashboard.vue'
 import AdminNews from '@/views/admin/AdminNews.vue'
 import AdminRenungan from '@/views/admin/AdminRenungan.vue'
 import AdminLaporanJemaat from '@/views/admin/AdminLaporanJemaat.vue'
+import KelolaJemaat from '@/views/admin/KelolaJemaat.vue'
 import LaporanJemaat from '@/views/LaporanJemaat.vue'
 
 const routes = [
@@ -248,15 +249,6 @@ const routes = [
           breadcrumb: 'Dashboard'
         }
       },
-      // {
-      //   path: 'users',
-      //   name: 'AdminUsers',
-      //   component: () => import('@/views/admin/AdminUsers.vue'),
-      //   meta: { 
-      //     title: 'Kelola Jemaat',
-      //     breadcrumb: 'Kelola Jemaat'
-      //   }
-      // },
       {
         path: 'news',
         name: 'AdminNews', 
@@ -329,6 +321,18 @@ const routes = [
         }
       },
       // Admin-only routes
+      {
+        path: 'kelola-jemaat',
+        name: 'KelolaJemaat',
+        component: KelolaJemaat,
+        beforeEnter: requireAdmin,
+        meta: { 
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Kelola Data Jemaat',
+          breadcrumb: 'Kelola Data Jemaat'
+        }
+      },
       {
         path: 'users',
         name: 'AdminUsers',

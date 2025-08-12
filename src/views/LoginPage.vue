@@ -109,11 +109,7 @@ import PasswordInput from '@/components/common/PasswordInput.vue'
 import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
 import { useUserStore } from '@/stores/userStore'
 import { useStreakStore } from '@/stores/streakStore'
-
-// UPDATED: Import hybrid auth
 import { loginUser } from '@/services/auth-hybrid'
-
-// Toast notification
 import { useToast } from '@/composables/useToast.js'
 
 export default {
@@ -123,6 +119,27 @@ export default {
     FormInput,
     PasswordInput,
     ButtonPrimary
+  },
+
+  // Navigation guard to check if user is already logged in
+  async beforeRouteEnter(to, from, next) {
+    try {
+      const { getCurrentUser, isLoggedIn } = await import('@/services/auth-hybrid')
+      
+      const currentUser = getCurrentUser()
+      const loggedIn = isLoggedIn()
+      
+      if (loggedIn && currentUser) {
+        console.log('🔄 [LoginPage] User already logged in, redirecting to home')
+        next('/home')
+      } else {
+        console.log('🔓 [LoginPage] No active session, proceeding to login page')
+        next()
+      }
+    } catch (error) {
+      console.error('❌ [LoginPage] Error in route guard:', error)
+      next() // Proceed to login page if there's an error
+    }
   },
   
   data() {
@@ -137,16 +154,56 @@ export default {
   },
 
   setup() {
-    const { showInfo } = useToast()
-    return { showInfo }
+    const { showInfo, showSuccess, showError } = useToast()
+    return { showInfo, showSuccess, showError }
   },
   
   mounted() {
+    // Check if user is already logged in
+    this.checkExistingLogin()
+    
+    // Force clear all sessions when login page loads
+    this.clearAllSessions()
+    
     // Check for remembered user on page load
     this.checkRememberedUser()
   },
   
   methods: {
+    /**
+     * Check if user is already logged in and redirect
+     */
+    async checkExistingLogin() {
+      try {
+        const userStore = useUserStore()
+        const isLoggedIn = await userStore.checkLoginStatus()
+        
+        if (isLoggedIn && userStore.user) {
+          console.log('🔄 [LoginPage] User already logged in, redirecting to home...')
+          await this.$router.replace('/home')
+          return true
+        }
+        return false
+      } catch (error) {
+        console.error('❌ [LoginPage] Error checking existing login:', error)
+        return false
+      }
+    },
+
+    /**
+     * Clear all session data when login page loads
+     */
+    async clearAllSessions() {
+      try {
+        console.log('🧹 [LoginPage] Clearing all existing sessions...')
+        const userStore = useUserStore()
+        await userStore.forceLogoutUser()
+        console.log('✅ [LoginPage] All sessions cleared')
+      } catch (error) {
+        console.error('❌ [LoginPage] Error clearing sessions:', error)
+      }
+    },
+
     /**
      * Check if there's a remembered user for auto-login
      */
@@ -201,10 +258,14 @@ export default {
         // UPDATED: Use hybrid auth directly
         const result = await loginUser(this.nama, this.password)
         
+        console.log('🔐 [LoginPage] Login result:', result)
+        
         if (result.success) {
           // Get user store for compatibility
           const userStore = useUserStore()
           userStore.setUser(result.user)
+          
+          console.log('✅ [LoginPage] User set in store:', result.user.nama)
           
           // Handle remember me functionality
           this.handleRememberMe(result.user)
@@ -215,17 +276,31 @@ export default {
           // Success notification
           this.showSuccessMessage(`Selamat datang, ${result.user.nama}!`)
           
-          console.log('✅ [LoginPage] Hybrid auth login successful')
+          console.log('✅ [LoginPage] Hybrid auth login successful, navigating to home...')
+          
+          // Set recent login flag to prevent session clearing
+          sessionStorage.setItem('recentLogin', Date.now().toString())
           
           // Navigate to home
           await this.$router.push('/home')
           
-          // ✨ SOLUSI UNTUK MASALAH CACHE ✨
-          // Tunggu sebentar lalu refresh otomatis untuk tampilan fresh
-          setTimeout(() => {
-            console.log('🔄 Auto refresh untuk tampilan fresh...')
-            window.location.reload()
-          }, 500)
+          console.log('✅ [LoginPage] Navigation to /home completed')
+        } else {
+          // Handle login failure
+          console.error('❌ [LoginPage] Login failed:', result.message)
+          
+          if (result.message.includes('tidak ditemukan')) {
+            this.errorNama = 'Nama tidak terdaftar dalam sistem'
+          } else if (result.message.includes('Password')) {
+            this.errorPassword = 'Password yang Anda masukkan salah'
+          } else if (result.message.includes('terlalu banyak')) {
+            this.errorNama = 'Terlalu banyak percobaan login. Coba lagi nanti.'
+          } else {
+            this.errorNama = result.message || 'Login gagal, silakan coba lagi'
+          }
+          
+          // Error notification
+          this.showError(result.message || 'Login gagal, silakan coba lagi')
         }
         
       } catch (error) {
@@ -267,12 +342,19 @@ export default {
      * Handle login errors
      */
     handleLoginError(error) {
-      if (error.message.includes('Nama')) {
-        this.errorNama = error.message
-      } else if (error.message.includes('Password')) {
-        this.errorPassword = error.message
+      // Handle cases where error might be undefined or not have message property
+      const errorMessage = error?.message || error || 'Terjadi kesalahan saat login'
+      
+      if (typeof errorMessage === 'string') {
+        if (errorMessage.includes('Nama')) {
+          this.errorNama = errorMessage
+        } else if (errorMessage.includes('Password')) {
+          this.errorPassword = errorMessage
+        } else {
+          this.errorNama = errorMessage
+        }
       } else {
-        this.errorNama = error.message || 'Terjadi kesalahan saat login'
+        this.errorNama = 'Terjadi kesalahan saat login'
       }
     },
     
@@ -300,11 +382,11 @@ export default {
     },
     
     /**
-     * Show success message (placeholder)
+     * Show success message with toast
      */
     showSuccessMessage(message) {
-      // TODO: Implement proper toast notification
-      console.log('Success:', message)
+      this.showSuccess(message)
+      console.log('✅ Success:', message)
     },
     
     /**

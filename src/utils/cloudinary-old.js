@@ -1,17 +1,8 @@
-// src/utils/cloudinary.js - VERSI YANG DIPERBAIKI
-
+// Simple Cloudinary Util - Direct URLs Only
 export const CLOUDINARY_CONFIG = {
-  // ⭐ KEEP original env variable structure (kalau sudah di-set)
-  cloudName: process.env.VUE_APP_CLOUDINARY_CLOUD_NAME || 'df74ywsgg', // fallback
-  apiKey: process.env.VUE_APP_CLOUDINARY_API_KEY,
-  
-  // ⭐ Upload preset for unsigned uploads (must match Cloudinary settings)
-  uploadPreset: process.env.VUE_APP_CLOUDINARY_UPLOAD_PRESET || 'myrajawali_preset', // Correct preset name
-  
-  // ⭐ SAFE: Keep original baseUrl construction
-  baseUrl: process.env.VUE_APP_CLOUDINARY_CLOUD_NAME 
-    ? `https://res.cloudinary.com/${process.env.VUE_APP_CLOUDINARY_CLOUD_NAME}/image/upload`
-    : 'https://res.cloudinary.com/df74ywsgg/image/upload',
+  cloudName: 'df74ywsgg',
+  baseUrl: 'https://res.cloudinary.com/df74ywsgg/image/upload'
+};
   
   // Folder structure dengan UKURAN YANG BENAR
   folders: {
@@ -72,12 +63,12 @@ export function getNewsCloudinaryUrl(filename, size = 'card-desktop') {
   try {
     console.log(`📰 [getNewsCloudinaryUrl] Processing: "${filename}", size: "${size}"`)
     
-    // ✅ IMPROVED TRANSFORM: Menggunakan c_fill untuk coverage penuh dengan device optimization
+    // ✅ SIMPLIFIED TRANSFORM: Lebih compatible untuk cross-device
     let transform
     if (size === 'card-mobile') {
-      transform = 'w_80,h_80,c_fill,g_center,f_auto,q_auto,dpr_auto'  // 80x80 untuk mobile
+      transform = 'w_80,h_80,c_fill'  // Simple transform untuk mobile
     } else {
-      transform = 'w_400,h_250,c_fill,g_center,f_auto,q_auto,dpr_auto'  // 400x250 untuk desktop
+      transform = 'w_400,h_250,c_fill'  // Simple transform untuk desktop
     }
     
     console.log(`🎯 [getNewsCloudinaryUrl] Using transform: ${transform}`)
@@ -96,12 +87,18 @@ export function getNewsCloudinaryUrl(filename, size = 'card-desktop') {
     
     console.log(`🧹 [getNewsCloudinaryUrl] Public ID: "${publicId}"`)
     
-    // ✅ GENERATE URL: Base URL + transform + public ID + cache busting
-    const timestamp = Date.now()
-    const randomSeed = Math.random().toString(36).substring(2, 15)
-    const finalUrl = `${CLOUDINARY_CONFIG.baseUrl}/${transform}/${publicId}?v=${timestamp}&r=${randomSeed}`
-    console.log(`🔗 [getNewsCloudinaryUrl] Final URL: ${finalUrl}`)
+    // ✅ GENERATE URL: Base URL + transform + fallback ke sample jika tidak ada
+    let finalUrl
     
+    // Try dengan public ID yang diberikan
+    if (publicId && publicId !== 'sample-news' && publicId !== '') {
+      finalUrl = `${CLOUDINARY_CONFIG.baseUrl}/${transform}/${publicId}`
+    } else {
+      // Fallback ke sample image yang pasti ada
+      finalUrl = `${CLOUDINARY_CONFIG.baseUrl}/${transform}/sample`
+    }
+    
+    console.log(`🔗 [getNewsCloudinaryUrl] Final URL: ${finalUrl}`)
     return finalUrl
     
   } catch (error) {
@@ -224,13 +221,9 @@ export function getRenunganCloudinaryUrl(filename, size = 'card-desktop') {
     // ✅ HANDLE FILENAME: Process as filename
     console.log(`📄 [getRenunganCloudinaryUrl] Processing as filename...`)
     
-    // Get transform parameters
-    const transform = CLOUDINARY_CONFIG.transforms[size] || CLOUDINARY_CONFIG.transforms['card-desktop']
+    // Get transform parameters (simplified)
+    const transform = size === 'card-mobile' ? 'w_80,h_80,c_fill' : 'w_400,h_250,c_fill'
     console.log(`🎯 Using transform: ${transform}`)
-    
-    // Get folder based on size
-    const folder = CLOUDINARY_CONFIG.folders.renungan[size] || CLOUDINARY_CONFIG.folders.renungan.cardDesktop
-    console.log(`📁 Using folder: ${folder}`)
     
     // Clean filename
     let cleanFilename = filename
@@ -238,9 +231,17 @@ export function getRenunganCloudinaryUrl(filename, size = 'card-desktop') {
       cleanFilename = filename.replace(/\.(jpg|jpeg|png|webp|gif)$/i, '')
     }
     
-    const directUrl = `${CLOUDINARY_CONFIG.baseUrl}/${transform}/${folder}/${cleanFilename}`
-    console.log(`🔗 Generated Renungan URL: ${directUrl}`)
-    return directUrl
+    // Generate simple URL - fallback to 'sample' if filename is empty or doesn't exist
+    let finalUrl
+    if (cleanFilename && cleanFilename !== 'sample-renungan' && cleanFilename !== '') {
+      finalUrl = `${CLOUDINARY_CONFIG.baseUrl}/${transform}/${cleanFilename}`
+    } else {
+      // Fallback to sample image
+      finalUrl = `${CLOUDINARY_CONFIG.baseUrl}/${transform}/sample`
+    }
+    
+    console.log(`🔗 Generated Renungan URL: ${finalUrl}`)
+    return finalUrl
     
   } catch (error) {
     console.error('❌ Error in getRenunganCloudinaryUrl:', error)

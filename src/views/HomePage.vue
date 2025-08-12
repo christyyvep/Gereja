@@ -4,7 +4,6 @@
     <!-- === DESKTOP LAYOUT (≥769px) === -->
     <div class="desktop-layout">
       
-      <!-- ✅ GUNAKAN COMPONENT NAVBAR -->
       <DesktopNavbar />
 
       <!-- Main Content Container -->

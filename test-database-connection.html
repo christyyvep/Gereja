@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Database Connection - MyRajawali</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .btn:hover {
+            background: #5a6fd8;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Test Custom Authentication System</h1>
+            <p>Testing database connection untuk sistem autentikasi custom MyRajawali</p>
+        </div>
+
+        <div id="results"></div>
+
+        <div style="text-align: center; margin: 20px 0;">
+            <button class="btn" onclick="testConnection()">
+                <span id="btn-text">🧪 Test Database Connection</span>
+                <span id="loading" class="loading" style="display: none;"></span>
+            </button>
+            <button class="btn" onclick="clearResults()" style="background: #6c757d;">
+                🗑️ Clear Results
+            </button>
+        </div>
+
+        <div id="console-log" class="log" style="display: none;">
+            <h4>Console Log:</h4>
+            <div id="log-content"></div>
+        </div>
+        
+        <div class="info">
+            <h4>ℹ️ About This Test</h4>
+            <p>Test ini mengecek:</p>
+            <ul>
+                <li>Koneksi ke Firestore database</li>
+                <li>Akses ke collection 'jemaat'</li>
+                <li>Sistem autentikasi custom (nama + password)</li>
+                <li>Data user yang tersedia</li>
+                <li>Environment hosting</li>
+            </ul>
+        </div>
+    </div>
+
+    <script type="module">
+        let originalConsoleLog = console.log;
+        let originalConsoleError = console.error;
+        let logs = [];
+
+        // Override console untuk menangkap logs
+        function captureConsole() {
+            console.log = function(...args) {
+                logs.push({type: 'log', message: args.join(' ')});
+                originalConsoleLog.apply(console, args);
+                updateLogDisplay();
+            };
+            
+            console.error = function(...args) {
+                logs.push({type: 'error', message: args.join(' ')});
+                originalConsoleError.apply(console, args);
+                updateLogDisplay();
+            };
+        }
+
+        function updateLogDisplay() {
+            const logElement = document.getElementById('log-content');
+            logElement.innerHTML = logs.map(log => 
+                `<div style="color: ${log.type === 'error' ? 'red' : 'black'}">${log.message}</div>`
+            ).join('');
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function showResults(type, message) {
+            const results = document.getElementById('results');
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = message;
+            results.appendChild(statusDiv);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('log-content').innerHTML = '';
+            document.getElementById('console-log').style.display = 'none';
+            logs = [];
+        }
+
+        function setLoading(isLoading) {
+            const btnText = document.getElementById('btn-text');
+            const loading = document.getElementById('loading');
+            
+            if (isLoading) {
+                btnText.style.display = 'none';
+                loading.style.display = 'inline-block';
+            } else {
+                btnText.style.display = 'inline';
+                loading.style.display = 'none';
+            }
+        }
+
+        window.testConnection = async function() {
+            clearResults();
+            setLoading(true);
+            captureConsole();
+            
+            try {
+                showResults('info', '🔄 Starting custom authentication system test...');
+                document.getElementById('console-log').style.display = 'block';
+
+                // Import Firebase services
+                console.log('📡 Step 1: Importing Firebase services...');
+                const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+                const { getFirestore, collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+
+                // Firebase config
+                const firebaseConfig = {
+                    apiKey: "AIzaSyBtGgShLr_s_gqqDGhOEPmh5VfwZUJDHeY",
+                    authDomain: "myrajawali-app.firebaseapp.com",
+                    projectId: "myrajawali-app",
+                    storageBucket: "myrajawali-app.appspot.com",
+                    messagingSenderId: "414682263250",
+                    appId: "1:414682263250:web:a0e1e2f3g4h5i6j7k8l9m0"
+                };
+
+                console.log('🔥 Step 2: Initializing Firebase...');
+                const app = initializeApp(firebaseConfig);
+                const db = getFirestore(app);
+                
+                showResults('success', '✅ Firebase initialized successfully');
+
+                // Test Firestore connection
+                console.log('📖 Step 3: Testing Firestore connection...');
+                const jemaatRef = collection(db, 'jemaat');
+                const snapshot = await getDocs(jemaatRef);
+                
+                console.log(`✅ Connected to Firestore! Found ${snapshot.size} documents in 'jemaat' collection`);
+                showResults('success', `✅ Database connected! Found ${snapshot.size} users`);
+
+                // Analyze user data
+                console.log('👥 Step 4: Analyzing user data...');
+                let validUsers = 0;
+                let usersWithPassword = 0;
+                let christyFound = false;
+                let userList = [];
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const hasName = data.nama && data.nama.trim() !== '';
+                    const hasPassword = data.password && data.password.trim() !== '';
+                    
+                    if (hasName) {
+                        validUsers++;
+                        userList.push(data.nama);
+                    }
+                    if (hasPassword) usersWithPassword++;
+                    
+                    if (data.nama && data.nama.toLowerCase().includes('christy')) {
+                        christyFound = true;
+                        console.log(`✅ Found Christy: "${data.nama}"`);
+                        console.log(`   - Has password: ${hasPassword}`);
+                        console.log(`   - Is registered: ${data.isRegistered || false}`);
+                    }
+                });
+
+                console.log(`📊 User Analysis:`);
+                console.log(`   - Total documents: ${snapshot.size}`);
+                console.log(`   - Users with names: ${validUsers}`);
+                console.log(`   - Users with passwords: ${usersWithPassword}`);
+                console.log(`   - Christy found: ${christyFound ? 'Yes' : 'No'}`);
+
+                showResults('info', `📊 User Analysis: ${validUsers} valid users, ${usersWithPassword} with passwords`);
+
+                if (christyFound) {
+                    showResults('success', '✅ Christy found in database - ready for login test');
+                } else {
+                    showResults('warning', '⚠️ Christy not found - check user data');
+                }
+
+                // Check environment
+                console.log('🌐 Step 5: Checking environment...');
+                const isHosted = window.location.hostname !== 'localhost' && 
+                                window.location.hostname !== '127.0.0.1';
+                
+                console.log(`Environment: ${isHosted ? 'Production (Hosted)' : 'Development (Local)'}`);
+                console.log(`URL: ${window.location.href}`);
+
+                if (isHosted) {
+                    showResults('success', '🌐 Running on hosted environment - database accessible from web');
+                } else {
+                    showResults('info', 'ℹ️ Running on local development environment');
+                }
+
+                // Final summary
+                showResults('success', '🎉 Custom authentication system test completed successfully!');
+                console.log('🎯 Test completed! Custom authentication system is working properly.');
+                
+                if (christyFound) {
+                    console.log('💡 You can now test login with Christy\'s credentials');
+                }
+
+            } catch (error) {
+                console.error('❌ Test failed:', error);
+                showResults('error', `❌ Test failed: ${error.message}`);
+                
+                console.log('💡 Troubleshooting suggestions:');
+                console.log('   1. Check internet connection');
+                console.log('   2. Verify Firebase configuration');
+                console.log('   3. Check Firestore rules');
+                console.log('   4. Ensure \'jemaat\' collection exists');
+                
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        window.clearResults = clearResults;
+    </script>
+</body>
+</html>

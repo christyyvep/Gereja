@@ -360,6 +360,36 @@ if (isDevelopment) {
       const result = checkRateLimit(identifier, 3, 60000) // 3 attempts per minute
       console.log('🔐 [Debug] Rate limit check:', result)
       return result
+    },
+    
+    // === DEBUG AUTH FUNCTIONS ===
+    async clearAllSessions() {
+      try {
+        const { forceLogout } = await import('./services/auth-hybrid')
+        const { useUserStore } = await import('./stores/userStore')
+        
+        const userStore = useUserStore()
+        await userStore.forceLogoutUser()
+        await forceLogout()
+        
+        console.log('🧹 [Debug] All sessions cleared - refresh page to see effect')
+        return true
+      } catch (error) {
+        console.error('❌ [Debug] Error clearing sessions:', error)
+        return false
+      }
+    },
+    
+    async forceLogin(nama, password) {
+      try {
+        const { loginUser } = await import('./services/auth-hybrid')
+        const result = await loginUser(nama, password)
+        console.log('🔐 [Debug] Force login result:', result)
+        return result
+      } catch (error) {
+        console.error('❌ [Debug] Force login error:', error)
+        return false
+      }
     }
   }
   
@@ -369,4 +399,6 @@ if (isDevelopment) {
   console.log('   ✅ debugSecurity.checkSession() - Check session validity')
   console.log('   ⚠️ debugSecurity.forceSessionWarning() - Trigger session warning')
   console.log('   🚫 debugSecurity.testRateLimit(id) - Test rate limiting')
+  console.log('   🧹 debugSecurity.clearAllSessions() - Clear all sessions')
+  console.log('   🔐 debugSecurity.forceLogin(nama, pass) - Force login')
 }

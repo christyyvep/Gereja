@@ -202,7 +202,7 @@ import {
   limit,
   onSnapshot
 } from 'firebase/firestore'
-import { db } from '@/services/firebase'
+import { db } from '@/services/firebase-security'
 import { getAllUsersWithRoles } from '@/services/auth'
 import { getAllPrayerRequestsForAdmin } from '@/services/prayerRequests'
 import { getAllLaporanForAdmin } from '@/services/laporanJemaat'
