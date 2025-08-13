@@ -51,13 +51,13 @@ export const CLOUDINARY_CONFIG = {
   
   // 🎯 SIZE TRANSFORMS dengan ukuran yang BENAR dan crop setting yang natural
   transforms: {
-    'card-mobile': 'w_80,h_80,c_fit,f_auto,q_auto',           // 80x80 - HP di NewsPage
-    'card-desktop': 'w_400,h_250,c_fit,f_auto,q_auto',        // 400x250 - Desktop di NewsPage  
-    'detail-mobile': 'w_400,h_250,c_fit,f_auto,q_auto',       // 400x250 - HP di DetailNews
-    'detail-desktop': 'w_800,h_450,c_fit,f_auto,q_auto',      // 800x450 - Desktop di DetailNews
+    'card-mobile': 'w_80,h_80,c_fit,f_auto,q_auto:best',           // 80x80 - HP di NewsPage
+    'card-desktop': 'w_400,h_250,c_fit,f_auto,q_auto:best',        // 400x250 - Desktop di NewsPage  
+    'detail-mobile': 'w_400,h_250,c_fit,f_auto,q_auto:best',       // 400x250 - HP di DetailNews
+    'detail-desktop': 'w_800,h_450,c_fit,f_auto,q_auto:best',      // 800x450 - Desktop di DetailNews
     // Legacy support
-    'large': 'w_400,h_250,c_fit,f_auto,q_auto',
-    'small': 'w_80,h_80,c_fit,f_auto,q_auto'
+    'large': 'w_400,h_250,c_fit,f_auto,q_auto:best',
+    'small': 'w_80,h_80,c_fit,f_auto,q_auto:best'
   }
 }
 
@@ -67,20 +67,20 @@ export function getCloudinaryImageUrl(folder, filename, version = null) {
   return `${CLOUDINARY_CONFIG.baseUrl}${versionStr}/${folder}/${filename}`
 }
 
-// ⭐ SIMPLE: getNewsCloudinaryUrl yang MUDAH
+// ⭐ SIMPLE: getNewsCloudinaryUrl yang MUDAH dan CEPAT
 export function getNewsCloudinaryUrl(filename, size = 'card-desktop') {
   try {
     console.log(`📰 [getNewsCloudinaryUrl] Processing: "${filename}", size: "${size}"`)
     
-    // ✅ SIMPLE TRANSFORM: Menggunakan c_fit untuk menghindari crop berlebihan
+    // ✅ OPTIMIZED TRANSFORM: Menggunakan q_auto:best untuk kualitas terbaik dengan ukuran minimal
     let transform
     if (size === 'card-mobile') {
-      transform = 'w_80,h_80,c_fit,f_auto,q_auto'  // 80x80 untuk mobile
+      transform = 'w_80,h_80,c_fit,f_auto,q_auto:best,fl_progressive'  // 80x80 untuk mobile
     } else {
-      transform = 'w_400,h_250,c_fit,f_auto,q_auto'  // 400x250 untuk desktop
+      transform = 'w_400,h_250,c_fit,f_auto,q_auto:best,fl_progressive'  // 400x250 untuk desktop
     }
     
-    console.log(`🎯 [getNewsCloudinaryUrl] Using transform: ${transform}`)
+    console.log(`🎯 [getNewsCloudinaryUrl] Using optimized transform: ${transform}`)
     
     // ✅ CLEAN FILENAME: Ambil public ID aja
     let publicId = filename
@@ -116,23 +116,23 @@ export function getJadwalCloudinaryUrl(filename, size = 'card-desktop', forceRef
   try {
     console.log(`📅 [getJadwalCloudinaryUrl] Processing: ${filename}, size: ${size}, forceRefresh: ${forceRefresh}`)
     
-    // ✅ TRANSFORM MAPPING: Menggunakan c_fit untuk mencegah crop yang berlebihan
+    // ✅ TRANSFORM MAPPING: Menggunakan progressive loading dan kualitas optimal
     let transform
     switch (size) {
       case 'card-mobile':
-        transform = 'w_80,h_80,c_fit,f_auto,q_auto'  // 80x80 untuk mobile card
+        transform = 'w_80,h_80,c_fit,f_auto,q_auto:best,fl_progressive'  // 80x80 untuk mobile card
         break
       case 'card-desktop':
-        transform = 'w_400,h_250,c_fit,f_auto,q_auto'  // 400x250 untuk desktop card
+        transform = 'w_400,h_250,c_fit,f_auto,q_auto:best,fl_progressive'  // 400x250 untuk desktop card
         break
       case 'detail-mobile':
-        transform = 'w_400,h_250,c_fit,f_auto,q_auto'  // 400x250 untuk mobile detail
+        transform = 'w_400,h_250,c_fit,f_auto,q_auto:best,fl_progressive'  // 400x250 untuk mobile detail
         break
       case 'detail-desktop':
-        transform = 'w_800,h_450,c_fit,f_auto,q_auto'  // 800x450 untuk desktop detail
+        transform = 'w_800,h_450,c_fit,f_auto,q_auto:best,fl_progressive'  // 800x450 untuk desktop detail
         break
       default:
-        transform = 'w_400,h_250,c_fit,f_auto,q_auto'  // Default ke desktop card
+        transform = 'w_400,h_250,c_fit,f_auto,q_auto:best,fl_progressive'  // Default ke desktop card
     }
     
     console.log(`🎯 [getJadwalCloudinaryUrl] Using transform: ${transform}`)

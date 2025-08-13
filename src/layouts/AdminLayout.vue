@@ -5,15 +5,27 @@
     <aside class="admin-sidebar">
       <div class="sidebar-brand">
         <img src="@/assets/logos/logo-MyRajawali.png" alt="Logo" class="logo" />
-        <h2>MyRajawali Admin</h2>
+        <h2>{{ userStore.isOperator ? 'MyRajawali Operator' : 'MyRajawali Admin' }}</h2>
       </div>
       
       <nav class="sidebar-nav">
-        <router-link to="/admin/dashboard" class="nav-item">
+        <!-- Admin Dashboard - only for admin/gembala -->
+        <router-link 
+          v-if="userStore.isAdmin" 
+          to="/admin/dashboard" 
+          class="nav-item"
+        >
           <LayoutDashboard class="nav-icon" />
           Dashboard
         </router-link>
-        <!-- Ganti router-link jadi button dengan @click -->
+        
+        <!-- Kelola Data Jemaat - read-only for operator, full CRUD for admin -->
+        <router-link to="/admin/users" class="nav-item">
+          <Users class="nav-icon" />
+          {{ userStore.isOperator ? 'Lihat Data Jemaat' : 'Kelola Data Jemaat' }}
+        </router-link>
+        
+        <!-- Content Management - available for all roles -->
         <button @click="navigateToNews" class="nav-item nav-button">
           <Newspaper class="nav-icon" />
           Kelola Berita
@@ -30,14 +42,27 @@
           <CalendarHeart class="nav-icon" />
           Jadwal Peltar
         </router-link>
-        <router-link to="/admin/prayer-requests" class="nav-item">
+        
+        <!-- Prayer Requests - hidden for operator -->
+        <router-link 
+          v-if="!userStore.isOperator" 
+          to="/admin/prayer-requests" 
+          class="nav-item"
+        >
           <Heart class="nav-icon" />
           Prayer Requests
         </router-link>
-        <router-link to="/admin/laporan-jemaat" class="nav-item">
+        
+        <!-- Laporan Jemaat - hidden for operator -->
+        <router-link 
+          v-if="!userStore.isOperator" 
+          to="/admin/laporan-jemaat" 
+          class="nav-item"
+        >
           <FileText class="nav-icon" />
           Laporan Jemaat
         </router-link>
+        
         <router-link to="/home" class="nav-item back-to-app">
           <Home class="nav-icon" />
           Kembali ke App
@@ -49,9 +74,9 @@
     <main class="admin-main">
       <!-- Top Bar -->
       <header class="admin-header">
-        <h1>{{ $route.meta.title || 'Admin Panel' }}</h1>
+        <h1>{{ $route.meta.title || (userStore.isOperator ? 'Operator Panel' : 'Admin Panel') }}</h1>
         <div class="header-actions">
-          <span>{{ userStore.user?.nama || 'Admin' }}</span>
+          <span>{{ userStore.user?.nama || (userStore.isOperator ? 'Operator' : 'Admin') }}</span>
           <button @click="logout" class="logout-btn">Logout</button>
         </div>
       </header>
@@ -74,6 +99,7 @@ import {
   Calendar, 
   CalendarHeart,
   Heart, 
+  Users,
   FileText, 
   Home 
 } from 'lucide-vue-next'
@@ -87,6 +113,7 @@ export default {
     Calendar,
     CalendarHeart,
     Heart,
+    Users,
     FileText,
     Home
   },
@@ -105,6 +132,11 @@ export default {
     // Load Cloudinary debugging tools in admin panel
     if (process.env.NODE_ENV === 'development') {
       this.loadCloudinaryDebugTools()
+    }
+
+    // Redirect operator to news page if accessing dashboard
+    if (this.userStore.isOperator && this.$route.path === '/admin/dashboard') {
+      this.$router.replace('/admin/news')
     }
   },
   methods: {

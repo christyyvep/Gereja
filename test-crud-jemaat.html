@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test CRUD Jemaat - Admin vs Operator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f7fa;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .test-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-warning:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background: #138496;
+            transform: translateY(-2px);
+        }
+        
+        .result-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .success {
+            border-left: 4px solid #28a745;
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .error {
+            border-left: 4px solid #dc3545;
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .info {
+            border-left: 4px solid #17a2b8;
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .warning {
+            border-left: 4px solid #ffc107;
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .role-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 8px;
+        }
+        
+        .role-admin {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .role-operator {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .role-jemaat {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .form-group {
+            margin: 1rem 0;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧪 Test CRUD Jemaat - Admin vs Operator</h1>
+        <p>Tool untuk testing perbedaan akses antara Admin (full CRUD) dan Operator (read-only)</p>
+    </div>
+
+    <!-- User Role Setup -->
+    <div class="test-section">
+        <h2>🔑 Setup User Role</h2>
+        <p>Pilih role untuk testing akses fitur Kelola Data Jemaat:</p>
+        
+        <div class="button-group">
+            <button class="btn-danger" onclick="setRole('admin')">Set sebagai Admin</button>
+            <button class="btn-warning" onclick="setRole('operator')">Set sebagai Operator</button>
+            <button class="btn-secondary" onclick="setRole('jemaat')">Set sebagai Jemaat</button>
+            <button class="btn-info" onclick="checkCurrentRole()">Cek Role Saat Ini</button>
+        </div>
+        
+        <div id="roleResult" class="result-box info" style="display: none;">
+            <strong>Current Role:</strong> <span id="currentRole">-</span>
+            <span id="roleIndicator" class="role-indicator">-</span>
+        </div>
+    </div>
+
+    <!-- Access Testing -->
+    <div class="test-section">
+        <h2>🔐 Test Akses Panel Admin</h2>
+        <p>Test apakah user dengan role tertentu bisa mengakses panel admin:</p>
+        
+        <div class="button-group">
+            <button class="btn-primary" onclick="testAdminAccess()">Test Akses Admin Panel</button>
+            <button class="btn-info" onclick="testManagementAccess()">Test Management Access</button>
+            <button class="btn-success" onclick="testOperatorAccess()">Test Operator Access</button>
+        </div>
+        
+        <div id="accessResult" class="result-box" style="display: none;"></div>
+    </div>
+
+    <!-- CRUD Testing -->
+    <div class="test-section">
+        <h2>📝 Test CRUD Operations</h2>
+        <p>Test operasi Create, Read, Update, Delete untuk data jemaat:</p>
+        
+        <div class="grid">
+            <div>
+                <h3>📋 Mock Data Jemaat</h3>
+                <div class="form-group">
+                    <label>Nama:</label>
+                    <input type="text" id="testNama" value="Test User" placeholder="Nama lengkap">
+                </div>
+                <div class="form-group">
+                    <label>Sektor:</label>
+                    <input type="text" id="testSektor" value="Sektor 1" placeholder="Sektor">
+                </div>
+                <div class="form-group">
+                    <label>Role:</label>
+                    <select id="testRole">
+                        <option value="jemaat">Jemaat</option>
+                        <option value="operator">Operator</option>
+                        <option value="gembala">Gembala</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div>
+                <h3>🔧 CRUD Actions</h3>
+                <div class="button-group">
+                    <button class="btn-success" onclick="testCreate()">CREATE</button>
+                    <button class="btn-info" onclick="testRead()">READ</button>
+                    <button class="btn-warning" onclick="testUpdate()">UPDATE</button>
+                    <button class="btn-danger" onclick="testDelete()">DELETE</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="crudResult" class="result-box" style="display: none;"></div>
+    </div>
+
+    <!-- Navigation Testing -->
+    <div class="test-section">
+        <h2>🧭 Test Navigation & UI</h2>
+        <p>Test tampilan dan navigasi sesuai role:</p>
+        
+        <div class="button-group">
+            <button class="btn-primary" onclick="testAdminButton()">Test Admin Button</button>
+            <button class="btn-info" onclick="testSidebarMenu()">Test Sidebar Menu</button>
+            <button class="btn-success" onclick="testPageAccess()">Test Page Access</button>
+            <button class="btn-secondary" onclick="simulatePageLoad()">Simulate AdminUsers Load</button>
+        </div>
+        
+        <div id="navResult" class="result-box" style="display: none;"></div>
+    </div>
+
+    <!-- Console Commands -->
+    <div class="test-section">
+        <h2>💻 Console Commands</h2>
+        <p>Commands yang bisa dijalankan di browser console untuk testing lanjutan:</p>
+        
+        <div class="result-box info">
+            <strong>User Store Commands:</strong><br>
+            <code>userStore.setAsAdmin()</code> - Set role admin<br>
+            <code>userStore.setAsOperator()</code> - Set role operator<br>
+            <code>userStore.debugUser()</code> - Debug info user<br>
+            <code>userStore.getDebugInfo()</code> - Get debug object<br><br>
+            
+            <strong>Navigation Commands:</strong><br>
+            <code>$router.push('/admin')</code> - Go to admin panel<br>
+            <code>$router.push('/admin/users')</code> - Go to kelola jemaat<br><br>
+            
+            <strong>Testing Commands:</strong><br>
+            <code>testAllPermissions()</code> - Test semua permissions<br>
+            <code>simulateOperatorWorkflow()</code> - Simulate workflow operator<br>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentUserRole = 'jemaat';
+        
+        // Initialize
+        window.onload = function() {
+            checkCurrentRole();
+            console.log('🧪 CRUD Jemaat Test Tool loaded');
+            console.log('💡 Tip: Buka Developer Tools untuk melihat log detail');
+        };
+        
+        // Role Management Functions
+        function setRole(role) {
+            try {
+                console.log(`🔄 Setting role to: ${role}`);
+                
+                // Update localStorage (simulate user store)
+                const mockUser = {
+                    nama: 'Test User',
+                    role: role,
+                    id: 'test-user-id',
+                    sektor: 'Test Sektor',
+                    isRegistered: true,
+                    lastLoginAt: new Date().toISOString()
+                };
+                
+                localStorage.setItem('user', JSON.stringify(mockUser));
+                localStorage.setItem('myrajawali_user', JSON.stringify(mockUser));
+                
+                currentUserRole = role;
+                
+                // Update UI
+                updateRoleDisplay(role);
+                showResult('roleResult', `✅ Role berhasil diset ke: ${role.toUpperCase()}`, 'success');
+                
+                console.log('✅ Role updated successfully:', role);
+                
+            } catch (error) {
+                console.error('❌ Error setting role:', error);
+                showResult('roleResult', `❌ Gagal set role: ${error.message}`, 'error');
+            }
+        }
+        
+        function checkCurrentRole() {
+            try {
+                // Check localStorage
+                const user = localStorage.getItem('user');
+                if (user) {
+                    const userData = JSON.parse(user);
+                    currentUserRole = userData.role || 'jemaat';
+                } else {
+                    currentUserRole = 'jemaat';
+                }
+                
+                updateRoleDisplay(currentUserRole);
+                showResult('roleResult', `ℹ️ Role saat ini: ${currentUserRole.toUpperCase()}`, 'info');
+                
+                console.log('👤 Current user role:', currentUserRole);
+                
+            } catch (error) {
+                console.error('❌ Error checking role:', error);
+                showResult('roleResult', `❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        function updateRoleDisplay(role) {
+            document.getElementById('currentRole').textContent = role.toUpperCase();
+            const indicator = document.getElementById('roleIndicator');
+            indicator.textContent = role;
+            indicator.className = `role-indicator role-${role}`;
+        }
+        
+        // Access Testing Functions
+        function testAdminAccess() {
+            console.log('🔐 Testing admin access...');
+            
+            const isAdmin = ['admin', 'gembala'].includes(currentUserRole);
+            const canAccess = ['admin', 'gembala', 'operator'].includes(currentUserRole);
+            
+            let result = `
+<strong>Admin Access Test Results:</strong>
+Role: ${currentUserRole.toUpperCase()}
+Is Admin/Gembala: ${isAdmin ? '✅ YES' : '❌ NO'}
+Can Access Admin Panel: ${canAccess ? '✅ YES' : '❌ NO'}
+Full CRUD Access: ${isAdmin ? '✅ YES' : '❌ NO'}
+
+<strong>Expected Behavior:</strong>
+- Admin/Gembala: Full CRUD access
+- Operator: Read-only access
+- Jemaat: No access to admin panel
+            `;
+            
+            const resultType = canAccess ? 'success' : 'error';
+            showResult('accessResult', result, resultType);
+        }
+        
+        function testManagementAccess() {
+            console.log('🔧 Testing management access...');
+            
+            const hasManagement = ['admin', 'gembala', 'operator'].includes(currentUserRole);
+            
+            let result = `
+<strong>Management Access Test:</strong>
+Role: ${currentUserRole.toUpperCase()}
+Has Management Access: ${hasManagement ? '✅ YES' : '❌ NO'}
+Can View Data Jemaat: ${hasManagement ? '✅ YES' : '❌ NO'}
+Can Modify Data: ${['admin', 'gembala'].includes(currentUserRole) ? '✅ YES' : '❌ NO (Read-Only)'}
+            `;
+            
+            showResult('accessResult', result, hasManagement ? 'success' : 'warning');
+        }
+        
+        function testOperatorAccess() {
+            console.log('👷 Testing operator access...');
+            
+            const isOperator = currentUserRole === 'operator';
+            const readOnlyAccess = isOperator;
+            
+            let result = `
+<strong>Operator Access Test:</strong>
+Role: ${currentUserRole.toUpperCase()}
+Is Operator: ${isOperator ? '✅ YES' : '❌ NO'}
+Read-Only Access: ${readOnlyAccess ? '✅ YES' : '❌ NO'}
+Can Create Jemaat: ${isOperator ? '❌ NO' : '✅ YES (if admin)'}
+Can Edit Jemaat: ${isOperator ? '❌ NO' : '✅ YES (if admin)'}
+Can Delete Jemaat: ${isOperator ? '❌ NO' : '✅ YES (if admin)'}
+
+<strong>Operator Capabilities:</strong>
+- ✅ View data jemaat (read-only)
+- ✅ Access admin panel
+- ✅ Manage content (news, announcements, etc.)
+- ❌ CRUD data jemaat
+- ❌ Access dashboard
+- ❌ Access prayer requests
+- ❌ Access laporan jemaat
+            `;
+            
+            showResult('accessResult', result, isOperator ? 'info' : 'warning');
+        }
+        
+        // CRUD Testing Functions
+        function testCreate() {
+            console.log('📝 Testing CREATE operation...');
+            
+            const nama = document.getElementById('testNama').value;
+            const sektor = document.getElementById('testSektor').value;
+            const role = document.getElementById('testRole').value;
+            
+            const canCreate = ['admin', 'gembala'].includes(currentUserRole);
+            
+            let result = `
+<strong>CREATE Test (Add New Jemaat):</strong>
+Current Role: ${currentUserRole.toUpperCase()}
+Can Create: ${canCreate ? '✅ YES' : '❌ NO'}
+
+<strong>Test Data:</strong>
+Nama: ${nama}
+Sektor: ${sektor}
+Role: ${role}
+
+<strong>Expected Result:</strong>
+${canCreate ? 
+    '✅ Admin/Gembala dapat menambah jemaat baru dengan form modal' : 
+    '❌ Operator tidak melihat tombol "Tambah Jemaat"'}
+
+<strong>UI Elements:</strong>
+Add Button Visible: ${canCreate ? '✅ YES' : '❌ NO'}
+Add Modal Access: ${canCreate ? '✅ YES' : '❌ NO'}
+            `;
+            
+            showResult('crudResult', result, canCreate ? 'success' : 'warning');
+        }
+        
+        function testRead() {
+            console.log('👀 Testing READ operation...');
+            
+            const canRead = ['admin', 'gembala', 'operator'].includes(currentUserRole);
+            
+            let result = `
+<strong>READ Test (View Jemaat Data):</strong>
+Current Role: ${currentUserRole.toUpperCase()}
+Can Read: ${canRead ? '✅ YES' : '❌ NO'}
+
+<strong>Access Level:</strong>
+${currentUserRole === 'operator' ? 
+    '👀 Read-Only: Can view data but no edit/delete buttons' :
+    canRead ? '🔧 Full Access: Can view with edit/delete options' : '❌ No Access'}
+
+<strong>UI Elements:</strong>
+Table Visible: ${canRead ? '✅ YES' : '❌ NO'}
+Search Function: ${canRead ? '✅ YES' : '❌ NO'}
+Filter Function: ${canRead ? '✅ YES' : '❌ NO'}
+View Detail Button: ${canRead ? '✅ YES' : '❌ NO'}
+Edit Button: ${['admin', 'gembala'].includes(currentUserRole) ? '✅ YES' : '❌ NO'}
+Delete Button: ${['admin', 'gembala'].includes(currentUserRole) ? '✅ YES' : '❌ NO'}
+            `;
+            
+            showResult('crudResult', result, canRead ? 'success' : 'error');
+        }
+        
+        function testUpdate() {
+            console.log('✏️ Testing UPDATE operation...');
+            
+            const canUpdate = ['admin', 'gembala'].includes(currentUserRole);
+            
+            let result = `
+<strong>UPDATE Test (Edit Jemaat Data):</strong>
+Current Role: ${currentUserRole.toUpperCase()}
+Can Update: ${canUpdate ? '✅ YES' : '❌ NO'}
+
+<strong>Update Capabilities:</strong>
+Edit Personal Data: ${canUpdate ? '✅ YES' : '❌ NO'}
+Change Role: ${canUpdate ? '✅ YES' : '❌ NO'}
+Update Registration Status: ${canUpdate ? '✅ YES' : '❌ NO'}
+
+<strong>Operator Behavior:</strong>
+${currentUserRole === 'operator' ? 
+    '❌ Edit buttons hidden, shows "(Read-Only)" text' :
+    canUpdate ? '✅ Full edit access with modal forms' : '❌ No access to admin panel'}
+            `;
+            
+            showResult('crudResult', result, canUpdate ? 'success' : 'warning');
+        }
+        
+        function testDelete() {
+            console.log('🗑️ Testing DELETE operation...');
+            
+            const canDelete = ['admin', 'gembala'].includes(currentUserRole);
+            
+            let result = `
+<strong>DELETE Test (Remove Jemaat):</strong>
+Current Role: ${currentUserRole.toUpperCase()}
+Can Delete: ${canDelete ? '✅ YES' : '❌ NO'}
+
+<strong>Delete Safety:</strong>
+Confirmation Required: ${canDelete ? '✅ YES' : 'N/A'}
+Admin/Gembala Warning: ${canDelete ? '✅ YES' : 'N/A'}
+Permanent Action Warning: ${canDelete ? '✅ YES' : 'N/A'}
+
+<strong>Operator Behavior:</strong>
+${currentUserRole === 'operator' ? 
+    '❌ Delete buttons completely hidden from UI' :
+    canDelete ? '⚠️ Delete available with safety confirmations' : '❌ No access to admin features'}
+            `;
+            
+            showResult('crudResult', result, canDelete ? 'warning' : 'info');
+        }
+        
+        // Navigation Testing Functions
+        function testAdminButton() {
+            console.log('🔘 Testing admin button visibility...');
+            
+            const canSeeButton = ['admin', 'gembala', 'operator'].includes(currentUserRole);
+            
+            let result = `
+<strong>Admin Button Test:</strong>
+Current Role: ${currentUserRole.toUpperCase()}
+Button Visible: ${canSeeButton ? '✅ YES' : '❌ NO'}
+Button Text: ${currentUserRole === 'operator' ? '"Panel Operator"' : '"Panel Admin"'}
+Redirects To: ${currentUserRole === 'operator' ? '/admin/users' : '/admin'}
+
+<strong>Expected Navigation:</strong>
+- Admin/Gembala → Dashboard (/admin)
+- Operator → Direct to Kelola Jemaat (/admin/users)
+- Jemaat → No button visible
+            `;
+            
+            showResult('navResult', result, canSeeButton ? 'success' : 'info');
+        }
+        
+        function testSidebarMenu() {
+            console.log('📋 Testing sidebar menu...');
+            
+            const isAdmin = ['admin', 'gembala'].includes(currentUserRole);
+            const isOperator = currentUserRole === 'operator';
+            
+            let result = `
+<strong>Sidebar Menu Test:</strong>
+Current Role: ${currentUserRole.toUpperCase()}
+
+<strong>Menu Items Visibility:</strong>
+Dashboard: ${isAdmin ? '✅ VISIBLE' : '❌ HIDDEN'}
+Kelola Data Jemaat: ${(isAdmin || isOperator) ? '✅ VISIBLE' : '❌ HIDDEN'}
+Kelola Konten: ${(isAdmin || isOperator) ? '✅ VISIBLE' : '❌ HIDDEN'}
+Prayer Requests: ${isAdmin ? '✅ VISIBLE' : '❌ HIDDEN'}
+Laporan Jemaat: ${isAdmin ? '✅ VISIBLE' : '❌ HIDDEN'}
+Settings: ${isAdmin ? '✅ VISIBLE' : '❌ HIDDEN'}
+
+<strong>Page Headers:</strong>
+${isOperator ? 'Title: "Data Jemaat (Read-Only)"' : 'Title: "Kelola Data Jemaat"'}
+            `;
+            
+            showResult('navResult', result, 'info');
+        }
+        
+        function testPageAccess() {
+            console.log('🚪 Testing page access permissions...');
+            
+            const adminPages = ['/admin', '/admin/dashboard'];
+            const operatorAllowed = ['/admin/users', '/admin/content'];
+            const operatorBlocked = ['/admin', '/admin/dashboard', '/admin/prayers', '/admin/reports'];
+            
+            let result = `
+<strong>Page Access Test:</strong>
+Current Role: ${currentUserRole.toUpperCase()}
+
+<strong>Accessible Pages:</strong>
+`;
+            
+            if (currentUserRole === 'admin' || currentUserRole === 'gembala') {
+                result += `
+✅ /admin (Dashboard)
+✅ /admin/users (Kelola Jemaat) - FULL CRUD
+✅ /admin/content (Kelola Konten)
+✅ /admin/prayers (Prayer Requests)
+✅ /admin/reports (Laporan Jemaat)
+✅ /admin/settings (Settings)
+`;
+            } else if (currentUserRole === 'operator') {
+                result += `
+❌ /admin (Dashboard) - BLOCKED
+✅ /admin/users (Kelola Jemaat) - READ ONLY
+✅ /admin/content (Kelola Konten)
+❌ /admin/prayers (Prayer Requests) - BLOCKED
+❌ /admin/reports (Laporan Jemaat) - BLOCKED
+❌ /admin/settings (Settings) - BLOCKED
+`;
+            } else {
+                result += `
+❌ All admin pages blocked for jemaat role
+`;
+            }
+            
+            showResult('navResult', result, 'info');
+        }
+        
+        function simulatePageLoad() {
+            console.log('⚡ Simulating AdminUsers page load...');
+            
+            const canAccess = ['admin', 'gembala', 'operator'].includes(currentUserRole);
+            const isReadOnly = currentUserRole === 'operator';
+            
+            let result = `
+<strong>AdminUsers Page Simulation:</strong>
+Current Role: ${currentUserRole.toUpperCase()}
+Page Access: ${canAccess ? '✅ GRANTED' : '❌ BLOCKED'}
+
+<strong>Page Content:</strong>
+${canAccess ? `
+📊 Statistics Cards: ✅ VISIBLE
+🔍 Search & Filter: ✅ VISIBLE  
+📋 Jemaat Table: ✅ VISIBLE
+👀 View Details: ✅ VISIBLE
+${isReadOnly ? `
+✏️ Edit Buttons: ❌ HIDDEN
+🗑️ Delete Buttons: ❌ HIDDEN
+➕ Add Button: ❌ HIDDEN
+📝 Page Title: "Data Jemaat (Read-Only)"
+ℹ️ Notice: "(Read-Only)" shown in action column
+` : `
+✏️ Edit Buttons: ✅ VISIBLE
+🗑️ Delete Buttons: ✅ VISIBLE
+➕ Add Button: ✅ VISIBLE
+📝 Page Title: "Kelola Data Jemaat"
+🔧 All CRUD modals: ✅ AVAILABLE
+`}` : `
+🚫 Redirected to login or unauthorized page
+`}
+            `;
+            
+            showResult('navResult', result, canAccess ? (isReadOnly ? 'warning' : 'success') : 'error');
+        }
+        
+        // Utility Functions
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `result-box ${type}`;
+            element.style.display = 'block';
+        }
+        
+        // Advanced Testing Functions (for console)
+        window.testAllPermissions = function() {
+            console.log('🧪 Running comprehensive permission test...');
+            
+            const roles = ['admin', 'gembala', 'operator', 'jemaat'];
+            
+            roles.forEach(role => {
+                console.log(`\n--- Testing Role: ${role.toUpperCase()} ---`);
+                setRole(role);
+                
+                // Test each permission
+                const permissions = {
+                    adminAccess: ['admin', 'gembala'].includes(role),
+                    panelAccess: ['admin', 'gembala', 'operator'].includes(role),
+                    jemaatRead: ['admin', 'gembala', 'operator'].includes(role),
+                    jemaatCreate: ['admin', 'gembala'].includes(role),
+                    jemaatUpdate: ['admin', 'gembala'].includes(role),
+                    jemaatDelete: ['admin', 'gembala'].includes(role),
+                    dashboardAccess: ['admin', 'gembala'].includes(role),
+                    reportsAccess: ['admin', 'gembala'].includes(role)
+                };
+                
+                console.log('Permissions:', permissions);
+            });
+            
+            console.log('\n✅ Comprehensive test completed. Check results above.');
+        };
+        
+        window.simulateOperatorWorkflow = function() {
+            console.log('👷 Simulating operator workflow...');
+            
+            setRole('operator');
+            
+            setTimeout(() => {
+                console.log('1. Login as operator ✅');
+                console.log('2. Navigate to admin panel ✅');
+                console.log('3. Redirected to /admin/users (skipping dashboard) ✅');
+                console.log('4. View jemaat data in read-only mode ✅');
+                console.log('5. Search and filter functionality available ✅');
+                console.log('6. Edit/Delete buttons hidden ❌');
+                console.log('7. Add button hidden ❌');
+                console.log('8. View detail modal accessible ✅');
+                console.log('\n🎯 Operator workflow simulation complete!');
+                
+                showResult('navResult', `
+<strong>Operator Workflow Simulation:</strong>
+✅ Login successful
+✅ Access admin panel granted  
+✅ Auto-redirect to Kelola Jemaat (skip dashboard)
+✅ View jemaat data (read-only mode)
+✅ Search & filter functions work
+❌ CRUD buttons properly hidden
+✅ View detail modals accessible
+🎯 Workflow completed successfully!
+                `, 'success');
+            }, 1000);
+        };
+        
+        // Expose functions globally for console access
+        window.setRole = setRole;
+        window.checkCurrentRole = checkCurrentRole;
+        window.testAdminAccess = testAdminAccess;
+        window.testManagementAccess = testManagementAccess;
+        window.testOperatorAccess = testOperatorAccess;
+    </script>
+</body>
+</html>

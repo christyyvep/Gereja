@@ -7,11 +7,15 @@
     >
       <!-- Thumbnail Section -->
       <div :class="['card-thumbnail', sizeClass]">
-        <img 
-          :src="thumbnailUrl" 
+        <OptimizedImage
+          :src="thumbnailUrl"
           :alt="(item && (item.title || item.name)) || 'Image'"
-          @error="handleImageError"
+          :size="computedThumbnailSize"
+          :use-lazy-loading="true"
+          :use-blur-placeholder="true"
+          :show-loading-spinner="false"
           class="thumbnail-img"
+          @error="handleImageError"
         />
         
         <!-- Category Badge (kalau ada) - ONLY FOR DESKTOP -->
@@ -74,6 +78,7 @@
   <script>
   import { Calendar, Clock, ArrowRight, ChevronRight } from 'lucide-vue-next'
   import { getNewsThumbnail, getScheduleThumbnail, getDevotionalThumbnail } from '@/utils/imageUtils'
+  import OptimizedImage from '@/components/common/OptimizedImage.vue'
   
   export default {
     name: 'ContentCard',
@@ -82,7 +87,8 @@
       Calendar,
       Clock, 
       ArrowRight,
-      ChevronRight
+      ChevronRight,
+      OptimizedImage
     },
     
     props: {
@@ -181,9 +187,8 @@
           
           if (selectedImage) {
             console.log('✅ [ContentCard] Using direct image selection:', selectedImage)
-            // Force refresh untuk menghindari cache browser
-            const cacheBuster = `${selectedImage.includes('?') ? '&' : '?'}cb=${Date.now()}`
-            return selectedImage + cacheBuster
+            // Smart cache - tidak perlu force refresh untuk performa
+            return selectedImage
           }
           
           console.log('❌ [ContentCard] No image found for', this.computedThumbnailSize, '- available images:', Object.keys(images))
@@ -318,14 +323,19 @@
       },
       
       handleImageError(e) {
-        console.warn('🖼️ [ContentCard] Image load error for:', e.target.src)
+        console.warn('🖼️ [ContentCard] Image load error for:', e.target?.src)
         
-        // Force reload dengan cache busting lebih kuat
-        const originalSrc = e.target.src
-        if (!originalSrc.includes('&retry=')) {
-          const cacheBuster = `&retry=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`
-          e.target.src = originalSrc + cacheBuster
-          console.log('🔄 [ContentCard] Retrying with cache bust:', e.target.src)
+        // Smart retry - hanya retry sekali dengan delay
+        if (!e.target?.dataset?.retried) {
+          e.target.dataset.retried = 'true'
+          setTimeout(() => {
+            const cacheBuster = `&retry=${Date.now()}`
+            const originalSrc = e.target.src
+            if (originalSrc && !originalSrc.includes('&retry=')) {
+              e.target.src = originalSrc + cacheBuster
+              console.log('🔄 [ContentCard] Retrying with cache bust:', e.target.src)
+            }
+          }, 1000)
           return
         }
         

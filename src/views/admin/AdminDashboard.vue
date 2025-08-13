@@ -203,7 +203,7 @@ import {
   onSnapshot
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import { getAllUsersWithRoles } from '@/services/auth'
+import { getAllJemaatNames, getAllUsersWithRoles } from '@/services/auth-hybrid'
 import { getAllPrayerRequestsForAdmin } from '@/services/prayerRequests'
 import { getAllLaporanForAdmin } from '@/services/laporanJemaat'
 import { getRecentActivities, setupActivityListener } from '@/services/activityService'
@@ -261,7 +261,7 @@ export default {
     const loadStats = async () => {
       try {
         // Load Users Statistics
-        const users = await getAllUsersWithRoles()
+        const users = await getAllJemaatNames()
         stats.value.totalUsers = users.length
         stats.value.adminUsers = users.filter(u => u.role === 'admin').length
         stats.value.regularUsers = users.filter(u => (u.role || 'jemaat') === 'jemaat').length

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Admin Role - MyRajawali</title>
+    <script type="module">
+        // Fix Admin Role Script
+        import { db } from './src/services/firebase.js'
+        import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore'
+
+        async function fixAdminRole() {
+            try {
+                console.log('🔍 Mencari user admin...')
+                
+                // Ganti 'admin' dengan nama user yang ingin dijadikan admin
+                const targetUserName = prompt('Masukkan nama user yang ingin dijadikan admin:', 'admin')
+                
+                if (!targetUserName) {
+                    console.log('❌ Tidak ada nama user yang dimasukkan')
+                    return
+                }
+                
+                const jemaatRef = collection(db, 'jemaat')
+                const userQuery = query(jemaatRef, where('nama', '==', targetUserName))
+                const snapshot = await getDocs(userQuery)
+                
+                if (snapshot.empty) {
+                    console.log(`❌ User '${targetUserName}' tidak ditemukan`)
+                    return
+                }
+                
+                const userDoc = snapshot.docs[0]
+                const userData = userDoc.data()
+                
+                console.log('📋 Data user sebelum update:', userData)
+                
+                // Update role ke admin
+                await updateDoc(doc(db, 'jemaat', userDoc.id), {
+                    role: 'admin',
+                    roleUpdatedAt: new Date(),
+                    roleUpdatedBy: 'manual_fix'
+                })
+                
+                console.log(`✅ User '${targetUserName}' berhasil diupdate menjadi admin`)
+                
+                // Refresh localStorage jika user yang sedang login
+                const currentUser = JSON.parse(localStorage.getItem('user') || 'null')
+                if (currentUser && currentUser.nama === targetUserName) {
+                    currentUser.role = 'admin'
+                    localStorage.setItem('user', JSON.stringify(currentUser))
+                    
+                    // Update myrajawali_user juga
+                    localStorage.setItem('myrajawali_user', JSON.stringify(currentUser))
+                    
+                    console.log('🔄 LocalStorage diperbarui, silakan refresh halaman')
+                    
+                    if (confirm('Role berhasil diupdate! Refresh halaman sekarang?')) {
+                        location.reload()
+                    }
+                }
+                
+            } catch (error) {
+                console.error('❌ Error fixing admin role:', error)
+            }
+        }
+
+        // Auto-run function when page loads
+        window.addEventListener('load', () => {
+            console.log('🚀 Admin Role Fix Tool loaded')
+            console.log('📋 Jalankan fixAdminRole() untuk memperbaiki role admin')
+            
+            // Make function available globally
+            window.fixAdminRole = fixAdminRole
+            
+            // Show instructions
+            const instructions = `
+🛠️ CARA MENGGUNAKAN:
+1. Buka Developer Tools (F12)
+2. Jalankan: fixAdminRole()
+3. Masukkan nama user yang ingin dijadikan admin
+4. Refresh halaman setelah selesai
+
+Atau langsung jalankan dengan:
+fixAdminRole()
+            `
+            console.log(instructions)
+        })
+    </script>
+</head>
+<body>
+    <h1>Admin Role Fix Tool</h1>
+    <p>Buka Developer Tools (F12) dan lihat Console untuk instruksi.</p>
+    <p>Atau klik tombol di bawah:</p>
+    <button onclick="fixAdminRole()">Fix Admin Role</button>
+    
+    <h2>Manual Steps:</h2>
+    <ol>
+        <li>Buka Developer Tools (F12)</li>
+        <li>Pergi ke tab Console</li>
+        <li>Jalankan: <code>fixAdminRole()</code></li>
+        <li>Ikuti instruksi yang muncul</li>
+        <li>Refresh halaman setelah selesai</li>
+    </ol>
+</body>
+</html>

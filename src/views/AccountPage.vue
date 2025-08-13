@@ -185,7 +185,11 @@ export default {
     return {
       showToast: showSuccess,
       showErrorToast: showError,
-      showInfoToast: showInfo
+      showInfoToast: showInfo,
+      // Tambahkan alias untuk compatibility
+      showError: showError,
+      showSuccess: showSuccess,
+      showInfo: showInfo
     }
   },
   
@@ -275,7 +279,7 @@ export default {
     },
     
     /**
-     * Proses logout sesungguhnya
+     * Proses logout sesungguhnya dengan error handling yang robust
      * Menghapus data user dan kembali ke halaman login
      */
     async confirmLogout() {
@@ -292,13 +296,22 @@ export default {
         // Tutup modal
         this.hideLogoutModal()
         
-        // Redirect ke halaman login
+        // Redirect ke halaman login dengan delay untuk memastikan logout selesai
+        await new Promise(resolve => setTimeout(resolve, 100))
         await this.$router.replace('/')
         
       } catch (error) {
-        // Jika ada error, tetap logout dan redirect
-        this.userStore.logout()
-        await this.$router.replace('/')
+        console.error('❌ [AccountPage] Logout error:', error)
+        
+        // Fallback: paksa logout dan redirect
+        try {
+          this.userStore.logout()
+          await this.$router.replace('/')
+        } catch (fallbackError) {
+          console.error('❌ [AccountPage] Fallback logout error:', fallbackError)
+          // Ultimate fallback: reload halaman
+          window.location.href = '/'
+        }
       } finally {
         // Reset loading state
         this.isLoggingOut = false

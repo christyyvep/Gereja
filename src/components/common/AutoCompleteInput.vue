@@ -94,7 +94,7 @@
 </template>
 
 <script>
-import { getAllJemaatNames } from '@/services/auth'
+import { getAllJemaatNames } from '@/services/auth-hybrid'
 
 export default {
   name: 'AutoCompleteInput',

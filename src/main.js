@@ -10,6 +10,9 @@ import { startSecurityMonitoring, stopSecurityMonitoring } from './middleware/au
 import { logSecurityEvent } from './services/firebase-security'
 import SecuritySessionWarning from './components/SecuritySessionWarning.vue'
 
+// Image Optimization
+import { preloadCriticalImages } from './utils/imageOptimization'
+
 // ===== ENVIRONMENT DETECTION =====
 const isDevelopment = process.env.NODE_ENV === 'development'
 const isLocalhost = window.location.hostname === 'localhost' || 
@@ -321,17 +324,43 @@ document.addEventListener('visibilitychange', () => {
 // Initialize Service Worker with smart behavior
 registerServiceWorker()
 
-// Mount app
+// ===== SETUP USER STORE AND STORAGE WATCHER =====
+;(async () => {
+  try {
+    const { useUserStore } = await import('./stores/userStore')
+    const userStore = useUserStore()
+    
+    // Setup storage watcher for reactivity
+    userStore.setupStorageWatcher()
+    
+    // Check login status on app start
+    await userStore.checkLoginStatus()
+    
+    console.log('✅ [Main] User store initialized with storage watcher')
+  } catch (error) {
+    console.error('❌ [Main] Error initializing user store:', error)
+  }
+})()
+
+// ===== MOUNT VUE APP =====
 app.mount('#app')
+
+// ⚡ Preload critical images for better performance
+preloadCriticalImages().then(() => {
+  console.log('✅ [Image] Critical images preloaded')
+}).catch(error => {
+  console.warn('⚠️ [Image] Failed to preload some critical images:', error)
+})
 
 console.log('🚀 [PWA] MyRajawali initialized with enhanced security!')
 console.log('🔐 [Security] Security monitoring active')
+console.log('⚡ [Performance] Image optimization active')
 
 // Add security debug tools in development
 if (isDevelopment) {
   window.debugSecurity = {
     async getCurrentUser() {
-      const { getCurrentUser } = await import('./services/auth-enhanced')
+      const { getCurrentUser } = await import('./services/auth-hybrid')
       return getCurrentUser()
     },
     

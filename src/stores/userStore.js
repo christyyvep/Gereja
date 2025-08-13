@@ -61,7 +61,7 @@ export const useUserStore = defineStore('user', {
     userRole: (state) => state.user?.role || 'jemaat',
 
     /**
-     * Check if user is admin or gembala
+     * Check if user is admin or gembala (full access)
      * @returns {boolean}
      */
     isAdmin: (state) => {
@@ -70,14 +70,40 @@ export const useUserStore = defineStore('user', {
     },
 
     /**
-     * Check if user is pengurus or admin
-     * PENGURUS ROLE TEMPORARILY HIDDEN - Only admin access
+     * Enhanced admin check dengan fallback
      * @returns {boolean}
      */
-    isPengurus: (state) => {
+    isAdminEnhanced: (state) => {
       const role = state.user?.role || 'jemaat'
-      // Only admin and gembala now, pengurus role is hidden
-      return role === 'admin' || role === 'gembala'
+      // Check multiple variations of admin role
+      return ['admin', 'administrator', 'gembala'].includes(role.toLowerCase())
+    },
+
+    /**
+     * Check if user is operator (limited CRUD access)
+     * @returns {boolean}
+     */
+    isOperator: (state) => {
+      const role = state.user?.role || 'jemaat'
+      return role === 'operator'
+    },
+
+    /**
+     * Check if user is admin, gembala, or operator (panel access)
+     * @returns {boolean}
+     */
+    hasManagementAccess: (state) => {
+      const role = state.user?.role || 'jemaat'
+      return ['admin', 'gembala', 'operator'].includes(role)
+    },
+
+    /**
+     * Check if user can access admin panel (admin or operator)
+     * @returns {boolean}
+     */
+    canAccessAdminPanel: (state) => {
+      const role = state.user?.role || 'jemaat'
+      return ['admin', 'gembala', 'operator'].includes(role)
     },
 
     /**
@@ -89,7 +115,7 @@ export const useUserStore = defineStore('user', {
       const roleMap = {
         'admin': 'Administrator',
         'gembala': 'Gembala',
-        'pengurus': 'Pengurus',
+        'operator': 'Operator',
         'jemaat': 'Jemaat'
       }
       return roleMap[role] || 'Jemaat'
@@ -140,23 +166,32 @@ export const useUserStore = defineStore('user', {
     },
     
     /**
-     * Logout current user - UPDATED for Hybrid Auth
+     * Logout current user - UPDATED for Hybrid Auth with enhanced error handling
      */
     logout(forgetMe = false) {
-      console.log('🚪 [UserStore] Logging out user...', forgetMe ? '(forget me)' : '(respect remember me)')
-      
-      // Clear user-specific data
-      if (this.user) {
-        this.clearUserSpecificData(this.user.id || this.user.nama)
+      try {
+        console.log('🚪 [UserStore] Logging out user...', forgetMe ? '(forget me)' : '(respect remember me)')
+        
+        // Clear user-specific data
+        if (this.user) {
+          this.clearUserSpecificData(this.user.id || this.user.nama)
+        }
+        
+        // UPDATED: Call hybrid auth logout with error handling
+        logoutUser().catch(error => {
+          console.error('❌ [UserStore] Auth logout error:', error)
+          // Continue dengan local cleanup meskipun auth logout gagal
+        })
+        
+        // Clear store data
+        this.clearUserData()
+        
+        console.log('✅ [UserStore] Logout complete')
+      } catch (error) {
+        console.error('❌ [UserStore] Logout error:', error)
+        // Paksa clear data meskipun ada error
+        this.clearUserData()
       }
-      
-      // UPDATED: Call hybrid auth logout
-      logoutUser()  // Hybrid auth handles session cleanup
-      
-      // Clear store data
-      this.clearUserData()
-      
-      console.log('✅ [UserStore] Logout complete')
     },
     
     /**
@@ -260,7 +295,7 @@ export const useUserStore = defineStore('user', {
      * @returns {boolean} Success status
      */
     setUserRole(role) {
-      const validRoles = ['jemaat', 'gembala', 'pengurus', 'admin']
+      const validRoles = ['jemaat', 'gembala', 'operator', 'admin']
       
       if (!validRoles.includes(role)) {
         console.error('❌ [UserStore] Invalid role:', role)
@@ -292,10 +327,10 @@ export const useUserStore = defineStore('user', {
     },
 
     /**
-     * Development helper: Set as pengurus
+     * Development helper: Set as operator
      */
-    setAsPengurus() {
-      return this.setUserRole('pengurus')
+    setAsOperator() {
+      return this.setUserRole('operator')
     },
 
     /**
@@ -412,8 +447,10 @@ export const useUserStore = defineStore('user', {
         user: this.user,
         namaUser: this.namaUser,
         userRole: this.userRole,
-        isPengurus: this.isPengurus,
+        isOperator: this.isOperator,
         isAdmin: this.isAdmin,
+        canAccessAdminPanel: this.canAccessAdminPanel,
+        hasManagementAccess: this.hasManagementAccess,
         roleDisplayName: this.roleDisplayName
       }
     },
@@ -637,5 +674,114 @@ export const useUserStore = defineStore('user', {
       console.log('✅ [UserStore] User data is fresh, no refresh needed')
       return true
     },
+
+    /**
+     * Debug: Force set admin role for current user
+     * FOR DEVELOPMENT/TESTING ONLY
+     */
+    forceSetAdmin() {
+      if (!this.user) {
+        console.error('❌ [UserStore] No user logged in')
+        return false
+      }
+      
+      console.log('🔧 [UserStore] Force setting admin role for:', this.user.nama)
+      
+      // Update user object
+      this.user.role = 'admin'
+      
+      // Update localStorage (both keys for compatibility)
+      localStorage.setItem('user', JSON.stringify(this.user))
+      localStorage.setItem('myrajawali_user', JSON.stringify(this.user))
+      
+      console.log('✅ [UserStore] Admin role force-set! Refresh page to see changes.')
+      return true
+    },
+
+    /**
+     * Debug: Check admin button visibility
+     */
+    debugAdminButton() {
+      console.log('🔍 [UserStore] === ADMIN BUTTON DEBUG ===')
+      console.log('User:', this.user)
+      console.log('User Role:', this.user?.role)
+      console.log('Is Admin:', this.isAdmin)
+      console.log('Is Operator:', this.isOperator)
+      console.log('Can Access Admin Panel:', this.canAccessAdminPanel)
+      console.log('Has Management Access:', this.hasManagementAccess)
+      
+      // Check navbar component
+      const navbar = document.querySelector('.desktop-navbar')
+      if (navbar) {
+        const adminLink = navbar.querySelector('.admin-link')
+        console.log('Admin link element:', adminLink)
+        console.log('Admin link visible:', adminLink ? window.getComputedStyle(adminLink).display !== 'none' : false)
+      }
+    },
+
+    /**
+     * Force refresh user data from localStorage
+     * Useful for when localStorage is updated externally
+     */
+    refreshUserDataFromStorage() {
+      console.log('🔄 [UserStore] Forcing refresh of user data from localStorage...')
+      
+      try {
+        const savedUser = getCurrentUser()
+        if (savedUser && this.validateUserData(savedUser)) {
+          console.log('✅ [UserStore] Refreshed user data:', savedUser.nama)
+          this.setUser(savedUser)
+          return true
+        } else {
+          console.log('❌ [UserStore] No valid user data found during refresh')
+          this.clearUserData()
+          return false
+        }
+      } catch (error) {
+        console.error('❌ [UserStore] Error refreshing user data:', error)
+        this.clearUserData()
+        return false
+      }
+    },
+
+    /**
+     * Force update user role (for testing/debugging)
+     * @param {string} newRole - New role to set
+     */
+    forceUpdateRole(newRole) {
+      console.log(`🔧 [UserStore] Force updating role to: ${newRole}`)
+      
+      if (this.user) {
+        // Update in memory
+        this.user.role = newRole
+        this.user.roleUpdatedAt = new Date().toISOString()
+        
+        // Update in localStorage
+        localStorage.setItem('user', JSON.stringify(this.user))
+        localStorage.setItem('myrajawali_user', JSON.stringify(this.user))
+        
+        console.log('✅ [UserStore] Role force updated successfully')
+        return true
+      } else {
+        console.log('❌ [UserStore] No user found to update role')
+        return false
+      }
+    },
+
+    /**
+     * Watch localStorage changes and update store accordingly
+     */
+    setupStorageWatcher() {
+      console.log('👁️ [UserStore] Setting up localStorage watcher...')
+      
+      window.addEventListener('storage', (e) => {
+        if (e.key === 'user' || e.key === 'myrajawali_user') {
+          console.log('🔄 [UserStore] localStorage changed, refreshing user data...')
+          this.refreshUserDataFromStorage()
+        }
+      })
+      
+      console.log('✅ [UserStore] Storage watcher setup complete')
+    }
   }
 })

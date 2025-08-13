@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Admin Button - MyRajawali</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .debug-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; }
+        .debug-output { background: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; }
+        .button { padding: 10px 20px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: black; }
+        .btn-danger { background: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Admin Button - MyRajawali</h1>
+    
+    <div class="debug-section">
+        <h2>1. Check User Login Status</h2>
+        <button class="button btn-primary" onclick="checkLoginStatus()">Check Login Status</button>
+        <div id="loginStatus" class="debug-output"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>2. Check User Role</h2>
+        <button class="button btn-success" onclick="checkUserRole()">Check User Role</button>
+        <div id="userRole" class="debug-output"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>3. Debug Admin Button Visibility</h2>
+        <button class="button btn-warning" onclick="debugAdminButton()">Debug Admin Button</button>
+        <div id="adminButtonDebug" class="debug-output"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>4. Force Admin Role (Testing)</h2>
+        <button class="button btn-danger" onclick="forceAdminRole()">Force Set Admin Role</button>
+        <div id="forceRoleResult" class="debug-output"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>5. Test Admin Navigation</h2>
+        <button class="button btn-primary" onclick="testAdminNavigation()">Test Navigate to Admin</button>
+        <div id="navigationTest" class="debug-output"></div>
+    </div>
+
+    <script>
+        function checkLoginStatus() {
+            const output = document.getElementById('loginStatus');
+            
+            try {
+                // Check localStorage data
+                const user = JSON.parse(localStorage.getItem('user') || 'null');
+                const myrajawaliUser = JSON.parse(localStorage.getItem('myrajawali_user') || 'null');
+                
+                const result = {
+                    isLocalStorageUser: !!user,
+                    isMyRajawaliUser: !!myrajawaliUser,
+                    userLocalStorage: user,
+                    myrajawaliUserStorage: myrajawaliUser,
+                    currentUrl: window.location.href
+                };
+                
+                output.innerHTML = `
+<pre>🔍 LOGIN STATUS CHECK:
+✅ User in localStorage: ${result.isLocalStorageUser}
+✅ MyRajawali user: ${result.isMyRajawaliUser}
+
+📋 User Data (localStorage):
+${JSON.stringify(result.userLocalStorage, null, 2)}
+
+📋 MyRajawali User Data:
+${JSON.stringify(result.myrajawaliUserStorage, null, 2)}
+
+📍 Current URL: ${result.currentUrl}
+</pre>`;
+            } catch (error) {
+                output.innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        function checkUserRole() {
+            const output = document.getElementById('userRole');
+            
+            try {
+                const user = JSON.parse(localStorage.getItem('user') || 'null');
+                const myrajawaliUser = JSON.parse(localStorage.getItem('myrajawali_user') || 'null');
+                
+                const result = {
+                    userRole: user?.role || 'No role',
+                    myrajawaliUserRole: myrajawaliUser?.role || 'No role',
+                    isAdmin: (user?.role === 'admin') || (myrajawaliUser?.role === 'admin'),
+                    isGembala: (user?.role === 'gembala') || (myrajawaliUser?.role === 'gembala'),
+                    validAdminRoles: ['admin', 'gembala', 'super_admin']
+                };
+                
+                output.innerHTML = `
+<pre>👤 USER ROLE CHECK:
+🏷️ User role (localStorage): ${result.userRole}
+🏷️ MyRajawali user role: ${result.myrajawaliUserRole}
+⚡ Is Admin: ${result.isAdmin}
+🐑 Is Gembala: ${result.isGembala}
+📝 Valid admin roles: ${result.validAdminRoles.join(', ')}
+
+💡 Should show admin button: ${result.isAdmin || result.isGembala ? '✅ YES' : '❌ NO'}
+</pre>`;
+            } catch (error) {
+                output.innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        function debugAdminButton() {
+            const output = document.getElementById('adminButtonDebug');
+            
+            try {
+                // Look for admin button in current page
+                const navbar = document.querySelector('.desktop-navbar');
+                const adminLink = document.querySelector('.admin-link');
+                const routerLinks = document.querySelectorAll('a[href*="admin"]');
+                
+                const result = {
+                    hasNavbar: !!navbar,
+                    hasAdminLink: !!adminLink,
+                    adminLinkVisible: adminLink ? window.getComputedStyle(adminLink).display !== 'none' : false,
+                    adminLinkClickable: adminLink ? !adminLink.hasAttribute('disabled') : false,
+                    adminRouterLinks: Array.from(routerLinks).map(link => ({
+                        href: link.href,
+                        text: link.textContent,
+                        visible: window.getComputedStyle(link).display !== 'none'
+                    }))
+                };
+                
+                output.innerHTML = `
+<pre>🔍 ADMIN BUTTON DEBUG:
+🧭 Navbar exists: ${result.hasNavbar ? '✅' : '❌'}
+🔗 Admin link exists: ${result.hasAdminLink ? '✅' : '❌'}
+👁️ Admin link visible: ${result.adminLinkVisible ? '✅' : '❌'}
+👆 Admin link clickable: ${result.adminLinkClickable ? '✅' : '❌'}
+
+🔗 All admin router links found:
+${result.adminRouterLinks.map(link => 
+  `  • ${link.text} → ${link.href} (visible: ${link.visible})`
+).join('\n')}
+
+💡 If admin button exists but not clickable, check:
+   1. CSS pointer-events
+   2. z-index conflicts
+   3. Router navigation guards
+   4. Vue.js reactive data
+</pre>`;
+            } catch (error) {
+                output.innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        function forceAdminRole() {
+            const output = document.getElementById('forceRoleResult');
+            
+            try {
+                const user = JSON.parse(localStorage.getItem('user') || 'null');
+                
+                if (!user) {
+                    output.innerHTML = `❌ No user found in localStorage. Please login first.`;
+                    return;
+                }
+                
+                // Force admin role
+                user.role = 'admin';
+                user.roleUpdatedAt = new Date().toISOString();
+                user.roleUpdatedBy = 'debug_tool';
+                
+                // Update both storage keys
+                localStorage.setItem('user', JSON.stringify(user));
+                localStorage.setItem('myrajawali_user', JSON.stringify(user));
+                
+                output.innerHTML = `
+<pre>✅ FORCE ADMIN ROLE SUCCESS:
+👤 User: ${user.nama}
+🏷️ New Role: ${user.role}
+⏰ Updated At: ${user.roleUpdatedAt}
+
+🔄 Next steps:
+1. Refresh the page to see changes
+2. Admin button should now appear
+3. Try navigating to /admin/dashboard
+
+⚠️ Note: This only changes localStorage.
+   Database role remains unchanged.
+</pre>`;
+                
+                // Ask to refresh
+                if (confirm('Role updated! Refresh page now to see changes?')) {
+                    window.location.reload();
+                }
+                
+            } catch (error) {
+                output.innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        function testAdminNavigation() {
+            const output = document.getElementById('navigationTest');
+            
+            try {
+                // Try to navigate to admin dashboard
+                const adminUrl = '/admin/dashboard';
+                const currentOrigin = window.location.origin;
+                const fullAdminUrl = currentOrigin + adminUrl;
+                
+                output.innerHTML = `
+<pre>🧪 TESTING ADMIN NAVIGATION:
+🎯 Target URL: ${fullAdminUrl}
+📍 Current URL: ${window.location.href}
+
+⏳ Attempting navigation in 3 seconds...
+   You can cancel by refreshing the page.
+</pre>`;
+                
+                // Navigate after 3 seconds
+                setTimeout(() => {
+                    if (confirm(`Navigate to admin dashboard now?\n\nURL: ${fullAdminUrl}`)) {
+                        window.location.href = adminUrl;
+                    } else {
+                        output.innerHTML += `\n❌ Navigation cancelled by user.`;
+                    }
+                }, 3000);
+                
+            } catch (error) {
+                output.innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        // Auto-run initial checks when page loads
+        window.addEventListener('load', () => {
+            console.log('🚀 Debug Admin Button Tool loaded');
+            console.log('📋 Use the buttons above to debug admin button issues');
+            
+            // Show initial status
+            const instructions = `
+🛠️ ADMIN BUTTON DEBUG TOOL
+
+This tool helps diagnose why the admin button might not be clickable.
+
+Common issues:
+1. User not logged in
+2. User role not set to 'admin' or 'gembala'
+3. CSS issues preventing clicks
+4. Router guards blocking navigation
+5. Vue.js reactivity issues
+
+Use the buttons above to check each potential issue.
+            `;
+            console.log(instructions);
+        });
+    </script>
+</body>
+</html>

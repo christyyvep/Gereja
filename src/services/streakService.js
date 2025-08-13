@@ -260,3 +260,64 @@ export async function updateStreakInFirestore(userId, newStreakCount, lastLoginD
     }
   }
 }
+
+/**
+ * Get detailed streak data for user display
+ * @param {string} userId - ID user
+ * @returns {Object} Complete streak data for display
+ */
+export async function getUserStreakData(userId) {
+  try {
+    console.log('📊 [StreakService] Getting detailed streak data for:', userId)
+    
+    if (!userId) {
+      console.warn('⚠️ [StreakService] No userId provided')
+      return {
+        currentStreak: 0,
+        longestStreak: 0,
+        totalDays: 0,
+        lastActivityDate: null,
+        streakStartDate: null,
+        activities: []
+      }
+    }
+
+    const streakData = await getStreakFromFirestore(userId)
+    
+    if (!streakData) {
+      console.log('ℹ️ [StreakService] No streak data found for user')
+      return {
+        currentStreak: 0,
+        longestStreak: 0,
+        totalDays: 0,
+        lastActivityDate: null,
+        streakStartDate: null,
+        activities: []
+      }
+    }
+
+    // Map Firestore data to display format
+    const displayData = {
+      currentStreak: streakData.streakCount || 0,
+      longestStreak: streakData.longestStreak || 0,
+      totalDays: streakData.totalLogins || 0,
+      lastActivityDate: streakData.lastLoginDate || streakData.updatedAt || null,
+      streakStartDate: streakData.createdAt || null,
+      activities: [] // TODO: Add activity history if needed
+    }
+
+    console.log('✅ [StreakService] Streak data retrieved:', displayData)
+    return displayData
+    
+  } catch (error) {
+    console.error('❌ [StreakService] Error getting streak data:', error)
+    return {
+      currentStreak: 0,
+      longestStreak: 0,
+      totalDays: 0,
+      lastActivityDate: null,
+      streakStartDate: null,
+      activities: []
+    }
+  }
+}

@@ -29,6 +29,7 @@
   </template>
   
   <script>
+  import { computed } from 'vue'
   import { useUserStore } from '@/stores/userStore'
 
   export default {
@@ -42,22 +43,118 @@
       }
     },
     
-    computed: {
-      isAdmin() {
-        const userStore = useUserStore()
+    setup() {
+      const userStore = useUserStore()
+      
+      // Reactive computed for admin check
+      const isAdmin = computed(() => {
         const user = userStore.user
-        return user && user.role === 'admin'
-      },
-      // ⭐ Main navigation menu items only
-      menuItems() {
-        return [
-          { path: '/home', label: 'Home', exact: false }, // ✅ UBAH ke false biar jadwal juga active
-          // { path: '/calendar', label: 'Kalender', exact: false }, // ✅ HIDDEN TEMPORARILY
-          // { path: '/notifikasi', label: 'Notifikasi', exact: false }, // ✅ HIDDEN TEMPORARILY
-          { path: '/account', label: 'Profile', exact: false },
-          ...(this.isAdmin ? [{ path: '/admin/dashboard', label: '🛡️ Admin', class: 'admin-link' }] : [])
+        
+        // Enhanced admin check dengan debugging
+        if (!user) {
+          console.log('🚫 [DesktopNavbar] No user found')
+          return false
+        }
+        
+        const role = user.role || 'jemaat'
+        const isAdminRole = ['admin', 'administrator', 'gembala'].includes(role.toLowerCase())
+        
+        console.log('🔍 [DesktopNavbar] Admin check:', {
+          userName: user.nama,
+          userRole: role,
+          isAdmin: isAdminRole
+        })
+        
+        return isAdminRole
+      })
+
+      // Check if user can access admin panel (admin, gembala, or operator)
+      const canAccessAdminPanel = computed(() => {
+        const user = userStore.user
+        
+        if (!user) {
+          return false
+        }
+        
+        const role = user.role || 'jemaat'
+        const canAccess = ['admin', 'administrator', 'gembala', 'operator'].includes(role.toLowerCase())
+        
+        console.log('🔍 [DesktopNavbar] Admin panel access check:', {
+          userName: user.nama,
+          userRole: role,
+          canAccess: canAccess
+        })
+        
+        return canAccess
+      })
+      
+      // Reactive computed for menu items
+      const menuItems = computed(() => {
+        const items = [
+          { path: '/home', label: 'Home', exact: false },
+          { path: '/account', label: 'Profile', exact: false }
         ]
+        
+        // Add admin button for admin, gembala, and operator
+        if (canAccessAdminPanel.value) {
+          const user = userStore.user
+          const role = user?.role || 'jemaat'
+          let adminLabel = '🛡️ Admin'
+          
+          if (role === 'operator') {
+            adminLabel = '⚙️ Operator'
+          }
+          
+          console.log('✅ [DesktopNavbar] Adding admin panel button to menu')
+          items.push({ path: '/admin', label: adminLabel, class: 'admin-link' })
+        } else {
+          console.log('❌ [DesktopNavbar] Admin panel button NOT added - insufficient privileges')
+        }
+        
+        console.log('📋 [DesktopNavbar] Final menu items:', items)
+        return items
+      })
+      
+      const handleNavClick = (item) => {
+        console.log('🖱️ [DesktopNavbar] Navigation clicked:', {
+          path: item.path,
+          label: item.label,
+          class: item.class,
+          isAdmin: isAdmin.value,
+          userRole: userStore?.user?.role
+        })
+        
+        // Special handling for admin routes
+        if (item.path.startsWith('/admin')) {
+          console.log('🛡️ [DesktopNavbar] Admin route clicked - checking permissions...')
+          
+          if (!canAccessAdminPanel.value) {
+            console.error('❌ [DesktopNavbar] Admin route clicked but user cannot access admin panel!')
+            // Prevent navigation by showing alert
+            alert('❌ Akses ditolak! Hanya admin atau operator yang dapat mengakses panel admin.')
+            return
+          }
+          
+          console.log('✅ [DesktopNavbar] Admin panel permissions validated - proceeding to admin panel')
+        }
+        
+        // Allow navigation to proceed
+        console.log('🚀 [DesktopNavbar] Navigation proceeding to:', item.path)
       }
+      
+      return {
+        userStore,
+        isAdmin,
+        menuItems,
+        handleNavClick
+      }
+    },
+    
+    mounted() {
+      // Debug logging when component mounts
+      console.log('🚀 [DesktopNavbar] Component mounted')
+      console.log('👤 [DesktopNavbar] User store:', this.userStore?.user)
+      console.log('🔐 [DesktopNavbar] Is admin:', this.isAdmin)
     }
   }
   </script>

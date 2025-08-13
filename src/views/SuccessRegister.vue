@@ -66,7 +66,7 @@
 <script>
 import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
 import { useUserStore } from '@/stores/userStore'
-import { getCurrentJemaat } from '@/services/auth'
+import { getCurrentUser } from '@/services/auth-hybrid'
 
 export default {
   name: 'SuccessRegister',
@@ -92,7 +92,7 @@ export default {
         } 
         // Fallback to localStorage
         else {
-          const savedUser = getCurrentJemaat()
+          const savedUser = getCurrentUser()
           if (savedUser?.nama) {
             this.userName = savedUser.nama
           }

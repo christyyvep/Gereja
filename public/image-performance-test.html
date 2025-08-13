@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MyRajawali - Performance Test</title>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .test-section {
+      margin-bottom: 40px;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    .image-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .image-card {
+      border: 1px solid #eee;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .image-card img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+    }
+    .image-info {
+      padding: 8px;
+      font-size: 12px;
+      color: #666;
+    }
+    .performance-stats {
+      background: #f8f9fa;
+      padding: 16px;
+      border-radius: 4px;
+      margin-top: 16px;
+    }
+    .stat-item {
+      display: inline-block;
+      margin-right: 20px;
+      padding: 8px 12px;
+      background: #e9ecef;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .loading {
+      opacity: 0.5;
+      background: #f0f0f0;
+    }
+    .loaded {
+      opacity: 1;
+      transition: opacity 0.3s ease;
+    }
+    .error {
+      background: #fee;
+      color: #c33;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 MyRajawali Image Performance Test</h1>
+    <p>Test optimasi loading gambar dengan berbagai ukuran dan konfigurasi.</p>
+    
+    <!-- Performance Stats -->
+    <div class="performance-stats">
+      <div class="stat-item" id="totalImages">Total Images: 0</div>
+      <div class="stat-item" id="loadedImages">Loaded: 0</div>
+      <div class="stat-item" id="failedImages">Failed: 0</div>
+      <div class="stat-item" id="avgLoadTime">Avg Load Time: 0ms</div>
+      <div class="stat-item" id="totalLoadTime">Total Time: 0ms</div>
+    </div>
+
+    <!-- Test 1: Optimized Cloudinary URLs -->
+    <div class="test-section">
+      <h2>📰 Test 1: Optimized News Images</h2>
+      <p>Images dengan transform yang dioptimasi: <code>f_auto,q_auto:best,fl_progressive</code></p>
+      <div class="image-grid" id="optimizedGrid"></div>
+    </div>
+
+    <!-- Test 2: Original URLs (untuk perbandingan) -->
+    <div class="test-section">
+      <h2>🔄 Test 2: Original Images (Comparison)</h2>
+      <p>Images tanpa optimasi transform</p>
+      <div class="image-grid" id="originalGrid"></div>
+    </div>
+
+    <!-- Test 3: Different Sizes -->
+    <div class="test-section">
+      <h2>📏 Test 3: Responsive Sizes</h2>
+      <p>Different sizes: card-mobile (80x80), card-desktop (400x250), detail-desktop (800x450)</p>
+      <div class="image-grid" id="sizesGrid"></div>
+    </div>
+
+    <!-- Test 4: WebP Format -->
+    <div class="test-section">
+      <h2>🖼️ Test 4: WebP Format Test</h2>
+      <p>WebP format untuk browser yang support</p>
+      <div class="image-grid" id="webpGrid"></div>
+    </div>
+  </div>
+
+  <script>
+    // Performance tracking
+    let stats = {
+      total: 0,
+      loaded: 0,
+      failed: 0,
+      loadTimes: [],
+      startTime: Date.now()
+    }
+
+    // Update stats display
+    function updateStats() {
+      document.getElementById('totalImages').textContent = `Total Images: ${stats.total}`
+      document.getElementById('loadedImages').textContent = `Loaded: ${stats.loaded}`
+      document.getElementById('failedImages').textContent = `Failed: ${stats.failed}`
+      
+      const avgTime = stats.loadTimes.length > 0 
+        ? Math.round(stats.loadTimes.reduce((a, b) => a + b, 0) / stats.loadTimes.length)
+        : 0
+      document.getElementById('avgLoadTime').textContent = `Avg Load Time: ${avgTime}ms`
+      
+      const totalTime = Date.now() - stats.startTime
+      document.getElementById('totalLoadTime').textContent = `Total Time: ${totalTime}ms`
+    }
+
+    // Create image card
+    function createImageCard(src, title, container) {
+      const card = document.createElement('div')
+      card.className = 'image-card loading'
+      
+      const img = document.createElement('img')
+      const startTime = Date.now()
+      
+      img.onload = () => {
+        const loadTime = Date.now() - startTime
+        stats.loaded++
+        stats.loadTimes.push(loadTime)
+        card.classList.remove('loading')
+        card.classList.add('loaded')
+        
+        const info = card.querySelector('.image-info')
+        info.innerHTML += `<br>Load time: ${loadTime}ms`
+        updateStats()
+      }
+      
+      img.onerror = () => {
+        stats.failed++
+        card.classList.remove('loading')
+        card.classList.add('error')
+        
+        const info = card.querySelector('.image-info')
+        info.innerHTML += '<br>❌ Failed to load'
+        updateStats()
+      }
+      
+      img.src = src
+      img.alt = title
+      
+      const info = document.createElement('div')
+      info.className = 'image-info'
+      info.innerHTML = `<strong>${title}</strong><br>Loading...`
+      
+      card.appendChild(img)
+      card.appendChild(info)
+      container.appendChild(card)
+      
+      stats.total++
+      updateStats()
+    }
+
+    // WebP support detection
+    function supportsWebP() {
+      const canvas = document.createElement('canvas')
+      canvas.width = 1
+      canvas.height = 1
+      return canvas.toDataURL('image/webp').startsWith('data:image/webp')
+    }
+
+    // Test data
+    const testImages = [
+      'sample-news-1',
+      'sample-news-2', 
+      'sample-news-3',
+      'raya',
+      'pelprap',
+      'doa-fajar'
+    ]
+
+    // Test 1: Optimized images
+    const optimizedGrid = document.getElementById('optimizedGrid')
+    testImages.forEach((filename, index) => {
+      const optimizedUrl = `https://res.cloudinary.com/df74ywsgg/image/upload/w_400,h_250,c_fit,f_auto,q_auto:best,fl_progressive/myrajawali/thumbnails/news/card-desktop/${filename}`
+      createImageCard(optimizedUrl, `Optimized ${index + 1}`, optimizedGrid)
+    })
+
+    // Test 2: Original images (without optimization)
+    const originalGrid = document.getElementById('originalGrid')
+    testImages.forEach((filename, index) => {
+      const originalUrl = `https://res.cloudinary.com/df74ywsgg/image/upload/myrajawali/thumbnails/news/card-desktop/${filename}`
+      createImageCard(originalUrl, `Original ${index + 1}`, originalGrid)
+    })
+
+    // Test 3: Different sizes
+    const sizesGrid = document.getElementById('sizesGrid')
+    const sizes = [
+      { size: 'w_80,h_80', name: 'Mobile (80x80)' },
+      { size: 'w_400,h_250', name: 'Desktop (400x250)' },
+      { size: 'w_800,h_450', name: 'Detail (800x450)' }
+    ]
+    
+    sizes.forEach(sizeConfig => {
+      const url = `https://res.cloudinary.com/df74ywsgg/image/upload/${sizeConfig.size},c_fit,f_auto,q_auto:best/myrajawali/thumbnails/news/card-desktop/sample-news-1`
+      createImageCard(url, sizeConfig.name, sizesGrid)
+    })
+
+    // Test 4: WebP format
+    const webpGrid = document.getElementById('webpGrid')
+    const webpSupported = supportsWebP()
+    
+    testImages.slice(0, 3).forEach((filename, index) => {
+      const format = webpSupported ? 'f_webp' : 'f_auto'
+      const webpUrl = `https://res.cloudinary.com/df74ywsgg/image/upload/w_400,h_250,c_fit,${format},q_auto:best/myrajawali/thumbnails/news/card-desktop/${filename}`
+      createImageCard(webpUrl, `WebP ${index + 1} (${webpSupported ? 'Supported' : 'Fallback'})`, webpGrid)
+    })
+
+    // Console logging for debugging
+    console.log('🧪 Image Performance Test Started')
+    console.log('📊 WebP Support:', webpSupported)
+    console.log('🔗 Test URLs generated, monitoring load times...')
+    
+    // Performance observer for additional metrics
+    if ('PerformanceObserver' in window) {
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (entry.name.includes('cloudinary.com')) {
+            console.log('📈 Resource timing:', {
+              name: entry.name.split('/').pop(),
+              duration: Math.round(entry.duration),
+              transferSize: entry.transferSize || 'N/A',
+              encodedBodySize: entry.encodedBodySize || 'N/A'
+            })
+          }
+        }
+      })
+      observer.observe({entryTypes: ['resource']})
+    }
+  </script>
+</body>
+</html>

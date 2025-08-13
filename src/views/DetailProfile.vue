@@ -128,6 +128,18 @@
                     placeholder="Pilih sektor"
                   />
                   <FormInput
+                    id="desktop-profile-keluarga"
+                    label="Keluarga"
+                    v-model="profileData.keluarga"
+                    placeholder="Contoh: Kel. Potabuga-Gerungan"
+                    type="text"
+                    :disabled="!isEditing"
+                  />
+                </div>
+                
+                <!-- Row 4 -->
+                <div class="form-row">
+                  <FormInput
                     id="desktop-profile-no-telp"
                     label="No. Telepon"
                     v-model="profileData.noTelp"
@@ -135,6 +147,7 @@
                     type="tel"
                     :disabled="!isEditing"
                   />
+                  <div></div> <!-- Empty cell untuk grid balance -->
                 </div>
               </div>
             </div>
@@ -193,9 +206,7 @@
             :disabled="!isEditing"
             :options="statusOptions"
             placeholder="Pilih status"
-          />
-  
-          <!-- Sektor -->
+          />          <!-- Sektor -->
           <SelectDropdown
             id="profile-sektor"
             label="Sektor"
@@ -204,7 +215,17 @@
             :options="sektorOptions"
             placeholder="Pilih sektor"
           />
-  
+
+          <!-- Keluarga -->
+          <FormInput
+            id="profile-keluarga"
+            label="Keluarga"
+            v-model="profileData.keluarga"
+            placeholder="Contoh: Kel. Potabuga-Gerungan"
+            type="text"
+            :disabled="!isEditing"
+          />
+
           <!-- Jenis Kelamin -->
           <SelectDropdown
             id="profile-jenis-kelamin"
@@ -316,6 +337,7 @@ export default {
         status: '',
         sektor: '',
         jenisKelamin: '',
+        keluarga: '',
         noTelp: ''
       },
       originalData: {}, // Backup data untuk cancel
@@ -328,7 +350,7 @@ export default {
       
       // Options untuk dropdown
       statusOptions: ['Menikah', 'Single', 'Janda/Duda'],
-      sektorOptions: ['Tesalonika', 'Anugerah'],
+      sektorOptions: ['Sektor Anugerah', 'Sektor Tesalonika', 'Non-Sektoral'],
       jenisKelaminOptions: ['Laki-laki', 'Perempuan']
     }
   },
@@ -345,6 +367,22 @@ export default {
     
     created() {
       this.loadUserProfile()
+    },
+    
+    mounted() {
+      // 🔄 Auto-refresh profile data when user returns to this page
+      window.addEventListener('focus', this.handleWindowFocus)
+      window.addEventListener('visibilitychange', this.handleVisibilityChange)
+      
+      // 🔄 Listen for localStorage changes (sinkronisasi lintas tab/window)
+      window.addEventListener('storage', this.handleStorageChange)
+    },
+    
+    beforeUnmount() {
+      // Clean up event listeners
+      window.removeEventListener('focus', this.handleWindowFocus)
+      window.removeEventListener('visibilitychange', this.handleVisibilityChange)
+      window.removeEventListener('storage', this.handleStorageChange)
     },
     
     methods: {
@@ -372,6 +410,9 @@ export default {
             
             // Ambil jenis kelamin dari database
             jenisKelamin: user.jenisKelamin || '',
+            
+            // Ambil keluarga dari database
+            keluarga: user.keluarga || '',
             
             // Ambil nomor telepon dari database
             noTelp: user.noTelp || ''
@@ -447,6 +488,7 @@ export default {
             status: this.profileData.status,
             sektor: this.profileData.sektor,
             jenisKelamin: this.profileData.jenisKelamin,
+            keluarga: this.profileData.keluarga,
             noTelp: this.profileData.noTelp
             }, 'user') // 'user' = diupdate oleh user sendiri
             
@@ -462,6 +504,7 @@ export default {
             status: this.profileData.status,
             sektor: this.profileData.sektor,
             jenisKelamin: this.profileData.jenisKelamin,
+            keluarga: this.profileData.keluarga,
             noTelp: this.profileData.noTelp,
             lastUpdated: new Date().toISOString()
             }
@@ -504,6 +547,47 @@ export default {
       changePhoto() {
         // TODO: Implementasi change photo
         this.comingSoon('Fitur ubah foto')
+      },
+      
+      // 🔄 Auto-refresh handlers
+      async handleWindowFocus() {
+        console.log('🔄 [DetailProfile] Window focused, refreshing profile data...')
+        await this.refreshUserProfile()
+      },
+      
+      async handleVisibilityChange() {
+        if (!document.hidden) {
+          console.log('🔄 [DetailProfile] Page visible again, refreshing profile data...')
+          await this.refreshUserProfile()
+        }
+      },
+      
+      async refreshUserProfile() {
+        try {
+          // Refresh user data from userStore (yang mungkin sudah diupdate oleh admin)
+          const freshUserData = this.userStore.user
+          if (freshUserData) {
+            // Reload profile data with fresh user data
+            this.loadUserProfile()
+            console.log('✅ [DetailProfile] Profile data refreshed from store')
+          }
+        } catch (error) {
+          console.error('❌ [DetailProfile] Error refreshing profile:', error)
+        }
+      },
+      
+      // 🔄 Handle localStorage changes (untuk sinkronisasi lintas tab)
+      handleStorageChange(event) {
+        if (event.key === 'user' && event.newValue) {
+          console.log('🔄 [DetailProfile] User data changed in localStorage, refreshing...')
+          try {
+            const updatedUser = JSON.parse(event.newValue)
+            this.userStore.setUser(updatedUser)
+            this.loadUserProfile()
+          } catch (error) {
+            console.error('❌ [DetailProfile] Error parsing updated user data:', error)
+          }
+        }
       }
     }
   }

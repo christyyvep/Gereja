@@ -78,6 +78,18 @@
             />
           </div>
 
+          <!-- Input Keluarga -->
+          <div class="form-group">
+            <label for="keluarga">Keluarga</label>
+            <input
+              type="text"
+              id="keluarga"
+              v-model="keluarga"
+              class="form-input"
+              placeholder="Contoh: Kel. Potabuga-Gerungan"
+            />
+          </div>
+
           <!-- Input Password -->
           <div class="form-group">
             <PasswordInput
@@ -128,7 +140,7 @@
 </template>
 
 <script>
-import { registerJemaat } from '@/services/auth'
+import { registerUser } from '@/services/auth-hybrid'
 import { useUserStore } from '@/stores/userStore'
 import AutoCompleteInput from '@/components/common/AutoCompleteInput.vue'
 import PasswordInput from '@/components/common/PasswordInput.vue'
@@ -149,6 +161,7 @@ export default {
       tanggalLahir: '',
       status: '',
       sektor: '',
+      keluarga: '',
       password: '',
       confirmPassword: '',
       
@@ -159,7 +172,7 @@ export default {
       errorMsg: '',
 
       statusOptions: ['Menikah', 'Single', 'Janda/Duda'],
-      sektorOptions: ['Sektor Tesalonika', 'Sektor Anugerah'],
+      sektorOptions: ['Sektor Anugerah', 'Sektor Tesalonika', 'Non-Sektoral'],
 
       selectedUserData: null,
       namaExists: false,
@@ -175,6 +188,7 @@ export default {
         this.tanggalLahir &&
         this.status &&
         this.sektor &&
+        this.keluarga.trim().length > 0 &&
         this.password.length >= 6 &&
         this.confirmPassword.length >= 6 &&
         this.password === this.confirmPassword &&
@@ -241,10 +255,11 @@ export default {
         const userData = {
           tanggalLahir: this.tanggalLahir,
           status: this.status,
-          sektor: this.sektor
+          sektor: this.sektor,
+          keluarga: this.keluarga
         };
         
-        await registerJemaat(this.nama, this.password, userData);
+        await registerUser(this.nama, this.password, userData);
         
         const completeUserData = {
           id: this.selectedUserData.id,
@@ -252,6 +267,7 @@ export default {
           tanggalLahir: this.tanggalLahir,
           status: this.status,
           sektor: this.sektor,
+          keluarga: this.keluarga,
           isRegistered: true,
           registeredAt: new Date().toISOString()
         };
@@ -314,6 +330,11 @@ export default {
 
       if (!this.sektor) {
         this.errorMsg = 'Sektor harus dipilih';
+        isValid = false;
+      }
+
+      if (!this.keluarga.trim()) {
+        this.errorMsg = 'Keluarga harus diisi';
         isValid = false;
       }
 

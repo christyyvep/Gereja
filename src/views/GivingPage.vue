@@ -115,14 +115,8 @@ export default {
     }
   },
   mounted() {
-    // 🔍 DEBUG: Test apakah file giving.png bisa di-load
-    console.log('🔍 Testing giving.png...')
-    try {
-      const testPath = require('@/assets/thumbnails/giving/giving.png')
-      console.log('✅ Giving file found:', testPath)
-    } catch (error) {
-      console.error('❌ Giving file error:', error.message)
-    }
+    // File thumbnails sudah di-handle via Cloudinary, tidak perlu local file
+    console.log('✅ GivingPage mounted - using Cloudinary thumbnails')
   },
   methods: {
     async copyBankNumber() {

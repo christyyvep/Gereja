@@ -7,7 +7,11 @@ import { logSecurityEvent, updateSessionActivity } from '../services/firebase-se
 const securityConfig = {
   SESSION_TIMEOUT: 30 * 60 * 1000, // 30 minutes
   MAX_LOGIN_ATTEMPTS: 5,
-  LOCKOUT_DURATION: 15 * 60 * 1000 // 15 minutes
+  LOCKOUT_DURATION: 15 * 60 * 1000, // 15 minutes
+  adminRoles: ['admin', 'super_admin', 'gembala'], // Full admin access
+  operatorRoles: ['operator'], // Limited admin access
+  managementRoles: ['admin', 'super_admin', 'gembala', 'operator'], // Can access admin panel
+  moderatorRoles: ['admin', 'super_admin', 'gembala', 'moderator', 'operator'] // Can moderate content
 }
 
 /**
@@ -418,5 +422,135 @@ export function isSuperAdmin() {
     return currentUser?.role === 'super_admin'
   } catch (error) {
     return false
+  }
+}
+
+/**
+ * Route guard untuk management access (admin, gembala, operator)
+ */
+export function requireManagement(to, from, next) {
+  try {
+    const currentUser = getCurrentUser()
+    
+    if (!currentUser) {
+      logSecurityEvent('unauthorized_management_access_attempt', { 
+        route: to.path,
+        from: from.path,
+        reason: 'not_logged_in'
+      })
+      
+      next({
+        name: 'Login',
+        query: { 
+          redirect: to.fullPath,
+          reason: 'management_auth_required'
+        }
+      })
+      return
+    }
+
+    if (!securityConfig.managementRoles.includes(currentUser.role)) {
+      logSecurityEvent('unauthorized_management_access_attempt', { 
+        route: to.path,
+        userId: currentUser.userId,
+        role: currentUser.role,
+        reason: 'insufficient_privileges'
+      })
+      
+      next({
+        name: 'HomePage',
+        query: { 
+          error: 'insufficient_privileges'
+        }
+      })
+      return
+    }
+
+    // Update session activity
+    updateSessionActivity()
+    
+    // Log management access
+    logSecurityEvent('management_access', { 
+      route: to.path,
+      userId: currentUser.userId,
+      role: currentUser.role 
+    })
+    
+    next()
+  } catch (error) {
+    console.error('Management guard error:', error)
+    next({
+      name: 'Login',
+      query: { 
+        redirect: to.fullPath,
+        reason: 'management_auth_error'
+      }
+    })
+  }
+}
+
+/**
+ * Route guard untuk operator access (limited admin features)
+ */
+export function requireOperator(to, from, next) {
+  try {
+    const currentUser = getCurrentUser()
+    
+    if (!currentUser) {
+      logSecurityEvent('unauthorized_operator_access_attempt', { 
+        route: to.path,
+        from: from.path,
+        reason: 'not_logged_in'
+      })
+      
+      next({
+        name: 'Login',
+        query: { 
+          redirect: to.fullPath,
+          reason: 'operator_auth_required'
+        }
+      })
+      return
+    }
+
+    // Operator can only access specific routes
+    if (!securityConfig.operatorRoles.includes(currentUser.role) && 
+        !securityConfig.adminRoles.includes(currentUser.role)) {
+      logSecurityEvent('unauthorized_operator_access_attempt', { 
+        route: to.path,
+        userId: currentUser.userId,
+        role: currentUser.role,
+        reason: 'insufficient_privileges'
+      })
+      
+      next({
+        name: 'HomePage',
+        query: { 
+          error: 'insufficient_privileges'
+        }
+      })
+      return
+    }
+
+    // Update session activity
+    updateSessionActivity()
+    
+    // Log operator access
+    logSecurityEvent('operator_access', { 
+      route: to.path,
+      userId: currentUser.userId,
+      role: currentUser.role 
+    })
+    
+    next()
+  } catch (error) {
+    console.error('Operator guard error:', error)
+    next({
+      name: 'Login',
+      query: { 
+        redirect: to.fullPath,
+        reason: 'operator_auth_error'
+      }
+    })
   }
 }

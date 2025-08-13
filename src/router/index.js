@@ -5,9 +5,9 @@ import { getCurrentUser } from '../services/auth-hybrid'
 import {
   requireAuth,
   requireAdmin,
-  requireModerator,
   requireGuest,
   requireRole,
+  requireManagement,
   setupGlobalGuards,
   startSecurityMonitoring
 } from '../middleware/authGuard'
@@ -228,43 +228,40 @@ const routes = [
   {
     path: '/admin',
     component: AdminLayout,
-    beforeEnter: requireAdmin,
+    beforeEnter: requireManagement, // Allow admin, gembala, operator
     meta: { 
       requiresAuth: true, 
-      requiresAdmin: true,
+      requiresManagement: true,
       title: 'Admin Panel'
     },
     children: [
       {
         path: '',
-        redirect: '/admin/dashboard'
+        redirect: () => {
+          const currentUser = getCurrentUser()
+          // Redirect operator to news, admin to dashboard
+          return currentUser?.role === 'operator' ? '/admin/news' : '/admin/dashboard'
+        }
       },
       {
         path: 'dashboard',
         name: 'AdminDashboard',
         component: AdminDashboard,
+        beforeEnter: requireAdmin, // Only admin/gembala can access dashboard
         meta: { 
           title: 'Dashboard',
-          breadcrumb: 'Dashboard'
+          breadcrumb: 'Dashboard',
+          requiresAdmin: true
         }
       },
-      // {
-      //   path: 'users',
-      //   name: 'AdminUsers',
-      //   component: () => import('@/views/admin/AdminUsers.vue'),
-      //   meta: { 
-      //     title: 'Kelola Jemaat',
-      //     breadcrumb: 'Kelola Jemaat'
-      //   }
-      // },
       {
         path: 'news',
         name: 'AdminNews', 
         component: AdminNews,
-        beforeEnter: requireModerator,
+        beforeEnter: requireManagement, // All management roles can manage news
         meta: { 
           requiresAuth: true,
-          requiresModerator: true,
+          requiresManagement: true,
           title: 'Kelola Berita'
         }
       },
@@ -272,10 +269,10 @@ const routes = [
         path: 'renungan',
         name: 'AdminRenungan', 
         component: AdminRenungan,
-        beforeEnter: requireModerator,
+        beforeEnter: requireManagement, // All management roles can manage renungan
         meta: { 
           requiresAuth: true,
-          requiresModerator: true,
+          requiresManagement: true,
           title: 'Kelola Renungan',
           breadcrumb: 'Kelola Renungan'
         }
@@ -284,10 +281,10 @@ const routes = [
         path: 'schedules',
         name: 'AdminSchedules',
         component: () => import('@/views/admin/AdminSchedules.vue'),
-        beforeEnter: requireModerator,
+        beforeEnter: requireManagement, // All management roles can manage schedules
         meta: { 
           requiresAuth: true,
-          requiresModerator: true,
+          requiresManagement: true,
           title: 'Kelola Jadwal',
           breadcrumb: 'Kelola Jadwal'
         }
@@ -296,10 +293,10 @@ const routes = [
         path: 'altar-schedules',
         name: 'AdminAltarSchedules',
         component: AdminAltarSchedules,
-        beforeEnter: requireModerator,
+        beforeEnter: requireManagement, // All management roles can manage altar schedules
         meta: { 
           requiresAuth: true,
-          requiresModerator: true,
+          requiresManagement: true,
           title: 'Kelola Jadwal Pelayan Altar',
           breadcrumb: 'Jadwal Peltar'
         }
@@ -308,10 +305,10 @@ const routes = [
         path: 'prayer-requests',
         name: 'AdminPrayerRequests',
         component: () => import('@/views/admin/AdminPrayerRequests.vue'),
-        beforeEnter: requireModerator,
+        beforeEnter: requireAdmin, // Only admin/gembala can access prayer requests
         meta: { 
           requiresAuth: true,
-          requiresModerator: true,
+          requiresAdmin: true,
           title: 'Kelola Prayer Requests',
           breadcrumb: 'Prayer Requests'
         }
@@ -320,7 +317,7 @@ const routes = [
         path: 'laporan-jemaat',
         name: 'AdminLaporanJemaat',
         component: AdminLaporanJemaat,
-        beforeEnter: requireAdmin,
+        beforeEnter: requireAdmin, // Only admin/gembala can access laporan jemaat
         meta: { 
           requiresAuth: true,
           requiresAdmin: true,
@@ -333,10 +330,10 @@ const routes = [
         path: 'users',
         name: 'AdminUsers',
         component: () => import('@/views/admin/AdminUsers.vue'),
-        beforeEnter: requireAdmin,
+        beforeEnter: requireManagement, // All management roles can view users, but CRUD limited by component logic
         meta: { 
           requiresAuth: true,
-          requiresAdmin: true,
+          requiresManagement: true,
           title: 'Kelola Jemaat',
           breadcrumb: 'Kelola Jemaat'
         }
@@ -345,7 +342,7 @@ const routes = [
         path: 'security',
         name: 'AdminSecurity',
         component: () => import('@/views/admin/AdminSecurity.vue'),
-        beforeEnter: requireAdmin,
+        beforeEnter: requireAdmin, // Only admin/gembala can access security
         meta: { 
           requiresAuth: true,
           requiresAdmin: true,
@@ -407,7 +404,7 @@ router.beforeEach(async (to, from, next) => {
   // Legacy admin check (fallback)
   if (to.meta.requiresAdmin && currentUser) {
     const userRole = currentUser.role || 'jemaat'
-    const isAdmin = userRole === 'admin'
+    const isAdmin = userRole === 'admin' || userRole === 'gembala'
     
     if (!isAdmin) {
       // Development bypass
@@ -417,7 +414,7 @@ router.beforeEach(async (to, from, next) => {
           try {
             const parsedUser = JSON.parse(localUser)
             const localRole = parsedUser.role
-            if (localRole === 'admin') {
+            if (localRole === 'admin' || localRole === 'gembala') {
               next()
               return
             }
@@ -427,7 +424,36 @@ router.beforeEach(async (to, from, next) => {
         }
       }
       
-      alert('❌ Akses ditolak! Hanya admin yang dapat mengakses panel admin.')
+      alert('❌ Akses ditolak! Hanya admin atau gembala yang dapat mengakses fitur ini.')
+      next('/home')
+      return
+    }
+  }
+
+  // Legacy management check (for operator access)
+  if (to.meta.requiresManagement && currentUser) {
+    const userRole = currentUser.role || 'jemaat'
+    const hasManagementAccess = ['admin', 'gembala', 'operator'].includes(userRole)
+    
+    if (!hasManagementAccess) {
+      // Development bypass
+      if (process.env.NODE_ENV === 'development') {
+        const localUser = localStorage.getItem('user')
+        if (localUser) {
+          try {
+            const parsedUser = JSON.parse(localUser)
+            const localRole = parsedUser.role
+            if (['admin', 'gembala', 'operator'].includes(localRole)) {
+              next()
+              return
+            }
+          } catch (error) {
+            // Silent fail
+          }
+        }
+      }
+      
+      alert('❌ Akses ditolak! Hanya admin, gembala, atau operator yang dapat mengakses panel admin.')
       next('/home')
       return
     }

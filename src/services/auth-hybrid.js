@@ -636,16 +636,12 @@ async function getJemaatDocId(nama) {
   }
 }
 
-// ===== EXISTING FUNCTIONS (for compatibility) =====
-
 /**
- * Get all jemaat names for autocomplete
- * @returns {Promise<Array>} Array of jemaat names
+ * Get all jemaat names (untuk autocomplete dan dropdown)
+ * @returns {Promise<Array>} Array of jemaat names with basic info
  */
 export async function getAllJemaatNames() {
   try {
-    console.log('📋 [AuthHybrid] Getting all jemaat names...')
-    
     const jemaatRef = collection(db, COLLECTION_NAME)
     const querySnapshot = await getDocs(jemaatRef)
     
@@ -674,6 +670,44 @@ export async function getAllJemaatNames() {
   }
 }
 
+/**
+ * Get all users with their roles (untuk admin dashboard)
+ * @returns {Promise<Array>} Array of users with their roles (without passwords)
+ */
+export async function getAllUsersWithRoles() {
+  try {
+    const jemaatRef = collection(db, COLLECTION_NAME)
+    const querySnapshot = await getDocs(jemaatRef)
+    
+    const users = []
+    querySnapshot.forEach((doc) => {
+      const data = doc.data()
+      if (data.nama) {
+        // Hapus password untuk keamanan
+        const userData = { ...data }
+        delete userData.password
+        delete userData.hashedPassword // Remove hashed password too
+        
+        users.push({
+          id: doc.id,
+          ...userData,
+          role: data.role || 'jemaat' // Ensure role exists
+        })
+      }
+    })
+    
+    // Sort by name
+    users.sort((a, b) => a.nama.localeCompare(b.nama))
+    
+    console.log(`📊 [AuthHybrid] Loaded ${users.length} users with roles`)
+    return users
+    
+  } catch (error) {
+    console.error('❌ [AuthHybrid] Error getting users with roles:', error)
+    throw error
+  }
+}
+
 // Aliases for backward compatibility
 export const loginJemaat = loginUser
 export const registerJemaat = registerUser
@@ -686,8 +720,8 @@ export default {
   isLoggedIn,
   hasRole,
   getAllJemaatNames,
+  getAllUsersWithRoles,
   // Backward compatibility
   loginJemaat,
-  registerJemaat,
-  checkJemaatNameExists
+  registerJemaat
 }

@@ -43,14 +43,13 @@ export function getNewsThumbnail(news, size = 'card-desktop') {
       return getPlaceholder(size, 'News')
     }
     
-    // ✅ RESIZE berdasarkan size yang diminta
+    // ✅ RESIZE berdasarkan size yang diminta tanpa excessive cache busting
     if (thumbnailUrl.startsWith('http')) {
       // Kalau sudah URL lengkap, apply resize
       try {
         const resizedUrl = getNewsCloudinaryUrl(thumbnailUrl, size)
-        // Force cache busting untuk news baru
-        const cacheBuster = `${resizedUrl.includes('?') ? '&' : '?'}cb=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`
-        return resizedUrl + cacheBuster
+        // Smart cache busting - hanya jika diperlukan
+        return resizedUrl
       } catch (error) {
         console.warn(`⚠️ [getNewsThumbnail] Resize failed, using original: ${error.message}`)
         return thumbnailUrl
@@ -59,9 +58,8 @@ export function getNewsThumbnail(news, size = 'card-desktop') {
       // Kalau cuma filename, transform via cloudinary
       try {
         const transformedUrl = getNewsCloudinaryUrl(thumbnailUrl, size)
-        // Force cache busting untuk news baru
-        const cacheBuster = `${transformedUrl.includes('?') ? '&' : '?'}cb=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`
-        return transformedUrl + cacheBuster
+        // Smart cache busting - minimal dan hanya jika diperlukan
+        return transformedUrl
       } catch (error) {
         console.warn(`⚠️ [getNewsThumbnail] Transform failed: ${error.message}`)
         return getPlaceholder(size, 'News')
@@ -95,8 +93,8 @@ export function getScheduleThumbnail(schedule, size = 'card-desktop') {
       console.log(`🎯 [getScheduleThumbnail] Category "${schedule.category}" detected - using Cloudinary URL`)
       
       try {
-        // 🔄 TEMPORARY: Force refresh untuk development (hilangkan ini untuk production)
-        const forceRefresh = true
+        // 🔄 OPTIMIZED: Hapus force refresh untuk production performance
+        const forceRefresh = false // Changed from true to false
         const cloudinaryUrl = getJadwalCloudinaryUrl(schedule.category, size, forceRefresh)
         console.log(`✅ [getScheduleThumbnail] Generated Cloudinary URL: ${cloudinaryUrl}`)
         return cloudinaryUrl
@@ -217,14 +215,13 @@ export function getDevotionalThumbnail(devotional, size = 'card-desktop') {
       return getPlaceholder(size, 'Devotional')
     }
     
-    // ✅ RESIZE berdasarkan size yang diminta
+    // ✅ RESIZE berdasarkan size yang diminta tanpa excessive cache busting
     if (thumbnailUrl.startsWith('http')) {
       // Kalau sudah URL lengkap, apply resize
       try {
         const resizedUrl = getRenunganCloudinaryUrl(thumbnailUrl, size)
-        // Force cache busting untuk renungan baru
-        const cacheBuster = `${resizedUrl.includes('?') ? '&' : '?'}cb=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`
-        return resizedUrl + cacheBuster
+        // Smart cache - tidak perlu cache busting berlebihan
+        return resizedUrl
       } catch (error) {
         console.warn(`⚠️ [getDevotionalThumbnail] Resize failed, using original: ${error.message}`)
         return thumbnailUrl
@@ -233,9 +230,8 @@ export function getDevotionalThumbnail(devotional, size = 'card-desktop') {
       // Kalau cuma filename, transform via cloudinary
       try {
         const transformedUrl = getRenunganCloudinaryUrl(thumbnailUrl, size)
-        // Force cache busting untuk renungan baru
-        const cacheBuster = `${transformedUrl.includes('?') ? '&' : '?'}cb=${Date.now()}&r=${Math.random().toString(36).substring(2, 9)}`
-        return transformedUrl + cacheBuster
+        // Smart cache - minimal dan optimal
+        return transformedUrl
       } catch (error) {
         console.warn(`⚠️ [getDevotionalThumbnail] Transform failed: ${error.message}`)
         return getPlaceholder(size, 'Devotional')

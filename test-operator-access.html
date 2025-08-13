@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Operator Access - MyRajawali Debug</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2em;
+            font-weight: 700;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .button {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px 10px 10px 0;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ffd43b 0%, #fab005 100%);
+        }
+        
+        .output {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #4facfe;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .status {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .status.info {
+            background: #cce7ff;
+            border: 1px solid #b8daff;
+            color: #004085;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Test Operator Access</h1>
+            <p>Debug tools untuk test akses operator ke admin panel</p>
+        </div>
+        
+        <div class="content">
+            <button class="button btn-success" onclick="checkOperatorAccess()">
+                🔍 Check Operator Access
+            </button>
+            
+            <button class="button" onclick="checkCurrentUser()">
+                👤 Check Current User
+            </button>
+            
+            <button class="button btn-warning" onclick="simulateOperatorClick()">
+                🎯 Simulate Operator Button Click
+            </button>
+            
+            <button class="button" onclick="clearOutput()">
+                🗑️ Clear Output
+            </button>
+            
+            <div id="output" class="output" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        function showOutput(message, type = 'info') {
+            const output = document.getElementById('output');
+            output.style.display = 'block';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const statusClass = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            
+            output.innerHTML += `<div class="status ${statusClass}">[${timestamp}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function clearOutput() {
+            const output = document.getElementById('output');
+            output.style.display = 'none';
+            output.innerHTML = '';
+        }
+        
+        function checkOperatorAccess() {
+            showOutput('🔍 Checking operator access permissions...', 'info');
+            
+            // Check if we're in MyRajawali app context
+            if (typeof window.parent !== 'undefined' && window.parent !== window) {
+                try {
+                    // Try to access parent window's userStore
+                    const parentWindow = window.parent;
+                    if (parentWindow.Vue && parentWindow.Vue.prototype.$userStore) {
+                        const userStore = parentWindow.Vue.prototype.$userStore;
+                        checkUserPermissions(userStore);
+                    } else {
+                        showOutput('❌ Cannot access userStore from parent window', 'error');
+                        checkLocalStorage();
+                    }
+                } catch (error) {
+                    showOutput('❌ Error accessing parent window: ' + error.message, 'error');
+                    checkLocalStorage();
+                }
+            } else {
+                checkLocalStorage();
+            }
+        }
+        
+        function checkLocalStorage() {
+            showOutput('📋 Checking localStorage for user data...', 'info');
+            
+            try {
+                const userData = localStorage.getItem('user');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    showOutput('✅ Found user in localStorage:', 'success');
+                    showOutput(`  - Name: ${user.nama}`, 'info');
+                    showOutput(`  - Role: ${user.role || 'jemaat'}`, 'info');
+                    showOutput(`  - Sektor: ${user.sektor || 'N/A'}`, 'info');
+                    
+                    // Check permissions
+                    checkUserRole(user.role);
+                } else {
+                    showOutput('❌ No user data found in localStorage', 'error');
+                }
+            } catch (error) {
+                showOutput('❌ Error parsing user data: ' + error.message, 'error');
+            }
+        }
+        
+        function checkUserRole(role) {
+            showOutput('🔐 Checking role permissions...', 'info');
+            
+            const isAdmin = role === 'admin' || role === 'gembala';
+            const isOperator = role === 'operator';
+            const canAccessAdminPanel = ['admin', 'gembala', 'operator'].includes(role);
+            
+            showOutput(`  - Is Admin: ${isAdmin}`, isAdmin ? 'success' : 'info');
+            showOutput(`  - Is Operator: ${isOperator}`, isOperator ? 'success' : 'info');
+            showOutput(`  - Can Access Admin Panel: ${canAccessAdminPanel}`, canAccessAdminPanel ? 'success' : 'error');
+            
+            if (canAccessAdminPanel) {
+                showOutput('✅ User should be able to access admin panel!', 'success');
+            } else {
+                showOutput('❌ User cannot access admin panel', 'error');
+            }
+        }
+        
+        function checkCurrentUser() {
+            showOutput('👤 Checking current user status...', 'info');
+            
+            // Check multiple sources
+            const sources = [
+                { name: 'localStorage.user', data: localStorage.getItem('user') },
+                { name: 'localStorage.myrajawali_user', data: localStorage.getItem('myrajawali_user') },
+                { name: 'sessionStorage.user', data: sessionStorage.getItem('user') }
+            ];
+            
+            sources.forEach(source => {
+                if (source.data) {
+                    try {
+                        const userData = JSON.parse(source.data);
+                        showOutput(`✅ Found in ${source.name}:`, 'success');
+                        showOutput(`  - Name: ${userData.nama}`, 'info');
+                        showOutput(`  - Role: ${userData.role || 'jemaat'}`, 'info');
+                    } catch (error) {
+                        showOutput(`❌ Invalid JSON in ${source.name}`, 'error');
+                    }
+                } else {
+                    showOutput(`❌ No data in ${source.name}`, 'info');
+                }
+            });
+        }
+        
+        function simulateOperatorClick() {
+            showOutput('🎯 Simulating operator button click...', 'info');
+            
+            // Get current user
+            const userData = localStorage.getItem('user');
+            if (!userData) {
+                showOutput('❌ No user logged in', 'error');
+                return;
+            }
+            
+            try {
+                const user = JSON.parse(userData);
+                const role = user.role || 'jemaat';
+                
+                showOutput(`Current user: ${user.nama} (${role})`, 'info');
+                
+                // Simulate the navbar logic
+                const canAccessAdminPanel = ['admin', 'gembala', 'operator'].includes(role);
+                
+                if (canAccessAdminPanel) {
+                    showOutput('✅ PASS: User can access admin panel', 'success');
+                    showOutput('🚀 Simulating navigation to /admin...', 'info');
+                    
+                    // Simulate route redirect logic
+                    if (role === 'operator') {
+                        showOutput('📍 Operator detected - would redirect to /admin/news', 'success');
+                    } else {
+                        showOutput('📍 Admin detected - would redirect to /admin/dashboard', 'success');
+                    }
+                } else {
+                    showOutput('❌ FAIL: User cannot access admin panel', 'error');
+                    showOutput('Alert would show: "Akses ditolak! Hanya admin atau operator yang dapat mengakses panel admin."', 'error');
+                }
+                
+            } catch (error) {
+                showOutput('❌ Error parsing user data: ' + error.message, 'error');
+            }
+        }
+        
+        // Auto-run check on load
+        window.addEventListener('load', function() {
+            showOutput('🔄 Auto-checking on page load...', 'info');
+            checkOperatorAccess();
+        });
+    </script>
+</body>
+</html>
