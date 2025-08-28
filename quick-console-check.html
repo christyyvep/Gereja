@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Console Check - MyRajawali</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px;
+            font-size: 16px;
+        }
+        button:hover { background: #0056b3; }
+        #console-output {
+            background: #1e1e1e;
+            color: #fff;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            text-align: left;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Quick Console Check</h1>
+        <p>Mengecek apakah masih ada error <code>getCurrentUser is not a function</code></p>
+        
+        <div id="status" class="status info">Ready to check...</div>
+        
+        <button onclick="runQuickCheck()">🚀 Run Quick Check</button>
+        <button onclick="openMainApp()">🏠 Open Main App</button>
+        <button onclick="openAdminPanel()">🔐 Open Admin Panel</button>
+        
+        <div id="console-output"></div>
+    </div>
+
+    <script type="module">
+        const consoleOutput = document.getElementById('console-output');
+        const status = document.getElementById('status');
+        
+        // Capture console errors
+        const originalError = console.error;
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            
+            const errorText = args.join(' ');
+            if (errorText.includes('getCurrentUser')) {
+                logToOutput('❌ ERROR: ' + errorText, 'error');
+            }
+        };
+        
+        // Capture console warnings  
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            
+            const warnText = args.join(' ');
+            if (warnText.includes('getCurrentUser')) {
+                logToOutput('⚠️ WARNING: ' + warnText, 'warning');
+            }
+        };
+        
+        function logToOutput(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : type === 'warning' ? '#feca57' : '#48cae4';
+            
+            consoleOutput.innerHTML += `<div style="color: ${color}; margin: 5px 0;">[${timestamp}] ${message}</div>`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        window.runQuickCheck = async function() {
+            status.innerHTML = '<div class="info">🔄 Running quick check...</div>';
+            logToOutput('🔄 Starting quick check...', 'info');
+            
+            try {
+                // Test 1: Import auth-hybrid
+                logToOutput('📥 Testing import of auth-hybrid module...', 'info');
+                const authModule = await import('./src/services/auth-hybrid.js');
+                logToOutput('✅ Auth module imported successfully', 'info');
+                
+                // Test 2: Test getCurrentUser function
+                logToOutput('🔍 Testing getCurrentUser function...', 'info');
+                const getCurrentUser = authModule.getCurrentUser;
+                
+                if (typeof getCurrentUser !== 'function') {
+                    throw new Error(`getCurrentUser is not a function, type: ${typeof getCurrentUser}`);
+                }
+                
+                logToOutput('✅ getCurrentUser is a function', 'info');
+                
+                // Test 3: Call getCurrentUser
+                const result = getCurrentUser();
+                logToOutput(`🔍 getCurrentUser() result: ${result ? 'User found' : 'No user logged in'}`, 'info');
+                
+                if (result) {
+                    logToOutput(`👤 User: ${result.nama} (${result.role})`, 'info');
+                }
+                
+                status.innerHTML = '<div class="success">✅ All checks passed! No getCurrentUser errors detected.</div>';
+                logToOutput('✅ Quick check completed successfully!', 'info');
+                
+            } catch (error) {
+                status.innerHTML = `<div class="error">❌ Error detected: ${error.message}</div>`;
+                logToOutput(`❌ Error: ${error.message}`, 'error');
+                console.error('Quick check failed:', error);
+            }
+        };
+        
+        window.openMainApp = function() {
+            logToOutput('🏠 Opening main application...', 'info');
+            window.open('http://localhost:8080/', '_blank');
+        };
+        
+        window.openAdminPanel = function() {
+            logToOutput('🔐 Opening admin panel...', 'info');
+            window.open('http://localhost:8080/#/admin', '_blank');
+        };
+        
+        // Auto-run check after 1 second
+        setTimeout(() => {
+            runQuickCheck();
+        }, 1000);
+    </script>
+</body>
+</html>

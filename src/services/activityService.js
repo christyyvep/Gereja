@@ -103,22 +103,42 @@ export async function logUserActivity(userId, activityData) {
  */
 export async function logAdminActivity(adminId, activityData) {
   try {
+    console.log('👨‍💼 [ActivityService] Starting admin activity log...')
+    console.log('👨‍💼 [ActivityService] Admin ID:', adminId)
+    console.log('👨‍💼 [ActivityService] Activity data:', activityData)
+    
+    if (!adminId) {
+      console.warn('⚠️ [ActivityService] No admin ID provided, using fallback')
+      adminId = 'unknown_admin_' + Date.now()
+    }
+    
     const activityRef = collection(db, ADMIN_ACTIVITIES_COLLECTION)
+    console.log('👨‍💼 [ActivityService] Collection reference created')
     
     const activityRecord = {
-      adminId: adminId,
-      timestamp: new Date(),
-      // Ensure adminName is available from the activity data or fallback
+      adminId: String(adminId), // Ensure it's a string
+      timestamp: new Date(), // Use regular Date instead of serverTimestamp
+      createdAt: new Date(), // Additional timestamp field
       adminName: getAdminName(adminId),
       ...activityData
     }
+    console.log('👨‍💼 [ActivityService] Activity record prepared:', activityRecord)
     
-    await addDoc(activityRef, activityRecord)
-    console.log('👨‍💼 [ActivityService] Admin activity logged:', activityData.action)
+    const docRef = await addDoc(activityRef, activityRecord)
+    console.log('✅ [ActivityService] Admin activity logged with ID:', docRef.id)
+    
+    return docRef.id
     
   } catch (error) {
     console.error('❌ [ActivityService] Error logging admin activity:', error)
+    console.error('❌ [ActivityService] Error details:', {
+      adminId,
+      activityData,
+      errorMessage: error.message,
+      errorCode: error.code
+    })
     // Jangan throw error, activity log adalah optional
+    return null
   }
 }
 

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Auth Hybrid Minimal - MyRajawali</title>
+</head>
+<body>
+    <h1>Testing Auth Hybrid Minimal</h1>
+    <div id="result"></div>
+
+    <script type="module">
+        const resultDiv = document.getElementById('result');
+        
+        try {
+            console.log('Testing auth-hybrid-minimal import...');
+            const authModule = await import('./src/services/auth-hybrid-minimal.js');
+            console.log('Auth module loaded:', Object.keys(authModule));
+            
+            const { getCurrentUser, isLoggedIn } = authModule;
+            console.log('getCurrentUser type:', typeof getCurrentUser);
+            console.log('isLoggedIn type:', typeof isLoggedIn);
+            
+            const user = getCurrentUser();
+            console.log('Current user:', user);
+            
+            resultDiv.innerHTML = `
+                <div style="color: green;">✅ Auth-hybrid-minimal imported successfully</div>
+                <div>getCurrentUser: ${typeof getCurrentUser}</div>
+                <div>isLoggedIn: ${typeof isLoggedIn}</div>
+                <div>Current user: ${user ? user.nama : 'null'}</div>
+            `;
+        } catch (error) {
+            console.error('Auth-hybrid-minimal import failed:', error);
+            resultDiv.innerHTML = `<div style="color: red;">❌ Import failed: ${error.message}</div>`;
+        }
+    </script>
+</body>
+</html>

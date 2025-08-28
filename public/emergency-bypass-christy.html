@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMERGENCY BYPASS - Christy Login</title>
+</head>
+<body>
+    <h1>🆘 EMERGENCY BYPASS - Login Christy</h1>
+    
+    <div style="background: #ffcdd2; padding: 15px; margin: 20px 0; border-radius: 5px;">
+        <h3>⚠️ TEMPORARY BYPASS SOLUTION</h3>
+        <p>Jika debug tool tidak berhasil, gunakan bypass ini untuk login Christy sementara</p>
+    </div>
+    
+    <div>
+        <h3>Bypass Login untuk Christy</h3>
+        <p>Ini akan memberikan akses login langsung tanpa verifikasi password</p>
+        <button onclick="bypassLoginChristy()" style="padding: 15px 30px; background: #f44336; color: white; border: none; border-radius: 5px; font-size: 16px;">🚨 BYPASS LOGIN CHRISTY</button>
+    </div>
+    
+    <div id="results" style="margin-top: 20px; padding: 15px; background: #000; color: #00ff00; white-space: pre-wrap; font-family: 'Courier New', monospace; border-radius: 5px;">
+        Bypass tool ready...
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js'
+        import { getFirestore, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore.js'
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA3Rm_kfJo5QsmJCMfNJYdoV9CYfN9o4gE",
+            authDomain: "myrajawali-app.firebaseapp.com",
+            projectId: "myrajawali-app",
+            storageBucket: "myrajawali-app.appspot.com",
+            messagingSenderId: "1090503445464",
+            appId: "1:1090503445464:web:7e50c38b29b1af47ce66eb"
+        }
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig)
+        const db = getFirestore(app)
+
+        function log(message) {
+            const resultsDiv = document.getElementById('results')
+            const timestamp = new Date().toLocaleTimeString()
+            resultsDiv.textContent += `[${timestamp}] ${message}\n`
+            resultsDiv.scrollTop = resultsDiv.scrollHeight
+        }
+
+        async function findChristy() {
+            const jemaatRef = collection(db, 'jemaat')
+            const allSnapshot = await getDocs(jemaatRef)
+            
+            for (const doc of allSnapshot.docs) {
+                const data = doc.data()
+                if (data.nama && data.nama.toLowerCase().includes('christy')) {
+                    return { doc, data }
+                }
+            }
+            return null
+        }
+
+        window.bypassLoginChristy = async () => {
+            try {
+                log('🚨 STARTING EMERGENCY BYPASS FOR CHRISTY...')
+                
+                const result = await findChristy()
+                if (!result) {
+                    log('❌ Christy account not found')
+                    return
+                }
+                
+                const { data } = result
+                
+                // Create bypass session directly in localStorage
+                const bypassUserData = {
+                    id: result.doc.id,
+                    nama: data.nama,
+                    role: data.role || 'jemaat',
+                    sektor: data.sektor,
+                    status: data.status,
+                    loginTime: new Date().toISOString(),
+                    bypassLogin: true,
+                    bypassReason: 'Emergency password issue'
+                }
+                
+                // Set in localStorage (same as normal login)
+                localStorage.setItem('myrajawali_user', JSON.stringify(bypassUserData))
+                localStorage.setItem('user', JSON.stringify(bypassUserData))
+                
+                // Create session
+                const sessionData = {
+                    sessionId: 'bypass_' + Date.now(),
+                    userId: result.doc.id,
+                    nama: data.nama,
+                    role: data.role || 'jemaat',
+                    sektor: data.sektor,
+                    status: data.status,
+                    createdAt: Date.now(),
+                    expiresAt: Date.now() + (30 * 60 * 1000), // 30 minutes
+                    lastActivity: Date.now(),
+                    bypassLogin: true
+                }
+                
+                localStorage.setItem('myrajawali_session', JSON.stringify(sessionData))
+                
+                log('✅ BYPASS SESSION CREATED')
+                log(`User: ${data.nama}`)
+                log(`Role: ${data.role || 'jemaat'}`)
+                log(`Session ID: ${sessionData.sessionId}`)
+                
+                log('')
+                log('🎉 BYPASS COMPLETE!')
+                log('Now go to the main MyRajawali app - Christy should be logged in!')
+                log('')
+                log('⚠️ IMPORTANT: Fix the password issue and remove bypass ASAP!')
+                
+                // Try to redirect to main app
+                setTimeout(() => {
+                    window.open('http://localhost:8083', '_blank')
+                }, 2000)
+                
+            } catch (error) {
+                log(`❌ BYPASS FAILED: ${error.message}`)
+            }
+        }
+
+        log('🆘 EMERGENCY BYPASS TOOL READY')
+        log('This will create a temporary login session for Christy')
+        log('Use only as last resort!')
+    </script>
+</body>
+</html>

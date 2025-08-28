@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMERGENCY DEBUG - Christy Login</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body>
+    <h1>🚨 EMERGENCY DEBUG - Christy Login Issue</h1>
+    
+    <div style="background: #ffebee; padding: 15px; margin: 20px 0; border-radius: 5px; border-left: 5px solid #f44336;">
+        <h3>🔥 MASALAH:</h3>
+        <p>Password Christy sudah direset tapi masih error "Password salah"</p>
+        <p>Kemungkinan ada konflik antara sistem auth yang berbeda atau cache issue</p>
+    </div>
+    
+    <div>
+        <h3>Step 1: Deep Analysis Christy Account</h3>
+        <button onclick="deepAnalysisChristy()" style="padding: 10px 20px; background: #f44336; color: white; border: none; border-radius: 5px;">🔍 DEEP SCAN CHRISTY</button>
+    </div>
+    
+    <div>
+        <h3>Step 2: Manual Password Test</h3>
+        <input type="password" id="manualPassword" placeholder="Test password apapun" style="width: 300px; padding: 10px;" />
+        <button onclick="manualPasswordTest()" style="padding: 10px 20px; background: #ff9800; color: white; border: none; border-radius: 5px;">🧪 TEST MANUAL</button>
+    </div>
+    
+    <div>
+        <h3>Step 3: Force Fix - Set Simple Password</h3>
+        <p style="color: #666;">Jika semua gagal, set password sederhana sementara</p>
+        <input type="text" id="simplePassword" placeholder="Password sederhana (e.g., 123456)" style="width: 300px; padding: 10px;" />
+        <button onclick="forceSetSimplePassword()" style="padding: 10px 20px; background: #4caf50; color: white; border: none; border-radius: 5px;">🔨 FORCE SET</button>
+    </div>
+    
+    <div>
+        <h3>Step 4: Test Auth Methods</h3>
+        <button onclick="testAllAuthMethods()" style="padding: 10px 20px; background: #9c27b0; color: white; border: none; border-radius: 5px;">🔬 TEST ALL AUTH METHODS</button>
+    </div>
+    
+    <div>
+        <h3>Step 5: Clear All Cache & LocalStorage</h3>
+        <button onclick="clearAllCache()" style="padding: 10px 20px; background: #607d8b; color: white; border: none; border-radius: 5px;">🗑️ CLEAR CACHE</button>
+    </div>
+    
+    <div id="results" style="margin-top: 20px; padding: 15px; background: #000; color: #00ff00; white-space: pre-wrap; font-family: 'Courier New', monospace; border-radius: 5px; max-height: 500px; overflow-y: auto;">
+EMERGENCY DEBUG TOOL READY...
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js'
+        import { getFirestore, collection, query, where, getDocs, doc, updateDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore.js'
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA3Rm_kfJo5QsmJCMfNJYdoV9CYfN9o4gE",
+            authDomain: "myrajawali-app.firebaseapp.com",
+            projectId: "myrajawali-app",
+            storageBucket: "myrajawali-app.appspot.com",
+            messagingSenderId: "1090503445464",
+            appId: "1:1090503445464:web:7e50c38b29b1af47ce66eb"
+        }
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig)
+        const db = getFirestore(app)
+
+        function log(message, type = 'info') {
+            const resultsDiv = document.getElementById('results')
+            const timestamp = new Date().toLocaleTimeString()
+            const colors = {
+                info: '#00ff00',
+                error: '#ff0000', 
+                warning: '#ffff00',
+                success: '#00ffff'
+            }
+            
+            const coloredMessage = `[${timestamp}] ${message}`
+            resultsDiv.innerHTML += `<span style="color: ${colors[type]}">${coloredMessage}</span>\n`
+            resultsDiv.scrollTop = resultsDiv.scrollHeight
+            console.log(message)
+        }
+
+        // Hash functions
+        function hashPasswordSHA256(password) {
+            return CryptoJS.SHA256(password).toString()
+        }
+
+        function hashPasswordPBKDF2(password) {
+            const salt = CryptoJS.lib.WordArray.random(128/8)
+            const hash = CryptoJS.PBKDF2(password, salt, {
+                keySize: 256/32,
+                iterations: 10000
+            })
+            return salt.toString() + ':' + hash.toString()
+        }
+
+        function verifyPasswordPBKDF2(password, storedHash) {
+            try {
+                if (!storedHash.includes(':')) {
+                    if (storedHash.length === 64) {
+                        return storedHash === hashPasswordSHA256(password)
+                    }
+                    return password === storedHash
+                }
+                
+                const [salt, hash] = storedHash.split(':')
+                const hashToVerify = CryptoJS.PBKDF2(password, CryptoJS.enc.Hex.parse(salt), {
+                    keySize: 256/32,
+                    iterations: 10000
+                })
+                return hash === hashToVerify.toString()
+            } catch (error) {
+                return false
+            }
+        }
+
+        async function findAllChristy() {
+            const jemaatRef = collection(db, 'jemaat')
+            const allSnapshot = await getDocs(jemaatRef)
+            
+            const christyAccounts = []
+            allSnapshot.forEach((doc) => {
+                const data = doc.data()
+                if (data.nama && data.nama.toLowerCase().includes('christy')) {
+                    christyAccounts.push({
+                        id: doc.id,
+                        doc: doc,
+                        data: data
+                    })
+                }
+            })
+            
+            return christyAccounts
+        }
+
+        window.deepAnalysisChristy = async () => {
+            try {
+                log('🔍 STARTING DEEP ANALYSIS OF CHRISTY ACCOUNTS...', 'warning')
+                
+                const christyAccounts = await findAllChristy()
+                
+                log(`Found ${christyAccounts.length} Christy accounts:`, 'info')
+                
+                for (let i = 0; i < christyAccounts.length; i++) {
+                    const account = christyAccounts[i]
+                    const data = account.data
+                    
+                    log(`\n=== ACCOUNT ${i + 1}: ${data.nama} ===`, 'success')
+                    log(`ID: ${account.id}`)
+                    log(`Registered: ${data.isRegistered}`)
+                    log(`Has Password: ${!!data.password}`)
+                    log(`Password Length: ${data.password ? data.password.length : 0}`)
+                    log(`Password Type: ${data.password ? (data.password.includes(':') ? 'PBKDF2' : data.password.length === 64 ? 'SHA256' : 'Plain') : 'None'}`)
+                    log(`Failed Attempts: ${data.failedLoginAttempts || 0}`)
+                    log(`Last Login: ${data.lastLoginAt ? new Date(data.lastLoginAt.seconds * 1000).toLocaleString() : 'Never'}`)
+                    log(`Password Preview: ${data.password ? data.password.substring(0, 30) + '...' : 'N/A'}`)
+                    
+                    // Additional security fields
+                    log(`Security Version: ${data.securityVersion || 'N/A'}`)
+                    log(`Password Method: ${data.passwordMethod || 'N/A'}`)
+                    log(`Role: ${data.role || 'N/A'}`)
+                }
+                
+                log('\n🎯 ANALYSIS COMPLETE', 'success')
+                
+            } catch (error) {
+                log(`❌ ERROR IN DEEP ANALYSIS: ${error.message}`, 'error')
+            }
+        }
+
+        window.manualPasswordTest = async () => {
+            const testPassword = document.getElementById('manualPassword').value
+            
+            if (!testPassword) {
+                log('❌ Enter password to test', 'error')
+                return
+            }
+            
+            try {
+                log(`🧪 MANUAL TESTING PASSWORD: "${testPassword}"`, 'warning')
+                
+                const christyAccounts = await findAllChristy()
+                
+                for (const account of christyAccounts) {
+                    const data = account.data
+                    const storedPassword = data.password
+                    
+                    if (!storedPassword) continue
+                    
+                    log(`\nTesting on: ${data.nama}`, 'info')
+                    
+                    // Test all possible methods
+                    const sha256Hash = hashPasswordSHA256(testPassword)
+                    const plainMatch = testPassword === storedPassword
+                    const sha256Match = sha256Hash === storedPassword
+                    const pbkdf2Match = verifyPasswordPBKDF2(testPassword, storedPassword)
+                    
+                    log(`  Plain Text Match: ${plainMatch ? '✅' : '❌'}`)
+                    log(`  SHA256 Match: ${sha256Match ? '✅' : '❌'}`)
+                    log(`  PBKDF2 Match: ${pbkdf2Match ? '✅' : '❌'}`)
+                    
+                    if (plainMatch || sha256Match || pbkdf2Match) {
+                        log(`  🎉 PASSWORD WORKS!`, 'success')
+                    } else {
+                        log(`  ❌ No match found`, 'error')
+                    }
+                }
+                
+            } catch (error) {
+                log(`❌ ERROR IN MANUAL TEST: ${error.message}`, 'error')
+            }
+        }
+
+        window.forceSetSimplePassword = async () => {
+            const simplePassword = document.getElementById('simplePassword').value
+            
+            if (!simplePassword) {
+                log('❌ Enter simple password', 'error')
+                return
+            }
+            
+            try {
+                log(`🔨 FORCE SETTING SIMPLE PASSWORD: "${simplePassword}"`, 'warning')
+                
+                const christyAccounts = await findAllChristy()
+                
+                if (christyAccounts.length === 0) {
+                    log('❌ No Christy accounts found', 'error')
+                    return
+                }
+                
+                // Use the first/main account
+                const mainAccount = christyAccounts[0]
+                
+                // Try multiple formats
+                const formats = [
+                    { name: 'Plain Text', value: simplePassword },
+                    { name: 'SHA256', value: hashPasswordSHA256(simplePassword) },
+                    { name: 'PBKDF2', value: hashPasswordPBKDF2(simplePassword) }
+                ]
+                
+                for (const format of formats) {
+                    log(`\nTrying format: ${format.name}`, 'info')
+                    
+                    await updateDoc(mainAccount.doc.ref, {
+                        password: format.value,
+                        passwordResetAt: serverTimestamp(),
+                        passwordResetBy: 'emergency_tool',
+                        passwordMethod: format.name.toLowerCase(),
+                        lastPasswordChange: serverTimestamp(),
+                        failedLoginAttempts: 0,
+                        lastLoginAttempt: null,
+                        lockedUntil: null
+                    })
+                    
+                    log(`✅ Set password with ${format.name} format`, 'success')
+                    log(`Preview: ${format.value.substring(0, 30)}...`)
+                    
+                    // Test immediately
+                    const testResult = verifyPasswordPBKDF2(simplePassword, format.value) || 
+                                     (format.value === simplePassword) ||
+                                     (format.value === hashPasswordSHA256(simplePassword))
+                    
+                    log(`Test result: ${testResult ? '✅ WORKS' : '❌ FAILED'}`)
+                    
+                    if (testResult) {
+                        log(`🎉 SUCCESS! Use password "${simplePassword}" to login`, 'success')
+                        break
+                    }
+                }
+                
+            } catch (error) {
+                log(`❌ ERROR IN FORCE SET: ${error.message}`, 'error')
+            }
+        }
+
+        window.testAllAuthMethods = async () => {
+            try {
+                log('🔬 TESTING ALL AUTH METHODS...', 'warning')
+                
+                // Test direct Firebase access
+                log('\n1. Testing direct Firebase access...')
+                const christyAccounts = await findAllChristy()
+                log(`✅ Firebase access OK - found ${christyAccounts.length} accounts`)
+                
+                // Test CryptoJS
+                log('\n2. Testing CryptoJS...')
+                const testHash = CryptoJS.SHA256('test').toString()
+                log(`✅ CryptoJS OK - test hash: ${testHash.substring(0, 20)}...`)
+                
+                // Test PBKDF2
+                log('\n3. Testing PBKDF2...')
+                const testPBKDF2 = hashPasswordPBKDF2('test')
+                log(`✅ PBKDF2 OK - test hash: ${testPBKDF2.substring(0, 30)}...`)
+                
+                // Test verification
+                log('\n4. Testing verification...')
+                const verifyResult = verifyPasswordPBKDF2('test', testPBKDF2)
+                log(`✅ Verification ${verifyResult ? 'OK' : 'FAILED'}`)
+                
+                log('\n🎯 ALL TESTS COMPLETE', 'success')
+                
+            } catch (error) {
+                log(`❌ ERROR IN AUTH METHODS TEST: ${error.message}`, 'error')
+            }
+        }
+
+        window.clearAllCache = () => {
+            try {
+                log('🗑️ CLEARING ALL CACHE AND STORAGE...', 'warning')
+                
+                // Clear localStorage
+                localStorage.clear()
+                log('✅ localStorage cleared')
+                
+                // Clear sessionStorage
+                sessionStorage.clear()
+                log('✅ sessionStorage cleared')
+                
+                // Clear any auth-related cache
+                const authKeys = ['myrajawali_session', 'myrajawali_user', 'user', 'rememberedUser']
+                authKeys.forEach(key => {
+                    localStorage.removeItem(key)
+                    sessionStorage.removeItem(key)
+                })
+                log('✅ Auth cache cleared')
+                
+                // Clear rate limiting
+                const rateLimitKeys = Object.keys(localStorage).filter(key => key.startsWith('rate_limit_'))
+                rateLimitKeys.forEach(key => localStorage.removeItem(key))
+                log(`✅ Rate limit cache cleared (${rateLimitKeys.length} entries)`)
+                
+                log('\n🎉 ALL CACHE CLEARED - TRY LOGIN AGAIN', 'success')
+                
+            } catch (error) {
+                log(`❌ ERROR CLEARING CACHE: ${error.message}`, 'error')
+            }
+        }
+
+        log('🚨 EMERGENCY DEBUG TOOL LOADED', 'success')
+        log('Start with DEEP SCAN CHRISTY to see what\'s happening', 'info')
+    </script>
+</body>
+</html>

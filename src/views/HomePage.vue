@@ -122,7 +122,7 @@ import AnnouncementCard from '@/components/AnnouncementCard.vue'
 import { useUserStore } from '@/stores/userStore'
 import { useStreakStore } from '@/stores/streakStore'
 import { getDailyVerseUrl } from '@/utils/imageUtils'
-import { getCurrentUser } from '@/services/auth-hybrid'
+import { getCurrentUser } from '@/services/auth-hybrid-minimal'
 import { getUnifiedAnnouncements } from '@/services/announcements'
 
 export default {
@@ -211,7 +211,7 @@ export default {
           return
         }
 
-        const currentUser = await getCurrentUser()
+        const currentUser = getCurrentUser()
         if (currentUser?.id) {
           this.namaUser = currentUser.nama || 'Jemaat'
         }

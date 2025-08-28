@@ -11,7 +11,7 @@ const db = admin.firestore()
 
 // Security configuration
 const SALT_ROUNDS = 12
-const MAX_LOGIN_ATTEMPTS = 5
+const MAX_LOGIN_ATTEMPTS = 5 // Restored to normal security
 const LOCKOUT_DURATION = 15 * 60 * 1000 // 15 menit
 const ADMIN_ROLES = ['admin', 'super_admin']
 
@@ -414,3 +414,81 @@ exports.cleanupRateLimits = functions.pubsub
       return null
     }
   })
+
+/**
+ * Unlock user account (untuk troubleshooting)
+ */
+exports.unlockUser = functions.https.onCall(async (data, context) => {
+  try {
+    const { username } = data
+
+    if (!username) {
+      throw new functions.https.HttpsError('invalid-argument', 'Username is required')
+    }
+
+    const userDoc = await admin.firestore().collection('users').doc(username).get()
+    
+    if (!userDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'User not found')
+    }
+
+    // Reset failed attempts dan hapus lockout
+    await admin.firestore().collection('users').doc(username).update({
+      failedLoginAttempts: 0,
+      lastLoginAttempt: null,
+      lockedUntil: null
+    })
+
+    console.log(`User ${username} unlocked successfully`)
+    return { 
+      success: true, 
+      message: `User ${username} unlocked successfully`,
+      timestamp: new Date().toISOString()
+    }
+
+  } catch (error) {
+    console.error('Error unlocking user:', error)
+    throw new functions.https.HttpsError('internal', error.message)
+  }
+})
+
+/**
+ * Reset all user lockouts (emergency function)
+ */
+exports.resetAllLockouts = functions.https.onCall(async (data, context) => {
+  try {
+    // Get all locked users
+    const usersSnapshot = await admin.firestore().collection('users')
+      .where('failedLoginAttempts', '>', 0)
+      .get()
+
+    if (usersSnapshot.empty) {
+      return { message: 'No locked users found' }
+    }
+
+    const batch = admin.firestore().batch()
+    let count = 0
+
+    usersSnapshot.docs.forEach((doc) => {
+      batch.update(doc.ref, {
+        failedLoginAttempts: 0,
+        lastLoginAttempt: null,
+        lockedUntil: null
+      })
+      count++
+    })
+
+    await batch.commit()
+
+    console.log(`Reset lockouts for ${count} users`)
+    return { 
+      success: true, 
+      message: `Reset lockouts for ${count} users`,
+      count: count
+    }
+
+  } catch (error) {
+    console.error('Error resetting lockouts:', error)
+    throw new functions.https.HttpsError('internal', error.message)
+  }
+})

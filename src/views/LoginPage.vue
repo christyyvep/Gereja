@@ -110,11 +110,16 @@ import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
 import { useUserStore } from '@/stores/userStore'
 import { useStreakStore } from '@/stores/streakStore'
 
-// UPDATED: Import hybrid auth
-import { loginUser } from '@/services/auth-hybrid'
+// UPDATED: Import hybrid auth minimal
+import { loginUser } from '@/services/auth-hybrid-minimal'
 
 // Toast notification
 import { useToast } from '@/composables/useToast.js'
+
+// Telegram notification service - DISABLED for broadcast system
+// Sistem sekarang untuk broadcast renungan, bukan notifikasi login/logout
+// import telegramService from '@/utils/telegramEnhancedService.js'
+// import telegramService from '@/utils/telegramEnvService.js'
 
 export default {
   name: 'LoginPage',
@@ -212,6 +217,22 @@ export default {
           // Update streak for returning user
           await this.updateStreakForReturningUser(result.user)
           
+          // 🔔 Send Telegram notification for successful login - DISABLED for broadcast system
+          // Sistem sekarang untuk broadcast renungan, bukan notifikasi login/logout
+          /*
+          try {
+            await telegramService.notifyLogin({
+              username: result.user.nama,
+              email: result.user.email || 'N/A',
+              role: result.user.role || 'jemaat',
+              ip: this.getClientIP()
+            })
+          } catch (telegramError) {
+            console.warn('⚠️ Failed to send Telegram notification:', telegramError)
+            // Don't block login if Telegram fails
+          }
+          */
+          
           // Success notification
           this.showSuccessMessage(`Selamat datang, ${result.user.nama}!`)
           
@@ -227,9 +248,25 @@ export default {
             window.location.reload()
           }, 500)
         }
-        
-      } catch (error) {
+        } catch (error) {
         console.error('❌ [LoginPage] Hybrid auth login error:', error)
+        
+        // 🔔 Send Telegram notification for failed login - DISABLED for broadcast system
+        // Sistem sekarang untuk broadcast renungan, bukan notifikasi login/logout
+        /*
+        try {
+          await telegramService.notifyFailedLogin({
+            email: this.nama || 'Unknown',
+            reason: error.message || 'Login failed',
+            ip: this.getClientIP(),
+            attempts: 1, // Could be enhanced with real attempt tracking
+            maxAttempts: 5
+          })
+        } catch (telegramError) {
+          console.warn('⚠️ Failed to send Telegram notification:', telegramError)
+        }
+        */
+        
         this.handleLoginError(error)
       } finally {
         this.isLoading = false
@@ -300,11 +337,18 @@ export default {
     },
     
     /**
-     * Show success message (placeholder)
+     * Get client IP (simplified for demo)
+     */
+    getClientIP() {
+      // In production, you might want to get real IP from server
+      return 'Client IP'
+    },
+    
+    /**
+     * Show success message with toast
      */
     showSuccessMessage(message) {
-      // TODO: Implement proper toast notification
-      console.log('Success:', message)
+      this.showInfo(message)
     },
     
     /**

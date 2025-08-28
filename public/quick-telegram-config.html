@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Config Generator - MyRajawali Bot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .result {
+            background: #e9ecef;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .pre-filled {
+            background: #f8f9fa;
+            border: 2px solid #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Quick Config Generator - MyRajawali Bot</h1>
+        
+        <h2>Bot Information</h2>
+        <p><strong>Bot Name:</strong> GPdI Rajawali Kanonang</p>
+        <p><strong>Username:</strong> @MyRajawali_bot</p>
+        <p><strong>Token:</strong> 8330380524:AAFCEuYTsuPk3Ev4E0flNScn0BhO7K76Myw</p>
+        
+        <h2>Generate Configuration</h2>
+        <label>Bot Token (sudah diisi):</label>
+        <input type="text" id="botToken" value="8330380524:AAFCEuYTsuPk3Ev4E0flNScn0BhO7K76Myw" class="pre-filled" readonly>
+        
+        <label>Chat ID (sudah diisi dari getUpdates):</label>
+        <input type="text" id="chatId" value="5929124699" class="pre-filled">
+        
+        <button onclick="generateConfig()">🔄 Generate Obfuscated Config</button>
+        
+        <div id="instructions" class="result">
+✅ CHAT ID SUDAH DIDAPAT: 5929124699
+
+📋 INFORMASI:
+- Bot: @MyRajawali_bot (GPdI Rajawali Kanonang)
+- Chat dengan: Anitha Gerungan (Private Chat)
+- Chat ID: 5929124699
+- Status: Siap untuk generate konfigurasi
+
+🚀 LANGKAH SELANJUTNYA:
+1. Klik tombol "Generate Obfuscated Config" di atas
+2. Copy kode yang dihasilkan ke telegramEnhancedService.js
+3. Test notifikasi dengan tool yang disediakan
+        </div>
+        
+        <div id="result" style="display: none;">
+            <h3>✅ Konfigurasi Berhasil Digenerate</h3>
+            
+            <h4>📝 Copy kode berikut ke telegramEnhancedService.js (baris ~45):</h4>
+            <div id="configCode" class="result"></div>
+            <button onclick="copyToClipboard('configCode')">📋 Copy Configuration</button>
+            
+            <h4>🧪 Test Code (jalankan di browser console setelah update service):</h4>
+            <div id="testCode" class="result"></div>
+            <button onclick="copyToClipboard('testCode')">📋 Copy Test Code</button>
+        </div>
+    </div>
+
+    <script>
+        // XOR encryption for obfuscation
+        function xorEncrypt(text, key) {
+            let result = '';
+            for (let i = 0; i < text.length; i++) {
+                result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+            }
+            return result;
+        }
+
+        function generateConfig() {
+            const botToken = document.getElementById('botToken').value.trim();
+            const chatId = document.getElementById('chatId').value.trim();
+
+            if (!chatId) {
+                alert('Mohon masukkan Chat ID terlebih dahulu!');
+                return;
+            }
+
+            // Validate chat ID format
+            if (!chatId.match(/^-?\d+$/)) {
+                alert('Format Chat ID tidak valid! Harus berupa angka, contoh: -1001234567890');
+                return;
+            }
+
+            // Create config object
+            const config = {
+                botToken: botToken,
+                chatId: chatId
+            };
+
+            // Multi-layer obfuscation
+            const jsonString = JSON.stringify(config);
+            const base64Encoded = btoa(jsonString);
+            const xorKey = 'MyRajawaliSecure2025';
+            const xorEncrypted = xorEncrypt(base64Encoded, xorKey);
+            const finalEncoded = btoa(xorEncrypted);
+
+            // Generate code snippets
+            const configCodeSnippet = `const encodedConfig = '${finalEncoded}'`;
+            
+            const testCodeSnippet = `// Test di browser console setelah update service
+import telegramService from './src/utils/telegramEnhancedService.js'
+
+// Test basic notification
+telegramService.notifyCustom('🧪 Test dari MyRajawali Bot - ${new Date().toLocaleTimeString()}').then(success => {
+  console.log('Telegram test result:', success ? '✅ SUCCESS' : '❌ FAILED')
+})
+
+// Test login notification  
+telegramService.notifyLogin({
+  username: 'Test User',
+  email: 'test@myrajawali.com',
+  role: 'jemaat', 
+  ip: '192.168.1.1'
+}).then(success => {
+  console.log('Login notification test:', success ? '✅ SUCCESS' : '❌ FAILED')
+})`;
+
+            // Display results
+            document.getElementById('configCode').textContent = configCodeSnippet;
+            document.getElementById('testCode').textContent = testCodeSnippet;
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copied!';
+                btn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#007bff';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy to clipboard');
+            });
+        }
+
+        // Auto focus on chat ID input
+        document.getElementById('chatId').focus();
+    </script>
+</body>
+</html>

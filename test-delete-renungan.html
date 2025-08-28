@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Delete Renungan - MyRajawali</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn-danger {
+            background: #dc3545;
+        }
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .result {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+        }
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .result.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .status-info {
+            background: #e2e3e5;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Hapus Renungan Admin</h1>
+    
+    <div class="card">
+        <h3>📊 Status Authentication</h3>
+        <div id="authStatus" class="status-info">Checking...</div>
+        <button onclick="checkAuthStatus()" class="btn">Refresh Status</button>
+    </div>
+
+    <div class="card">
+        <h3>🔐 Admin Login</h3>
+        <p>Login sebagai admin untuk test hapus renungan:</p>
+        <div style="margin-bottom: 12px;">
+            <label>Username:</label><br>
+            <input type="text" id="username" value="admin" style="width: 200px; padding: 8px; margin-top: 4px;">
+        </div>
+        <div style="margin-bottom: 12px;">
+            <label>Password:</label><br>
+            <input type="password" id="password" value="admin123" style="width: 200px; padding: 8px; margin-top: 4px;">
+        </div>
+        <button onclick="testLogin()" class="btn">Login Admin</button>
+        <button onclick="testLogout()" class="btn btn-danger">Logout</button>
+        <div id="loginResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="card">
+        <h3>📖 Test Renungan Operations</h3>
+        <p>Test CRUD operations renungan (create dummy, then delete):</p>
+        <button onclick="createTestRenungan()" class="btn btn-success">1. Buat Test Renungan</button>
+        <button onclick="listRenungan()" class="btn">2. List Renungan</button>
+        <button onclick="deleteTestRenungan()" class="btn btn-danger">3. Hapus Test Renungan</button>
+        <div id="renunganResult" class="result" style="display: none;"></div>
+    </div>
+
+    <div class="card">
+        <h3>🛠️ Debug Tools</h3>
+        <button onclick="checkFirebaseAuth()" class="btn">Check Firebase Auth</button>
+        <button onclick="checkAuthSession()" class="btn">Check Auth Session</button>
+        <button onclick="testFirestoreRules()" class="btn">Test Firestore Rules</button>
+        <div id="debugResult" class="result" style="display: none;"></div>
+    </div>
+
+    <script type="module">
+        // Import Firebase and services
+        import { db } from './src/services/firebase.js'
+        import { getAuth, onAuthStateChanged } from 'firebase/auth'
+        import { 
+            collection, 
+            doc, 
+            addDoc, 
+            deleteDoc, 
+            getDocs,
+            getDoc,
+            query,
+            orderBy,
+            limit 
+        } from 'firebase/firestore'
+        import { loginUser, logoutUser, getCurrentUser } from './src/services/auth-hybrid.js'
+        import { addDevotional, deleteDevotional, getDevotionalsForAdmin } from './src/services/devotionals.js'
+
+        let testRenunganId = null
+
+        // Check auth status on page load
+        window.addEventListener('load', () => {
+            checkAuthStatus()
+            
+            // Listen for Firebase Auth state changes
+            const auth = getAuth()
+            onAuthStateChanged(auth, (user) => {
+                console.log('Firebase Auth state changed:', user ? 'Logged in' : 'Logged out')
+                if (user) {
+                    console.log('Firebase Auth UID:', user.uid)
+                }
+                updateAuthDisplay()
+            })
+        })
+
+        async function updateAuthDisplay() {
+            const authStatus = document.getElementById('authStatus')
+            
+            try {
+                const auth = getAuth()
+                const hybridUser = getCurrentUser()
+                const localUser = JSON.parse(localStorage.getItem('myrajawali_user') || 'null')
+                
+                authStatus.innerHTML = `
+📊 Firebase Auth: ${auth.currentUser ? '✅ Signed in (' + auth.currentUser.uid + ')' : '❌ Not signed in'}
+🏠 Hybrid Auth: ${hybridUser ? '✅ Active (' + hybridUser.nama + ')' : '❌ No session'}
+💾 Local Storage: ${localUser ? '✅ Present (' + localUser.nama + ')' : '❌ Empty'}
+🎭 Role: ${localUser?.role || 'none'}
+
+🔑 Auth Status: ${auth.currentUser && hybridUser ? '✅ READY' : '❌ INCOMPLETE'}
+                `
+            } catch (error) {
+                authStatus.innerHTML = `❌ Error checking auth: ${error.message}`
+            }
+        }
+
+        window.checkAuthStatus = updateAuthDisplay
+
+        window.testLogin = async function() {
+            const username = document.getElementById('username').value
+            const password = document.getElementById('password').value
+            const resultDiv = document.getElementById('loginResult')
+            
+            resultDiv.className = 'result loading'
+            resultDiv.style.display = 'block'
+            resultDiv.textContent = '⏳ Logging in...'
+            
+            try {
+                const result = await loginUser(username, password)
+                
+                resultDiv.className = 'result success'
+                resultDiv.textContent = `✅ Login berhasil!
+User: ${result.user.nama}
+Role: ${result.user.role}
+Session: ${result.session.sessionId}
+
+🔄 Updating auth status...`
+                
+                // Wait a bit for Firebase Auth to complete
+                setTimeout(() => {
+                    updateAuthDisplay()
+                }, 1000)
+                
+            } catch (error) {
+                resultDiv.className = 'result error'
+                resultDiv.textContent = `❌ Login gagal: ${error.message}`
+            }
+        }
+
+        window.testLogout = async function() {
+            const resultDiv = document.getElementById('loginResult')
+            
+            resultDiv.className = 'result loading'
+            resultDiv.style.display = 'block'
+            resultDiv.textContent = '⏳ Logging out...'
+            
+            try {
+                await logoutUser()
+                
+                resultDiv.className = 'result success'
+                resultDiv.textContent = '✅ Logout berhasil!'
+                
+                setTimeout(() => {
+                    updateAuthDisplay()
+                }, 1000)
+                
+            } catch (error) {
+                resultDiv.className = 'result error'
+                resultDiv.textContent = `❌ Logout gagal: ${error.message}`
+            }
+        }
+
+        window.createTestRenungan = async function() {
+            const resultDiv = document.getElementById('renunganResult')
+            
+            resultDiv.className = 'result loading'
+            resultDiv.style.display = 'block'
+            resultDiv.textContent = '⏳ Creating test renungan...'
+            
+            try {
+                const testData = {
+                    title: 'Test Renungan - ' + new Date().toLocaleString(),
+                    content: 'Ini adalah renungan test untuk dihapus. Jangan khawatir!',
+                    verse: 'Yohanes 3:16',
+                    date: new Date().toISOString().split('T')[0],
+                    category: 'harian',
+                    createdBy: 'test-admin'
+                }
+                
+                testRenunganId = await addDevotional(testData)
+                
+                resultDiv.className = 'result success'
+                resultDiv.textContent = `✅ Test renungan berhasil dibuat!
+ID: ${testRenunganId}
+Title: ${testData.title}
+
+Sekarang coba hapus dengan tombol "Hapus Test Renungan"`
+                
+            } catch (error) {
+                resultDiv.className = 'result error'
+                resultDiv.textContent = `❌ Gagal buat test renungan: ${error.message}`
+            }
+        }
+
+        window.listRenungan = async function() {
+            const resultDiv = document.getElementById('renunganResult')
+            
+            resultDiv.className = 'result loading'
+            resultDiv.style.display = 'block'
+            resultDiv.textContent = '⏳ Loading renungan...'
+            
+            try {
+                const renunganList = await getDevotionalsForAdmin(10)
+                
+                let listText = `📚 Daftar Renungan (${renunganList.length} items):\n\n`
+                
+                renunganList.forEach((renungan, index) => {
+                    listText += `${index + 1}. ${renungan.title} (${renungan.id})\n`
+                    if (renungan.id === testRenunganId) {
+                        listText += '   👆 TEST RENUNGAN INI\n'
+                    }
+                })
+                
+                resultDiv.className = 'result success'
+                resultDiv.textContent = listText
+                
+            } catch (error) {
+                resultDiv.className = 'result error'
+                resultDiv.textContent = `❌ Gagal load renungan: ${error.message}`
+            }
+        }
+
+        window.deleteTestRenungan = async function() {
+            if (!testRenunganId) {
+                alert('Buat test renungan dulu!')
+                return
+            }
+            
+            const resultDiv = document.getElementById('renunganResult')
+            
+            resultDiv.className = 'result loading'
+            resultDiv.style.display = 'block'
+            resultDiv.textContent = `⏳ Deleting test renungan (${testRenunganId})...`
+            
+            try {
+                await deleteDevotional(testRenunganId, 'test-admin')
+                
+                resultDiv.className = 'result success'
+                resultDiv.textContent = `✅ Test renungan berhasil dihapus!
+Deleted ID: ${testRenunganId}
+
+🎉 FITUR HAPUS RENUNGAN SUDAH BEKERJA!`
+                
+                testRenunganId = null
+                
+            } catch (error) {
+                resultDiv.className = 'result error'
+                resultDiv.textContent = `❌ Gagal hapus test renungan: ${error.message}
+
+Debug info:
+- Test ID: ${testRenunganId}
+- Error type: ${error.constructor.name}
+- Error code: ${error.code || 'unknown'}`
+            }
+        }
+
+        window.checkFirebaseAuth = async function() {
+            const resultDiv = document.getElementById('debugResult')
+            
+            resultDiv.className = 'result loading'
+            resultDiv.style.display = 'block'
+            resultDiv.textContent = '⏳ Checking Firebase Auth...'
+            
+            try {
+                const auth = getAuth()
+                const user = auth.currentUser
+                
+                let debugInfo = `🔍 Firebase Auth Debug:
+                
+• Auth object: ${auth ? '✅ Available' : '❌ Not available'}
+• Current user: ${user ? '✅ Signed in' : '❌ Not signed in'}
+`
+                
+                if (user) {
+                    debugInfo += `• UID: ${user.uid}
+• Anonymous: ${user.isAnonymous}
+• Provider: ${user.providerData.length > 0 ? user.providerData[0].providerId : 'anonymous'}
+• Created: ${new Date(parseInt(user.metadata.createdAt)).toLocaleString()}
+`
+                }
+                
+                resultDiv.className = 'result success'
+                resultDiv.textContent = debugInfo
+                
+            } catch (error) {
+                resultDiv.className = 'result error'
+                resultDiv.textContent = `❌ Firebase Auth error: ${error.message}`
+            }
+        }
+
+        window.checkAuthSession = async function() {
+            const resultDiv = document.getElementById('debugResult')
+            
+            resultDiv.className = 'result loading'
+            resultDiv.style.display = 'block'
+            resultDiv.textContent = '⏳ Checking auth session...'
+            
+            try {
+                const auth = getAuth()
+                if (!auth.currentUser) {
+                    throw new Error('Firebase Auth user not signed in')
+                }
+                
+                const sessionDoc = await getDoc(doc(db, 'auth_sessions', auth.currentUser.uid))
+                
+                let debugInfo = `🔍 Auth Session Debug:
+                
+• Firebase UID: ${auth.currentUser.uid}
+• Session doc exists: ${sessionDoc.exists() ? '✅ Yes' : '❌ No'}
+`
+                
+                if (sessionDoc.exists()) {
+                    const sessionData = sessionDoc.data()
+                    debugInfo += `• Jemaat ID: ${sessionData.jemaatId}
+• Name: ${sessionData.nama}
+• Role: ${sessionData.role}
+• Session ID: ${sessionData.sessionId}
+• Created: ${sessionData.createdAt?.toDate?.()?.toLocaleString() || 'unknown'}
+• Expires: ${sessionData.expiresAt?.toDate?.()?.toLocaleString() || 'unknown'}
+`
+                }
+                
+                resultDiv.className = 'result success'
+                resultDiv.textContent = debugInfo
+                
+            } catch (error) {
+                resultDiv.className = 'result error'
+                resultDiv.textContent = `❌ Auth session error: ${error.message}`
+            }
+        }
+
+        window.testFirestoreRules = async function() {
+            const resultDiv = document.getElementById('debugResult')
+            
+            resultDiv.className = 'result loading'
+            resultDiv.style.display = 'block'
+            resultDiv.textContent = '⏳ Testing Firestore rules...'
+            
+            try {
+                // Test read devotionals collection
+                const devotionalsRef = collection(db, 'devotionals')
+                const devotionalsQuery = query(devotionalsRef, orderBy('date', 'desc'), limit(1))
+                const snapshot = await getDocs(devotionalsQuery)
+                
+                let debugInfo = `🔍 Firestore Rules Test:
+                
+• Read devotionals: ${snapshot.empty ? '✅ Permission granted (empty)' : '✅ Permission granted (' + snapshot.size + ' docs)'}
+• Firebase Auth: ${getAuth().currentUser ? '✅ Signed in' : '❌ Not signed in'}
+`
+                
+                // Test create (dummy doc)
+                try {
+                    const testDocRef = doc(db, 'devotionals', 'test-access-' + Date.now())
+                    await addDoc(collection(db, 'devotionals'), {
+                        title: 'Access Test',
+                        content: 'Testing firestore access',
+                        date: new Date().toISOString().split('T')[0],
+                        testDoc: true
+                    })
+                    debugInfo += '• Create devotional: ✅ Permission granted\n'
+                } catch (createError) {
+                    debugInfo += `• Create devotional: ❌ Permission denied (${createError.code})\n`
+                }
+                
+                resultDiv.className = 'result success'
+                resultDiv.textContent = debugInfo
+                
+            } catch (error) {
+                resultDiv.className = 'result error'
+                resultDiv.textContent = `❌ Firestore rules test error: ${error.message}
+Code: ${error.code}
+Details: ${error.details || 'none'}`
+            }
+        }
+    </script>
+</body>
+</html>

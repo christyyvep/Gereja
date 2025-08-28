@@ -257,35 +257,56 @@ export async function updateDevotional(id, updateData) {
 /**
  * Menghapus devotional (untuk admin)
  * @param {string} id - ID devotional yang akan dihapus
+ * @param {string} adminId - ID admin yang menghapus
  * @returns {Promise<boolean>} Success status
  */
 export async function deleteDevotional(id, adminId = 'admin') {
   try {
+    console.log(`🗑️ [deleteDevotional] Starting delete for ID: ${id}, admin: ${adminId}`)
+    
     if (!id) {
       throw new Error('ID devotional harus diisi')
     }
     
-    // Get devotional data before deletion for activity log
+    // Validate document exists first
     const devotionalRef = doc(db, COLLECTION_NAME, id)
     const devotionalDoc = await getDoc(devotionalRef)
+    
+    if (!devotionalDoc.exists()) {
+      throw new Error(`Devotional dengan ID '${id}' tidak ditemukan`)
+    }
+    
     const devotionalData = devotionalDoc.data()
+    console.log(`📋 [deleteDevotional] Found devotional: ${devotionalData.title}`)
     
+    // Perform delete
     await deleteDoc(devotionalRef)
+    console.log(`✅ [deleteDevotional] Successfully deleted devotional: ${id}`)
     
-    // Log admin activity
+    // Log admin activity (non-blocking)
     try {
       await logAdminActivity(adminId, {
         action: 'devotional_delete',
         title: devotionalData?.title || 'Deleted Devotional',
-        category: devotionalData?.category || 'harian'
+        category: devotionalData?.category || 'harian',
+        devotionalId: id
       })
+      console.log(`📝 [deleteDevotional] Activity logged for admin: ${adminId}`)
     } catch (activityError) {
       console.warn('⚠️ [deleteDevotional] Could not log activity:', activityError)
+      // Don't throw - activity logging failure shouldn't fail the delete
     }
     
     return true
   } catch (error) {
-    console.error('Error deleting devotional:', error)
+    console.error('❌ [deleteDevotional] Error deleting devotional:', error)
+    console.error('❌ [deleteDevotional] Error details:', {
+      id,
+      adminId,
+      errorMessage: error.message,
+      errorCode: error.code,
+      stack: error.stack
+    })
     throw error
   }
 }

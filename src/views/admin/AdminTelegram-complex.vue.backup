@@ -1,0 +1,1092 @@
+<template>
+  <div class="telegram-admin-container">
+    <!-- Header -->
+    <div class="admin-header">
+      <div class="header-content">
+        <h1 class="page-title">
+          <i class="fab fa-telegram"></i>
+          Kelola Telegram
+        </h1>
+        <p class="page-subtitle">Konfigurasi dan monitoring integrasi Telegram untuk broadcast renungan</p>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="admin-content">
+      <!-- Status Connection Card -->
+      <div class="card connection-card">
+        <div class="card-header">
+          <h3><i class="fas fa-plug"></i> Status Koneksi</h3>
+          <button @click="testConnection" class="btn btn-primary" :disabled="testing">
+            <i class="fas fa-wifi" v-if="!testing"></i>
+            <i class="fas fa-spinner fa-spin" v-else></i>
+            {{ testing ? 'Testing...' : 'Test Koneksi' }}
+          </button>
+        </div>
+        <div class="card-body">
+          <div v-if="connectionStatus" class="connection-status">
+            <div class="status-item" :class="connectionStatus.success ? 'success' : 'error'">
+              <i :class="connectionStatus.success ? 'fas fa-check-circle' : 'fas fa-times-circle'"></i>
+              <span>{{ connectionStatus.message }}</span>
+            </div>
+            <div v-if="connectionStatus.botInfo" class="bot-info">
+              <h4>Informasi Bot:</h4>
+              <ul>
+                <li><strong>Nama:</strong> {{ connectionStatus.botInfo.first_name }}</li>
+                <li><strong>Username:</strong> @{{ connectionStatus.botInfo.username }}</li>
+                <li><strong>ID:</strong> {{ connectionStatus.botInfo.id }}</li>
+                <li><strong>Dapat menerima pesan:</strong> {{ connectionStatus.botInfo.can_receive_messages ? 'Ya' : 'Tidak' }}</li>
+              </ul>
+            </div>
+          </div>
+          <div v-else class="no-status">
+            <p>Klik "Test Koneksi" untuk memeriksa status bot Telegram</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuration Card -->
+      <div class="card config-card">
+        <div class="card-header">
+          <h3><i class="fas fa-cog"></i> Konfigurasi</h3>
+        </div>
+        <div class="card-body">
+          <div class="config-info">
+            <div class="config-item">
+              <label>Bot Token:</label>
+              <span class="config-value">{{ botToken ? '●●●●●●●●●●' + botToken.slice(-10) : 'Belum dikonfigurasi' }}</span>
+            </div>
+            <div class="config-item">
+              <label>API URL:</label>
+              <span class="config-value">{{ apiUrl }}</span>
+            </div>
+            <div class="config-item">
+              <label>Mode Pengiriman:</label>
+              <span class="config-value">Individual ke setiap jemaat</span>
+            </div>
+          </div>
+          <div class="config-help">
+            <h4>📋 Cara Setup:</h4>
+            <ol>
+              <li>Chat dengan <code>@BotFather</code> di Telegram</li>
+              <li>Gunakan command <code>/newbot</code> untuk membuat bot baru</li>
+              <li>Salin token yang diberikan ke <code>.env</code></li>
+              <li><strong>PENTING:</strong> Jemaat harus chat dengan bot untuk registrasi</li>
+              <li>Format registrasi: jemaat kirim nomor HP mereka ke bot</li>
+              <li>Bot akan otomatis cocokkan dengan database jemaat</li>
+            </ol>
+          </div>
+          <div class="config-note">
+            <h4>⚠️ Catatan Penting:</h4>
+            <p>Sistem ini mengirim pesan ke <strong>setiap jemaat individu</strong>, bukan ke grup. 
+            Setiap jemaat harus registrasi terlebih dahulu dengan chat ke bot.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jemaat Stats Card -->
+      <div class="card stats-card">
+        <div class="card-header">
+          <h3><i class="fas fa-users"></i> Statistik Jemaat</h3>
+          <button @click="refreshStats" class="btn btn-secondary" :disabled="loadingStats">
+            <i class="fas fa-sync-alt" v-if="!loadingStats"></i>
+            <i class="fas fa-spinner fa-spin" v-else></i>
+            Refresh
+          </button>
+        </div>
+        <div class="card-body">
+          <div v-if="jemaatStats" class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-number">{{ jemaatStats.total }}</div>
+              <div class="stat-label">Total Jemaat</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">{{ jemaatStats.registered }}</div>
+              <div class="stat-label">Terdaftar</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">{{ jemaatStats.active }}</div>
+              <div class="stat-label">Aktif</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">{{ jemaatStats.withPhone }}</div>
+              <div class="stat-label">Punya HP</div>
+            </div>
+            <div class="stat-item telegram-stat">
+              <div class="stat-number">{{ jemaatStats.withTelegram || 0 }}</div>
+              <div class="stat-label">Terdaftar Telegram</div>
+            </div>
+            <div class="stat-item telegram-stat">
+              <div class="stat-number">{{ jemaatStats.telegramPercentage || 0 }}%</div>
+              <div class="stat-label">Coverage Telegram</div>
+            </div>
+          </div>
+          <div v-else class="loading-stats">
+            <i class="fas fa-spinner fa-spin"></i>
+            <span>Memuat statistik...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message History Card -->
+      <div class="card history-card">
+        <div class="card-header">
+          <h3><i class="fas fa-history"></i> Riwayat Pesan Telegram</h3>
+          <button @click="refreshHistory" class="btn btn-secondary" :disabled="loadingHistory">
+            <i class="fas fa-sync-alt" v-if="!loadingHistory"></i>
+            <i class="fas fa-spinner fa-spin" v-else></i>
+            Refresh
+          </button>
+        </div>
+        <div class="card-body">
+          <div v-if="messageHistory.length > 0" class="message-list">
+            <div 
+              v-for="message in messageHistory.slice(0, 10)" 
+              :key="message.id" 
+              class="message-item"
+              :class="message.status"
+            >
+              <div class="message-header">
+                <span class="message-type">
+                  <i :class="getMessageIcon(message.type)"></i>
+                  {{ getMessageTypeLabel(message.type) }}
+                </span>
+                <span class="message-time">
+                  {{ formatTimestamp(message.timestamp) }}
+                </span>
+              </div>
+              <div class="message-title">{{ message.renunganTitle || message.title || 'Pesan Telegram' }}</div>
+              <div class="message-status" :class="message.status">
+                <i :class="message.status === 'sent' ? 'fas fa-check' : 'fas fa-times'"></i>
+                {{ message.status === 'sent' ? 'Terkirim' : 'Gagal' }}
+                {{ message.error ? ': ' + message.error : '' }}
+              </div>
+            </div>
+          </div>
+          <div v-else class="no-history">
+            <i class="fas fa-inbox"></i>
+            <p>Belum ada riwayat pesan Telegram</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jemaat Registration Card -->
+      <div class="card registration-card">
+        <div class="card-header">
+          <h3><i class="fas fa-user-plus"></i> Registrasi Jemaat</h3>
+          <button @click="getTelegramUsers" class="btn btn-secondary" :disabled="loadingUsers">
+            <i class="fas fa-sync-alt" v-if="!loadingUsers"></i>
+            <i class="fas fa-spinner fa-spin" v-else></i>
+            {{ loadingUsers ? 'Loading...' : 'Ambil User Telegram' }}
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="registration-help">
+            <h4>📱 Cara Registrasi Jemaat:</h4>
+            <ol>
+              <li>Jemaat chat dengan bot di Telegram</li>
+              <li>Jemaat kirim nomor HP mereka</li>
+              <li>Klik "Ambil User Telegram" untuk melihat yang sudah chat</li>
+              <li>Cocokkan dan daftarkan User ID dengan data jemaat</li>
+            </ol>
+          </div>
+
+          <!-- Telegram Users List -->
+          <div v-if="telegramUsers.length > 0" class="telegram-users">
+            <h4>👥 User yang Chat dengan Bot:</h4>
+            <div class="users-list">
+              <div 
+                v-for="user in telegramUsers" 
+                :key="user.id" 
+                class="user-item"
+              >
+                <div class="user-info">
+                  <div class="user-name">
+                    <strong>{{ user.fullName || user.firstName }}</strong>
+                    <span v-if="user.username" class="username">@{{ user.username }}</span>
+                  </div>
+                  <div class="user-id">ID: {{ user.id }}</div>
+                  <div class="user-message">{{ user.lastMessage }}</div>
+                  <div class="user-date">{{ formatTimestamp(user.messageDate) }}</div>
+                </div>
+                <div class="user-actions">
+                  <select v-model="user.selectedJemaat" class="jemaat-select">
+                    <option value="">Pilih Jemaat</option>
+                    <option 
+                      v-for="jemaat in availableJemaat" 
+                      :key="jemaat.id" 
+                      :value="jemaat.id"
+                    >
+                      {{ jemaat.nama }} - {{ jemaat.noHP }}
+                    </option>
+                  </select>
+                  <button 
+                    @click="registerUserToJemaat(user)" 
+                    class="btn btn-primary btn-sm"
+                    :disabled="!user.selectedJemaat || processingRegistration"
+                  >
+                    <i class="fas fa-user-check"></i>
+                    Daftarkan
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Registered Jemaat List -->
+          <div v-if="registeredJemaat.length > 0" class="registered-jemaat">
+            <h4>✅ Jemaat Terdaftar di Telegram:</h4>
+            <div class="registered-list">
+              <div 
+                v-for="jemaat in registeredJemaat" 
+                :key="jemaat.id" 
+                class="registered-item"
+              >
+                <div class="jemaat-info">
+                  <div class="jemaat-name">{{ jemaat.nama }}</div>
+                  <div class="jemaat-phone">{{ jemaat.noHP }}</div>
+                  <div class="telegram-id">Telegram ID: {{ jemaat.telegramUserId }}</div>
+                </div>
+                <div class="jemaat-actions">
+                  <button 
+                    @click="testSendToJemaat(jemaat)" 
+                    class="btn btn-secondary btn-sm"
+                    :disabled="sendingTestToJemaat"
+                  >
+                    <i class="fas fa-paper-plane"></i>
+                    Test Kirim
+                  </button>
+                  <button 
+                    @click="unregisterJemaat(jemaat)" 
+                    class="btn btn-danger btn-sm"
+                    :disabled="processingRegistration"
+                  >
+                    <i class="fas fa-user-times"></i>
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="telegramUsers.length === 0 && !loadingUsers" class="no-users">
+            <i class="fas fa-users-slash"></i>
+            <p>Belum ada user yang chat dengan bot. Minta jemaat untuk chat dengan bot terlebih dahulu.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Test Message Card -->
+      <div class="card test-card">
+        <div class="card-header">
+          <h3><i class="fas fa-paper-plane"></i> Test Kirim Pesan</h3>
+        </div>
+        <div class="card-body">
+          <div class="test-form">
+            <div class="form-group">
+              <label for="testMessage">Pesan Test:</label>
+              <textarea 
+                id="testMessage"
+                v-model="testMessage"
+                rows="4"
+                placeholder="Masukkan pesan test untuk dikirim ke grup Telegram..."
+              ></textarea>
+            </div>
+            <button 
+              @click="sendTestMessage" 
+              class="btn btn-primary"
+              :disabled="!testMessage.trim() || sendingTest"
+            >
+              <i class="fas fa-paper-plane" v-if="!sendingTest"></i>
+              <i class="fas fa-spinner fa-spin" v-else></i>
+              {{ sendingTest ? 'Mengirim...' : 'Kirim Test' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div v-if="notification.show" class="toast-notification" :class="notification.type">
+      <i :class="notification.type === 'success' ? 'fas fa-check' : 'fas fa-exclamation-triangle'"></i>
+      <span>{{ notification.message }}</span>
+      <button @click="hideNotification" class="toast-close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+</template>
+
+<script>
+import telegramService from '@/services/telegramService'
+import { getAllJemaat, getJemaatWithTelegram } from '@/services/jemaatService'
+
+export default {
+  name: 'AdminTelegram',
+  data() {
+    return {
+      // Connection status
+      connectionStatus: null,
+      testing: false,
+      
+      // Configuration
+      botToken: process.env.VUE_APP_TELEGRAM_BOT_TOKEN || '',
+      chatId: process.env.VUE_APP_TELEGRAM_CHAT_ID || '',
+      apiUrl: process.env.VUE_APP_TELEGRAM_API_URL || 'https://api.telegram.org',
+      
+      // Stats
+      jemaatStats: null,
+      loadingStats: false,
+      
+      // Message history
+      messageHistory: [],
+      loadingHistory: false,
+      
+      // Test message
+      testMessage: 'Test pesan dari admin MyRajawali 📱\n\nJika Anda menerima pesan ini, berarti bot Telegram sudah berfungsi dengan baik!',
+      sendingTest: false,
+      
+      // Notifications
+      notification: {
+        show: false,
+        message: '',
+        type: 'success'
+      },
+
+      // Telegram users for registration
+      telegramUsers: [],
+      loadingUsers: false,
+      availableJemaat: [],
+      registeredJemaat: [],
+      processingRegistration: false,
+      sendingTestToJemaat: false
+    }
+  },
+  
+  async mounted() {
+    await this.loadInitialData()
+  },
+  
+  methods: {
+    async loadInitialData() {
+      await Promise.all([
+        this.refreshStats(),
+        this.refreshHistory(),
+        this.getTelegramUsers()
+      ])
+    },
+    
+    async testConnection() {
+      this.testing = true
+      try {
+        this.connectionStatus = await telegramService.testConnection()
+        
+        if (this.connectionStatus.success) {
+          this.showNotification('Koneksi berhasil!', 'success')
+        } else {
+          this.showNotification('Koneksi gagal: ' + this.connectionStatus.error, 'error')
+        }
+      } catch (error) {
+        console.error('Error testing connection:', error)
+        this.connectionStatus = {
+          success: false,
+          error: error.message,
+          message: 'Error testing connection'
+        }
+        this.showNotification('Error testing connection', 'error')
+      } finally {
+        this.testing = false
+      }
+    },
+    
+    async refreshStats() {
+      this.loadingStats = true
+      try {
+        this.jemaatStats = await telegramService.getJemaatStats()
+      } catch (error) {
+        console.error('Error loading jemaat stats:', error)
+        this.showNotification('Gagal memuat statistik jemaat', 'error')
+      } finally {
+        this.loadingStats = false
+      }
+    },
+    
+    async refreshHistory() {
+      this.loadingHistory = true
+      try {
+        this.messageHistory = await telegramService.getMessageHistory()
+      } catch (error) {
+        console.error('Error loading message history:', error)
+        this.showNotification('Gagal memuat riwayat pesan', 'error')
+      } finally {
+        this.loadingHistory = false
+      }
+    },
+    
+    async getTelegramUsers() {
+      this.loadingUsers = true
+      try {
+        // Ambil updates dari Telegram
+        const updates = await telegramService.getTelegramUpdates()
+        this.telegramUsers = telegramService.parseUpdatesForUsers(updates)
+        
+        // Reset selectedJemaat untuk setiap user
+        this.telegramUsers.forEach(user => {
+          user.selectedJemaat = ''
+        })
+        
+        // Ambil daftar jemaat yang belum terdaftar Telegram
+        const allJemaat = await getAllJemaat()
+        const registeredJemaat = await getJemaatWithTelegram()
+        const registeredIds = registeredJemaat.map(j => j.id)
+        
+        this.availableJemaat = allJemaat.filter(j => !registeredIds.includes(j.id))
+        this.registeredJemaat = registeredJemaat
+        
+        this.showNotification(`Ditemukan ${this.telegramUsers.length} user yang pernah chat dengan bot`, 'success')
+        
+      } catch (error) {
+        console.error('Error getting Telegram users:', error)
+        this.showNotification('Gagal mengambil data user Telegram: ' + error.message, 'error')
+      } finally {
+        this.loadingUsers = false
+      }
+    },
+
+    async registerUserToJemaat(user) {
+      if (!user.selectedJemaat) return
+      
+      this.processingRegistration = true
+      try {
+        // Daftarkan jemaat dengan Telegram User ID
+        await telegramService.registerJemaatTelegram(user.selectedJemaat, user.id.toString())
+        
+        // Kirim welcome message
+        const jemaat = this.availableJemaat.find(j => j.id === user.selectedJemaat)
+        if (jemaat) {
+          jemaat.telegramUserId = user.id.toString()
+          await telegramService.sendWelcomeMessage(jemaat)
+        }
+        
+        this.showNotification(`${jemaat?.nama || 'Jemaat'} berhasil didaftarkan!`, 'success')
+        
+        // Refresh data
+        await this.getTelegramUsers()
+        await this.refreshStats()
+        
+      } catch (error) {
+        console.error('Error registering user to jemaat:', error)
+        this.showNotification('Gagal mendaftarkan jemaat: ' + error.message, 'error')
+      } finally {
+        this.processingRegistration = false
+      }
+    },
+
+    async unregisterJemaat(jemaat) {
+      if (!jemaat.telegramUserId) return
+      
+      this.processingRegistration = true
+      try {
+        await telegramService.unregisterJemaatTelegram(jemaat.id)
+        this.showNotification(`${jemaat.nama} berhasil dihapus dari registrasi!`, 'success')
+        
+        // Refresh data
+        await this.getTelegramUsers()
+        await this.refreshStats()
+        
+      } catch (error) {
+        console.error('Error unregistering jemaat:', error)
+        this.showNotification('Gagal menghapus jemaat: ' + error.message, 'error')
+      } finally {
+        this.processingRegistration = false
+      }
+    },
+
+    async sendTestMessage() {
+      if (!this.testMessage.trim()) return
+      
+      this.sendingTest = true
+      try {
+        const result = await telegramService.sendBroadcastToAllJemaat(this.testMessage)
+        
+        if (result.results.success > 0) {
+          this.showNotification(`Pesan test berhasil dikirim ke ${result.results.success}/${result.results.total} jemaat!`, 'success')
+        } else {
+          this.showNotification('Tidak ada jemaat yang menerima pesan. Pastikan ada jemaat yang sudah terdaftar.', 'warning')
+        }
+        
+        // Refresh history to show the new message
+        await this.refreshHistory()
+        
+        // Clear test message
+        this.testMessage = ''
+      } catch (error) {
+        console.error('Error sending test message:', error)
+        this.showNotification('Gagal mengirim pesan test: ' + error.message, 'error')
+      } finally {
+        this.sendingTest = false
+      }
+    },
+    
+    async testSendToJemaat(jemaat) {
+      this.sendingTestToJemaat = true
+      try {
+        const testMessage = `🧪 Test pesan untuk ${jemaat.nama}
+
+Halo ${jemaat.nama}! Ini adalah pesan test dari admin MyRajawali.
+
+Jika Anda menerima pesan ini, berarti registrasi Telegram Anda sudah berhasil!
+
+💝 Tuhan Yesus memberkati
+🏛️ Gereja MyRajawali`
+
+        await telegramService.sendMessage(jemaat.telegramUserId, testMessage)
+        this.showNotification(`Test pesan berhasil dikirim ke ${jemaat.nama}!`, 'success')
+        
+        // Refresh history
+        await this.refreshHistory()
+        
+      } catch (error) {
+        console.error('Error sending test message to jemaat:', error)
+        this.showNotification(`Gagal mengirim test ke ${jemaat.nama}: ${error.message}`, 'error')
+      } finally {
+        this.sendingTestToJemaat = false
+      }
+    },
+    
+    getMessageIcon(type) {
+      const icons = {
+        renungan_broadcast: 'fas fa-pray',
+        renungan_broadcast_error: 'fas fa-exclamation-triangle',
+        test_message: 'fas fa-paper-plane',
+        announcement: 'fas fa-bullhorn'
+      }
+      return icons[type] || 'fas fa-comment'
+    },
+    
+    getMessageTypeLabel(type) {
+      const labels = {
+        renungan_broadcast: 'Broadcast Renungan',
+        renungan_broadcast_error: 'Error Renungan',
+        test_message: 'Test Message',
+        announcement: 'Pengumuman'
+      }
+      return labels[type] || 'Pesan'
+    },
+    
+    formatTimestamp(timestamp) {
+      if (!timestamp) return '-'
+      
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+      return date.toLocaleString('id-ID')
+    },
+    
+    showNotification(message, type = 'success') {
+      this.notification = {
+        show: true,
+        message,
+        type
+      }
+      
+      // Auto hide after 5 seconds
+      setTimeout(() => {
+        this.hideNotification()
+      }, 5000)
+    },
+    
+    hideNotification() {
+      this.notification.show = false
+    }
+  }
+}
+</script>
+
+<style scoped>
+.telegram-admin-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.admin-header {
+  background: linear-gradient(135deg, #0088cc 0%, #0066aa 100%);
+  color: white;
+  padding: 30px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+}
+
+.page-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.page-subtitle {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  margin: 10px 0 0 0;
+}
+
+.admin-content {
+  display: grid;
+  gap: 25px;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.card-header {
+  background: #f8f9fa;
+  padding: 20px;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: between;
+  align-items: center;
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-body {
+  padding: 25px;
+}
+
+/* Connection Status */
+.connection-status .status-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+  margin-bottom: 15px;
+}
+
+.status-item.success {
+  color: #28a745;
+}
+
+.status-item.error {
+  color: #dc3545;
+}
+
+.bot-info {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+.bot-info ul {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0 0;
+}
+
+.bot-info li {
+  padding: 5px 0;
+}
+
+/* Configuration */
+.config-info {
+  display: grid;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.config-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.config-item label {
+  font-weight: 600;
+  color: #495057;
+}
+
+.config-value {
+  font-family: monospace;
+  color: #6c757d;
+}
+
+.config-help {
+  background: #e9ecef;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.config-help ol {
+  margin: 10px 0 0 0;
+  padding-left: 20px;
+}
+
+.config-help code {
+  background: #ffffff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+/* Stats */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 20px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #0088cc;
+  margin-bottom: 5px;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+/* Message History */
+.message-list {
+  display: grid;
+  gap: 15px;
+}
+
+.message-item {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  transition: all 0.2s ease;
+}
+
+.message-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.message-item.failed {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.message-type {
+  font-weight: 600;
+  color: #495057;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.message-time {
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.message-title {
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.message-status {
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.message-status.sent {
+  color: #28a745;
+}
+
+.message-status.failed {
+  color: #dc3545;
+}
+
+/* Registration */
+.telegram-users {
+  margin-top: 15px;
+}
+
+.users-list {
+  display: grid;
+  gap: 10px;
+}
+
+.user-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.user-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.user-info {
+  flex: 1;
+  margin-right: 10px;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #495057;
+}
+
+.username {
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.user-id {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin: 5px 0;
+}
+
+.user-message {
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+.user-date {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.jemaat-select {
+  padding: 5px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-family: inherit;
+  flex: 1;
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 0.9rem;
+}
+
+/* Registered Jemaat */
+.registered-jemaat {
+  margin-top: 15px;
+}
+
+.registered-list {
+  display: grid;
+  gap: 10px;
+}
+
+.registered-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.registered-item:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.jemaat-info {
+  flex: 1;
+  margin-right: 10px;
+}
+
+.jemaat-name {
+  font-weight: 600;
+  color: #495057;
+}
+
+.jemaat-phone {
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.telegram-id {
+  font-size: 0.9rem;
+  color: #6c757d;
+  margin: 5px 0;
+}
+
+/* Test Form */
+.test-form {
+  display: grid;
+  gap: 15px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #495057;
+}
+
+.form-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.form-group textarea:focus {
+  outline: none;
+  border-color: #0088cc;
+  box-shadow: 0 0 0 2px rgba(0, 136, 204, 0.2);
+}
+
+/* Buttons */
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #0088cc;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #0066aa;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #5a6268;
+}
+
+/* Toast Notifications */
+.toast-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 20px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 400px;
+  word-wrap: break-word;
+}
+
+.toast-notification.success {
+  background: #28a745;
+}
+
+.toast-notification.error {
+  background: #dc3545;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 10px;
+}
+
+/* Loading States */
+.loading-stats,
+.no-status,
+.no-history {
+  text-align: center;
+  padding: 40px;
+  color: #6c757d;
+}
+
+.loading-stats i,
+.no-status i,
+.no-history i {
+  font-size: 2rem;
+  margin-bottom: 10px;
+  display: block;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .telegram-admin-container {
+    padding: 15px;
+  }
+  
+  .admin-header {
+    padding: 20px;
+  }
+  
+  .page-title {
+    font-size: 2rem;
+  }
+  
+  .card-header,
+  .card-body {
+    padding: 15px;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+</style>

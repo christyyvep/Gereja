@@ -63,6 +63,16 @@
           Laporan Jemaat
         </router-link>
         
+        <!-- Telegram Management - hidden for operator -->
+        <router-link 
+          v-if="!userStore.isOperator" 
+          to="/admin/telegram" 
+          class="nav-item"
+        >
+          <MessageCircle class="nav-icon" />
+          Kelola Telegram
+        </router-link>
+        
         <router-link to="/home" class="nav-item back-to-app">
           <Home class="nav-icon" />
           Kembali ke App
@@ -101,7 +111,8 @@ import {
   Heart, 
   Users,
   FileText, 
-  Home 
+  Home,
+  MessageCircle
 } from 'lucide-vue-next'
 
 export default {
@@ -115,7 +126,8 @@ export default {
     Heart,
     Users,
     FileText,
-    Home
+    Home,
+    MessageCircle
   },
   setup() {
     const userStore = useUserStore()

@@ -11,32 +11,44 @@ service cloud.firestore {
       return request.auth != null;
     }
     
+    function getAuthSession() {
+      return isAuthenticated() ? 
+             get(/databases/$(database)/documents/auth_sessions/$(request.auth.uid)) : 
+             null;
+    }
+    
     function isRegisteredUser() {
       return isAuthenticated() && 
-             exists(/databases/$(database)/documents/jemaat/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/jemaat/$(request.auth.uid)).data.isRegistered == true;
+             exists(/databases/$(database)/documents/auth_sessions/$(request.auth.uid)) &&
+             getAuthSession() != null;
     }
     
     function getUserRole() {
       return isRegisteredUser() ? 
-             get(/databases/$(database)/documents/jemaat/$(request.auth.uid)).data.role : 
+             getAuthSession().data.role : 
+             null;
+    }
+    
+    function getJemaatId() {
+      return isRegisteredUser() ? 
+             getAuthSession().data.jemaatId : 
              null;
     }
     
     function isAdmin() {
-      return getUserRole() in ['admin', 'super_admin'];
+      return getUserRole() in ['admin', 'gembala'];
     }
     
     function isModerator() {
-      return getUserRole() in ['moderator', 'admin', 'super_admin'];
+      return getUserRole() in ['operator', 'admin', 'gembala'];
     }
     
     function isSuperAdmin() {
-      return getUserRole() == 'super_admin';
+      return getUserRole() == 'admin';
     }
     
     function isOwnerOrAdmin(userId) {
-      return isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      return isAuthenticated() && (getJemaatId() == userId || isAdmin());
     }
     
     // Validasi data input
@@ -239,20 +251,22 @@ service cloud.firestore {
                        (resource.data.userId == request.auth.uid || isAdmin());
     }
     
-    // === USER ACTIVITY/STREAK COLLECTION ===
-    match /userActivities/{activityId} {
-      // Read: Owner atau admin
-      allow read: if (isRegisteredUser() && 
-                     resource.data.userId == request.auth.uid) || 
-                     isAdmin();
+    // === AUTH SESSIONS COLLECTION ===
+    match /auth_sessions/{sessionId} {
+      // Read: Only the authenticated user can read their own session
+      allow read: if isAuthenticated() && request.auth.uid == sessionId;
       
-      // Create/Update: Owner atau system
-      allow create, update: if isRegisteredUser() && 
-                            request.resource.data.userId == request.auth.uid &&
-                            checkRateLimit();
+      // Create: Only during login process
+      allow create: if isAuthenticated() && 
+                    request.auth.uid == sessionId &&
+                    request.resource.data.keys().hasAll(['jemaatId', 'nama', 'role', 'sessionId']) &&
+                    checkRateLimit();
       
-      // Delete: Hanya admin
-      allow delete: if isAdmin();
+      // Update: Not allowed (sessions are immutable)
+      allow update: if false;
+      
+      // Delete: Only during logout
+      allow delete: if isAuthenticated() && request.auth.uid == sessionId;
     }
     
     // === DEFAULT DENY RULE ===

@@ -203,7 +203,7 @@ import {
   onSnapshot
 } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import { getAllJemaatNames, getAllUsersWithRoles } from '@/services/auth-hybrid'
+import { getAllJemaatNames, getAllUsersWithRoles } from '@/services/auth-hybrid-minimal'
 import { getAllPrayerRequestsForAdmin } from '@/services/prayerRequests'
 import { getAllLaporanForAdmin } from '@/services/laporanJemaat'
 import { getRecentActivities, setupActivityListener } from '@/services/activityService'

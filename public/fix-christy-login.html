@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Christy Login Issue</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+</head>
+<body>
+    <h1>Fix Christy Login Issue</h1>
+    
+    <div>
+        <h3>Step 0: List All Users</h3>
+        <button onclick="listAllUsers()">List All Registered Users</button>
+        <button onclick="findUsersByName()">Search Users by Name</button>
+        <input type="text" id="searchName" placeholder="Search name (e.g., irene, christy)" />
+    </div>
+    
+    <div>
+        <h3>Step 1: Check Christy's Account</h3>
+        <button onclick="checkChristy()">Check Christy's Password Format</button>
+    </div>
+    
+    <div>
+        <h3>Step 2.5: Simulate Auth-Hybrid Login</h3>
+        <input type="text" id="simUser" placeholder="Username" />
+        <input type="password" id="simPass" placeholder="Password" />
+        <button onclick="simulateAuthHybridLogin()">Simulate Exact Auth-Hybrid Logic</button>
+    </div>
+    
+    <div>
+        <h3>Step 2: Test Christy's Login</h3>
+        <input type="password" id="christyPassword" placeholder="Enter Christy's actual password" />
+        <button onclick="testChristyLogin()">Test Login</button>
+    </div>
+    
+    <div>
+        <h3>Step 3: Reset Failed Attempts</h3>
+        <button onclick="resetChristyAttempts()">Reset Christy's Failed Login Attempts</button>
+    </div>
+    
+    <div>
+        <h3>Step 4: Compare with Irene</h3>
+        <button onclick="checkIrene()">Check Irene's Password Format</button>
+        <input type="password" id="irenePassword" placeholder="Enter Irene's password" />
+        <button onclick="testIreneLogin()">Test Irene Login</button>
+    </div>
+    
+    <div id="results" style="margin-top: 20px; padding: 10px; background: #f0f0f0; white-space: pre-wrap;">
+        Results will appear here...
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js'
+        import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.3.1/firebase-firestore.js'
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA3Rm_kfJo5QsmJCMfNJYdoV9CYfN9o4gE",
+            authDomain: "myrajawali-app.firebaseapp.com",
+            projectId: "myrajawali-app",
+            storageBucket: "myrajawali-app.appspot.com",
+            messagingSenderId: "1090503445464",
+            appId: "1:1090503445464:web:7e50c38b29b1af47ce66eb"
+        }
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig)
+        const db = getFirestore(app)
+
+        function log(message) {
+            const resultsDiv = document.getElementById('results')
+            resultsDiv.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n'
+            console.log(message)
+        }
+
+        function hashPasswordSHA256(password) {
+            return CryptoJS.SHA256(password).toString()
+        }
+
+        function verifyPasswordPBKDF2(password, storedHash) {
+            try {
+                // 🆕 BACKWARD COMPATIBILITY: Handle legacy formats
+                if (!storedHash.includes(':')) {
+                    // Could be plain text or SHA256 hash
+                    console.log('Legacy password format detected (no salt)')
+                    
+                    // Check if it's SHA256 hash (64 characters)
+                    if (storedHash.length === 64) {
+                        const sha256Hash = hashPasswordSHA256(password)
+                        return storedHash === sha256Hash
+                    }
+                    
+                    // Otherwise, assume plain text
+                    return password === storedHash
+                }
+                
+                // Standard PBKDF2 hash verification
+                const [salt, hash] = storedHash.split(':')
+                const hashToVerify = CryptoJS.PBKDF2(password, CryptoJS.enc.Hex.parse(salt), {
+                    keySize: 256/32,
+                    iterations: 10000
+                })
+                return hash === hashToVerify.toString()
+            } catch (error) {
+                console.error('Error verifying password:', error)
+                return false
+            }
+        }
+
+        async function findUser(name) {
+            const jemaatRef = collection(db, 'jemaat')
+            
+            log(`🔍 Searching for user: "${name}"`)
+            
+            // Try exact match first
+            const exactQuery = query(jemaatRef, where('nama', '==', name))
+            const exactSnapshot = await getDocs(exactQuery)
+            
+            if (!exactSnapshot.empty) {
+                log(`✅ Found exact match for: "${name}"`)
+                return { doc: exactSnapshot.docs[0], data: exactSnapshot.docs[0].data() }
+            }
+            
+            log(`⚠️ No exact match found, trying case-insensitive search...`)
+            
+            // Try case-insensitive search and log all potential matches
+            const allSnapshot = await getDocs(jemaatRef)
+            const potentialMatches = []
+            
+            for (const doc of allSnapshot.docs) {
+                const data = doc.data()
+                if (data.nama) {
+                    const storedName = data.nama.toLowerCase()
+                    const searchName = name.toLowerCase()
+                    
+                    if (storedName.includes(searchName) || searchName.includes(storedName)) {
+                        potentialMatches.push({
+                            doc,
+                            data,
+                            stored: data.nama,
+                            match_type: storedName === searchName ? 'exact_case_insensitive' : 'partial'
+                        })
+                    }
+                }
+            }
+            
+            log(`Found ${potentialMatches.length} potential matches:`)
+            potentialMatches.forEach((match, index) => {
+                log(`  ${index + 1}. "${match.stored}" (${match.match_type})`)
+            })
+            
+            if (potentialMatches.length > 0) {
+                // Prefer exact case-insensitive match, then partial
+                const exactMatch = potentialMatches.find(m => m.match_type === 'exact_case_insensitive')
+                const selectedMatch = exactMatch || potentialMatches[0]
+                
+                log(`✅ Selected match: "${selectedMatch.stored}"`)
+                return { doc: selectedMatch.doc, data: selectedMatch.data }
+            }
+            
+            log(`❌ No matches found for: "${name}"`)
+            return null
+        }
+
+        async function checkUser(name) {
+            try {
+                log(`Checking user: ${name}`)
+                
+                const result = await findUser(name)
+                if (!result) {
+                    log(`❌ User ${name} not found`)
+                    return null
+                }
+                
+                const { doc, data } = result
+                const password = data.password
+                
+                let passwordType = 'Unknown'
+                if (!password) {
+                    passwordType = 'No password set'
+                } else if (password.includes(':')) {
+                    passwordType = 'PBKDF2 with salt (Secure)'
+                } else if (password.length === 64) {
+                    passwordType = 'SHA256 hash (Legacy)'
+                } else {
+                    passwordType = 'Plain text (Very old)'
+                }
+                
+                log(`✅ Found ${name}:`)
+                log(`  - ID: ${doc.id}`)
+                log(`  - Is Registered: ${data.isRegistered}`)
+                log(`  - Password Type: ${passwordType}`)
+                log(`  - Password Length: ${password ? password.length : 0}`)
+                log(`  - Failed Attempts: ${data.failedLoginAttempts || 0}`)
+                log(`  - Password Preview: ${password ? password.substring(0, 20) + '...' : 'N/A'}`)
+                
+                return { doc, data }
+            } catch (error) {
+                log(`❌ Error checking ${name}: ${error.message}`)
+                return null
+            }
+        }
+
+        async function testLogin(name, password) {
+            try {
+                log(`Testing login for ${name}`)
+                
+                const result = await findUser(name)
+                if (!result) {
+                    log(`❌ User ${name} not found`)
+                    return false
+                }
+                
+                const { data } = result
+                const storedPassword = data.password
+                
+                if (!storedPassword) {
+                    log(`❌ No password set for ${name}`)
+                    return false
+                }
+                
+                log(`Stored password: "${storedPassword.substring(0, 30)}..." (length: ${storedPassword.length})`)
+                
+                // Test different verification methods
+                const sha256Hash = hashPasswordSHA256(password)
+                const sha256Match = storedPassword === sha256Hash
+                
+                // Auth-hybrid compatible verification
+                let hybridMatch = false
+                let hybridMethod = ''
+                
+                if (!storedPassword.includes(':')) {
+                    if (storedPassword.length === 64) {
+                        // SHA256 hash
+                        hybridMatch = storedPassword === sha256Hash
+                        hybridMethod = 'SHA256 hash (legacy)'
+                    } else {
+                        // Plain text
+                        hybridMatch = storedPassword === password
+                        hybridMethod = 'Plain text (legacy)'
+                    }
+                } else {
+                    // PBKDF2 hash
+                    hybridMatch = verifyPasswordPBKDF2(password, storedPassword)
+                    hybridMethod = 'PBKDF2 with salt (secure)'
+                }
+                
+                const plainTextMatch = storedPassword === password
+                
+                log(`Password test results for ${name}:`)
+                log(`  - Input password: "${password}"`)
+                log(`  - SHA256 generated: "${sha256Hash.substring(0, 30)}..."`)
+                log(`  - SHA256 Match: ${sha256Match ? '✅' : '❌'}`)
+                log(`  - PBKDF2 Match: ${verifyPasswordPBKDF2(password, storedPassword) ? '✅' : '❌'}`)
+                log(`  - Plain Text Match: ${plainTextMatch ? '✅' : '❌'}`)
+                log(`  - Auth-Hybrid Method: ${hybridMethod}`)
+                log(`  - Auth-Hybrid Match: ${hybridMatch ? '✅' : '❌'}`)
+                
+                const success = hybridMatch
+                log(`Overall result (auth-hybrid compatible): ${success ? '✅ SUCCESS' : '❌ FAILED'}`)
+                
+                if (!success) {
+                    log(`⚠️ Possible issues:`)
+                    log(`  - Password format mismatch`)
+                    log(`  - Case sensitivity in stored password`)
+                    log(`  - Extra spaces in password`)
+                    log(`  - Different hashing method used`)
+                }
+                
+                return success
+            } catch (error) {
+                log(`❌ Error testing login for ${name}: ${error.message}`)
+                return false
+            }
+        }
+
+        window.listAllUsers = async () => {
+            try {
+                log('📋 Listing all registered users...')
+                
+                const jemaatRef = collection(db, 'jemaat')
+                const snapshot = await getDocs(jemaatRef)
+                
+                const users = []
+                snapshot.forEach((doc) => {
+                    const data = doc.data()
+                    if (data.isRegistered) {
+                        users.push({
+                            id: doc.id,
+                            nama: data.nama,
+                            hasPassword: !!data.password,
+                            passwordType: data.password ? 
+                                (data.password.includes(':') ? 'PBKDF2' : 
+                                 data.password.length === 64 ? 'SHA256' : 'Plain') : 'None',
+                            failedAttempts: data.failedLoginAttempts || 0
+                        })
+                    }
+                })
+                
+                log(`Found ${users.length} registered users:`)
+                users.forEach((user, index) => {
+                    log(`  ${index + 1}. "${user.nama}" - ${user.passwordType} password, ${user.failedAttempts} failed attempts`)
+                })
+                
+            } catch (error) {
+                log(`❌ Error listing users: ${error.message}`)
+            }
+        }
+
+        window.findUsersByName = async () => {
+            const searchTerm = document.getElementById('searchName').value.trim()
+            if (!searchTerm) {
+                log('❌ Please enter a search term')
+                return
+            }
+            
+            try {
+                log(`🔍 Searching for users containing: "${searchTerm}"`)
+                
+                const jemaatRef = collection(db, 'jemaat')
+                const snapshot = await getDocs(jemaatRef)
+                
+                const matches = []
+                snapshot.forEach((doc) => {
+                    const data = doc.data()
+                    if (data.nama && data.nama.toLowerCase().includes(searchTerm.toLowerCase())) {
+                        matches.push({
+                            id: doc.id,
+                            nama: data.nama,
+                            isRegistered: data.isRegistered,
+                            hasPassword: !!data.password,
+                            passwordType: data.password ? 
+                                (data.password.includes(':') ? 'PBKDF2' : 
+                                 data.password.length === 64 ? 'SHA256' : 'Plain') : 'None'
+                        })
+                    }
+                })
+                
+                log(`Found ${matches.length} matches:`)
+                matches.forEach((user, index) => {
+                    log(`  ${index + 1}. "${user.nama}" (${user.id})`)
+                    log(`     - Registered: ${user.isRegistered}`)
+                    log(`     - Password: ${user.hasPassword ? user.passwordType : 'None'}`)
+                })
+                
+            } catch (error) {
+                log(`❌ Error searching users: ${error.message}`)
+            }
+        }
+
+        window.checkChristy = () => checkUser('christy potabuga')
+        window.checkIrene = () => checkUser('irene')
+
+        window.simulateAuthHybridLogin = async () => {
+            const username = document.getElementById('simUser').value.trim()
+            const password = document.getElementById('simPass').value
+            
+            if (!username || !password) {
+                log('❌ Please enter both username and password')
+                return
+            }
+            
+            try {
+                log(`🔐 [Simulation] Starting auth-hybrid login for: ${username}`)
+                
+                // 1. Input validation (same as auth-hybrid)
+                if (!username || typeof username !== 'string') {
+                    throw new Error('Nama harus diisi dengan benar')
+                }
+                
+                if (!password || typeof password !== 'string') {
+                    throw new Error('Password harus diisi dengan benar')
+                }
+                
+                const cleanNama = username.trim()
+                log(`✅ Input validation passed`)
+                
+                // 2. Find user in database (same logic as auth-hybrid)
+                const jemaatRef = collection(db, 'jemaat')
+                let jemaatDoc = null
+                let jemaatData = null
+                
+                // Try exact match first
+                const exactQuery = query(jemaatRef, where('nama', '==', cleanNama))
+                const exactSnapshot = await getDocs(exactQuery)
+                
+                if (!exactSnapshot.empty) {
+                    jemaatDoc = exactSnapshot.docs[0]
+                    jemaatData = jemaatDoc.data()
+                    log(`✅ Found exact match for: "${cleanNama}"`)
+                } else {
+                    // Fallback: case-insensitive search (like in auth-hybrid)
+                    log(`⚠️ No exact match, trying case-insensitive search...`)
+                    const allSnapshot = await getDocs(jemaatRef)
+                    
+                    // Use the same logic from auth-hybrid findCaseInsensitiveMatch
+                    allSnapshot.forEach((doc) => {
+                        const data = doc.data()
+                        if (data.nama && data.nama.toLowerCase() === cleanNama.toLowerCase()) {
+                            jemaatDoc = doc
+                            jemaatData = data
+                            log(`✅ Found case-insensitive match: "${data.nama}"`)
+                        }
+                    })
+                    
+                    if (!jemaatDoc) {
+                        log(`❌ User "${username}" not found in database`)
+                        throw new Error(`Nama "${username}" tidak ditemukan di database`)
+                    }
+                }
+                
+                // 3. Check if user is registered
+                if (!jemaatData.isRegistered) {
+                    log(`❌ User not registered`)
+                    throw new Error('Akun belum terdaftar. Silakan daftar terlebih dahulu.')
+                }
+                log(`✅ User is registered`)
+                
+                // 4. Check if password exists
+                if (!jemaatData.password) {
+                    log(`❌ No password set`)
+                    throw new Error('Password belum di-set. Silakan register ulang atau hubungi admin.')
+                }
+                log(`✅ Password exists`)
+                
+                // 5. Verify password (EXACT same logic as auth-hybrid)
+                log(`🔐 Verifying password...`)
+                log(`Stored password: "${jemaatData.password.substring(0, 30)}..." (length: ${jemaatData.password.length})`)
+                
+                let isPasswordValid = false
+                let passwordMethod = ''
+                
+                if (!jemaatData.password.includes(':')) {
+                    // Legacy format - could be plain text or SHA256
+                    log(`🔄 Legacy password format detected (no salt)`)
+                    
+                    if (jemaatData.password.length === 64) {
+                        // Assume SHA256
+                        const sha256Hash = hashPasswordSHA256(password)
+                        isPasswordValid = jemaatData.password === sha256Hash
+                        passwordMethod = 'SHA256 hash comparison'
+                        log(`Trying SHA256: stored="${jemaatData.password.substring(0, 20)}..." vs generated="${sha256Hash.substring(0, 20)}..."`)
+                    } else {
+                        // Assume plain text
+                        isPasswordValid = password === jemaatData.password
+                        passwordMethod = 'Plain text comparison'
+                        log(`Trying plain text: input="${password}" vs stored="${jemaatData.password}"`)
+                    }
+                } else {
+                    // PBKDF2 format
+                    isPasswordValid = verifyPasswordPBKDF2(password, jemaatData.password)
+                    passwordMethod = 'PBKDF2 verification'
+                    log(`Trying PBKDF2 verification`)
+                }
+                
+                log(`Password verification result: ${isPasswordValid ? '✅ VALID' : '❌ INVALID'} (method: ${passwordMethod})`)
+                
+                if (!isPasswordValid) {
+                    log(`❌ Password verification failed`)
+                    throw new Error('Password salah')
+                }
+                
+                log(`✅ Password verification successful!`)
+                log(`🎉 Login simulation completed successfully for ${jemaatData.nama}`)
+                
+                return true
+            } catch (error) {
+                log(`❌ Login simulation failed: ${error.message}`)
+                return false
+            }
+        }
+
+        window.testChristyLogin = () => {
+            const password = document.getElementById('christyPassword').value
+            if (!password) {
+                log('❌ Please enter Christy\'s password')
+                return
+            }
+            testLogin('christy potabuga', password)
+        }
+
+        window.testIreneLogin = () => {
+            const password = document.getElementById('irenePassword').value
+            if (!password) {
+                log('❌ Please enter Irene\'s password')
+                return
+            }
+            testLogin('irene', password)
+        }
+
+        window.resetChristyAttempts = async () => {
+            try {
+                log('Resetting Christy\'s failed login attempts...')
+                
+                const result = await findUser('christy potabuga')
+                if (!result) {
+                    log('❌ Christy not found')
+                    return
+                }
+                
+                await updateDoc(result.doc.ref, {
+                    failedLoginAttempts: 0,
+                    lastLoginAttempt: null,
+                    lockedUntil: null
+                })
+                
+                log('✅ Christy\'s failed login attempts reset successfully')
+            } catch (error) {
+                log(`❌ Error resetting attempts: ${error.message}`)
+            }
+        }
+
+        log('Tool ready! Please check Christy\'s account first.')
+    </script>
+</body>
+</html>

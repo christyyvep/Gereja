@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Duplikasi User Telegram - MyRajawali</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .result {
+            background: #e9ecef;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #c82333; }
+        .success { background: #d4edda; border-color: #28a745; }
+        .error { background: #f8d7da; border-color: #dc3545; }
+        .warning { background: #fff3cd; border-color: #ffc107; }
+        .loading { background: #d1ecf1; border-color: #bee5eb; }
+        .user-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            margin: 5px 0;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+        .duplicate { background: #f8d7da; border-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Duplikasi User Telegram</h1>
+        
+        <h2>1. Analisa Data User</h2>
+        <button onclick="analyzeUsers()">🔍 Analisa Data User</button>
+        <div id="analyzeResult" class="result" style="display: none;"></div>
+        
+        <h2>2. Hapus Data Duplikat</h2>
+        <button onclick="removeDuplicates()" class="danger">🗑️ Hapus Duplikat (Keep Latest)</button>
+        <div id="cleanResult" class="result" style="display: none;"></div>
+        
+        <h2>3. Reset & Setup Clean Data</h2>
+        <button onclick="resetData()" class="danger">🚨 Reset Semua Data</button>
+        <button onclick="setupCleanUser()">➕ Setup 1 User Clean</button>
+        <div id="setupResult" class="result" style="display: none;"></div>
+        
+        <h2>4. Test Single Broadcast</h2>
+        <textarea id="testMessage" style="width: 100%; height: 100px; padding: 10px; margin: 10px 0;" placeholder="Pesan test broadcast">🧪 TEST SINGLE BROADCAST
+
+Ini adalah test broadcast setelah cleanup duplikat.
+⏰ ${new Date().toLocaleString('id-ID')}
+
+✅ Seharusnya hanya diterima 1x saja!</textarea>
+        <button onclick="testSingleBroadcast()">📤 Test Broadcast (Should be 1 message only)</button>
+        <div id="testResult" class="result" style="display: none;"></div>
+    </div>
+
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, query, where, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyBtGgShLr_s_qgq0GhOEPmh5VfwZUJDHeY",
+            authDomain: "myrajawali-app.firebaseapp.com",
+            projectId: "myrajawali-app",
+            storageBucket: "myrajawali-app.firebasestorage.app",
+            messagingSenderId: "414682263250",
+            appId: "1:414682263250:web:34750949198ce982da470b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.analyzeUsers = async function() {
+            const resultDiv = document.getElementById('analyzeResult');
+            resultDiv.className = 'result loading';
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '🔍 Menganalisa data user...';
+            
+            try {
+                const registrationsRef = collection(db, 'telegram_registrations');
+                const snapshot = await getDocs(registrationsRef);
+                
+                if (snapshot.empty) {
+                    resultDiv.className = 'result warning';
+                    resultDiv.textContent = '⚠️ Tidak ada data registrasi ditemukan.';
+                    return;
+                }
+                
+                const users = [];
+                const userIdCounts = {};
+                const duplicates = [];
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const user = {
+                        docId: doc.id,
+                        ...data,
+                        registeredAt: data.registeredAt?.toDate(),
+                        approvedAt: data.approvedAt?.toDate()
+                    };
+                    users.push(user);
+                    
+                    // Count occurrences of each telegramUserId
+                    const userId = data.telegramUserId;
+                    if (userIdCounts[userId]) {
+                        userIdCounts[userId]++;
+                        duplicates.push(user);
+                    } else {
+                        userIdCounts[userId] = 1;
+                    }
+                });
+                
+                const uniqueUserIds = Object.keys(userIdCounts);
+                const duplicateUserIds = Object.keys(userIdCounts).filter(id => userIdCounts[id] > 1);
+                
+                let analysis = `📊 ANALISA DATA USER:\n\n`;
+                analysis += `📋 Total documents: ${users.length}\n`;
+                analysis += `👤 Unique user IDs: ${uniqueUserIds.length}\n`;
+                analysis += `🔄 Duplicate user IDs: ${duplicateUserIds.length}\n\n`;
+                
+                if (duplicateUserIds.length > 0) {
+                    analysis += `⚠️ DUPLIKAT DITEMUKAN:\n`;
+                    duplicateUserIds.forEach(userId => {
+                        const userDocs = users.filter(u => u.telegramUserId === userId);
+                        analysis += `\n🔄 User ID: ${userId} (${userDocs[0].telegramFirstName})\n`;
+                        analysis += `   📄 Documents: ${userDocs.length}\n`;
+                        userDocs.forEach((doc, index) => {
+                            analysis += `   ${index + 1}. Doc ID: ${doc.docId}, Status: ${doc.status}, Registered: ${doc.registeredAt?.toLocaleString('id-ID') || 'Unknown'}\n`;
+                        });
+                    });
+                    
+                    resultDiv.className = 'result warning';
+                } else {
+                    analysis += `✅ TIDAK ADA DUPLIKAT\n`;
+                    analysis += `Semua user ID unik.\n\n`;
+                    
+                    analysis += `📋 DAFTAR USER:\n`;
+                    users.forEach((user, index) => {
+                        analysis += `${index + 1}. ${user.telegramFirstName} (${user.telegramUserId}) - ${user.status}\n`;
+                    });
+                    
+                    resultDiv.className = 'result success';
+                }
+                
+                resultDiv.textContent = analysis;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        };
+
+        window.removeDuplicates = async function() {
+            const resultDiv = document.getElementById('cleanResult');
+            resultDiv.className = 'result loading';
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '🧹 Menghapus duplikat...';
+            
+            try {
+                const registrationsRef = collection(db, 'telegram_registrations');
+                const snapshot = await getDocs(registrationsRef);
+                
+                const userGroups = {};
+                
+                // Group by telegramUserId
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const userId = data.telegramUserId;
+                    
+                    if (!userGroups[userId]) {
+                        userGroups[userId] = [];
+                    }
+                    
+                    userGroups[userId].push({
+                        docId: doc.id,
+                        ...data,
+                        registeredAt: data.registeredAt?.toDate(),
+                        approvedAt: data.approvedAt?.toDate()
+                    });
+                });
+                
+                let deletedCount = 0;
+                let log = '';
+                
+                // For each user group, keep only the latest (or approved one)
+                for (const userId in userGroups) {
+                    const docs = userGroups[userId];
+                    
+                    if (docs.length > 1) {
+                        // Sort by approved status first, then by registration date
+                        docs.sort((a, b) => {
+                            if (a.status === 'approved' && b.status !== 'approved') return -1;
+                            if (b.status === 'approved' && a.status !== 'approved') return 1;
+                            return (b.registeredAt || new Date(0)) - (a.registeredAt || new Date(0));
+                        });
+                        
+                        const keepDoc = docs[0];
+                        const deleteDoc = docs.slice(1);
+                        
+                        log += `\n🔄 User ${userId} (${keepDoc.telegramFirstName}):\n`;
+                        log += `   ✅ KEEP: ${keepDoc.docId} (${keepDoc.status}, ${keepDoc.registeredAt?.toLocaleString('id-ID')})\n`;
+                        
+                        // Delete the rest
+                        for (const docToDelete of deleteDoc) {
+                            await deleteDoc(doc(db, 'telegram_registrations', docToDelete.docId));
+                            deletedCount++;
+                            log += `   🗑️ DELETED: ${docToDelete.docId} (${docToDelete.status}, ${docToDelete.registeredAt?.toLocaleString('id-ID')})\n`;
+                        }
+                    }
+                }
+                
+                if (deletedCount > 0) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Cleanup selesai!\n\n📊 Deleted ${deletedCount} duplicate documents.\n${log}\n\n🎉 Sekarang setiap user hanya punya 1 document.`;
+                } else {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Tidak ada duplikat ditemukan!\nData sudah bersih.`;
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        };
+
+        window.resetData = async function() {
+            if (!confirm('⚠️ PERINGATAN!\n\nIni akan menghapus SEMUA data registrasi Telegram.\nApakah Anda yakin?')) {
+                return;
+            }
+            
+            const resultDiv = document.getElementById('setupResult');
+            resultDiv.className = 'result loading';
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '🚨 Menghapus semua data...';
+            
+            try {
+                const registrationsRef = collection(db, 'telegram_registrations');
+                const snapshot = await getDocs(registrationsRef);
+                
+                let deletedCount = 0;
+                for (const docSnapshot of snapshot.docs) {
+                    await deleteDoc(doc(db, 'telegram_registrations', docSnapshot.id));
+                    deletedCount++;
+                }
+                
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ Reset selesai!\n\n🗑️ Deleted ${deletedCount} documents.\n\n💡 Sekarang bisa setup user baru yang bersih.`;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        };
+
+        window.setupCleanUser = async function() {
+            const resultDiv = document.getElementById('setupResult');
+            resultDiv.className = 'result loading';
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '➕ Membuat user test yang bersih...';
+            
+            try {
+                const registrationsRef = collection(db, 'telegram_registrations');
+                
+                // Add single clean user
+                await addDoc(registrationsRef, {
+                    telegramUserId: '5929124699',
+                    telegramUsername: 'anitha_test',
+                    telegramFirstName: 'Anitha Test',
+                    telegramLastName: 'User',
+                    status: 'approved',
+                    registeredAt: new Date(),
+                    approvedAt: new Date(),
+                    approvedBy: 'admin-cleanup'
+                });
+                
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ User test berhasil dibuat!\n\n👤 User: Anitha Test (5929124699)\n📋 Status: approved\n⏰ Created: ${new Date().toLocaleString('id-ID')}\n\n🎉 Sekarang broadcast seharusnya hanya kirim 1 pesan!`;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        };
+
+        window.testSingleBroadcast = async function() {
+            const message = document.getElementById('testMessage').value.trim();
+            const resultDiv = document.getElementById('testResult');
+            
+            if (!message) {
+                alert('Mohon isi pesan test');
+                return;
+            }
+            
+            resultDiv.className = 'result loading';
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '📤 Mengirim test broadcast...';
+            
+            try {
+                // Direct API call to test
+                const botToken = '8330380524:AAFCEuYTsuPk3Ev4E0flNScn0BhO7K76Myw';
+                const chatId = '5929124699';
+                const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: message,
+                        parse_mode: 'HTML'
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ Test broadcast berhasil!\n\n📤 Kirim ke: ${chatId}\n📬 Message ID: ${result.result.message_id}\n⏰ Waktu: ${new Date().toLocaleString('id-ID')}\n\n🎉 Seharusnya hanya diterima 1x saja di Telegram!`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ Test broadcast gagal:\n\nError: ${result.description}\nCode: ${result.error_code}`;
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Network Error: ${error.message}`;
+            }
+        };
+
+        console.log('✅ Cleanup script loaded');
+    </script>
+</body>
+</html>

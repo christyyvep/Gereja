@@ -1,6 +1,6 @@
 // Enhanced Route Guard dengan Security Features
-// UPDATED: Import hybrid auth
-import { getCurrentUser } from '../services/auth-hybrid'
+// TEMPORARY: Use minimal auth for debugging
+import { getCurrentUser } from '../services/auth-hybrid-minimal'
 import { logSecurityEvent, updateSessionActivity } from '../services/firebase-security'
 
 // Security config

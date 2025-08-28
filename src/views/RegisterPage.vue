@@ -140,7 +140,7 @@
 </template>
 
 <script>
-import { registerUser } from '@/services/auth-hybrid'
+import { registerUser } from '@/services/auth-hybrid-minimal'
 import { useUserStore } from '@/stores/userStore'
 import AutoCompleteInput from '@/components/common/AutoCompleteInput.vue'
 import PasswordInput from '@/components/common/PasswordInput.vue'

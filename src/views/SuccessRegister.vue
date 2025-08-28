@@ -66,7 +66,7 @@
 <script>
 import ButtonPrimary from '@/components/common/ButtonPrimary.vue'
 import { useUserStore } from '@/stores/userStore'
-import { getCurrentUser } from '@/services/auth-hybrid'
+import { getCurrentUser } from '@/services/auth-hybrid-minimal'
 
 export default {
   name: 'SuccessRegister',

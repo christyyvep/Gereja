@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Login Credentials</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #FF5722 0%, #FF9800 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        input {
+            padding: 10px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            width: 300px;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.2);
+            font-family: monospace;
+        }
+        .success {
+            background: rgba(76, 175, 80, 0.3);
+        }
+        .error {
+            background: rgba(244, 67, 54, 0.3);
+        }
+        .info {
+            background: rgba(33, 150, 243, 0.3);
+        }
+        .credentials-table {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        th {
+            background: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Login Credentials</h1>
+        <p>Debug untuk mengecek kenapa login "christy potabuga" tidak berhasil</p>
+
+        <div class="test-section">
+            <h3>📋 Valid Credentials (dari auth-hybrid-minimal.js)</h3>
+            <div class="credentials-table">
+                <table>
+                    <tr>
+                        <th>Nama</th>
+                        <th>Password</th>
+                        <th>Role</th>
+                    </tr>
+                    <tr>
+                        <td><strong>christy potabuga</strong></td>
+                        <td><strong>admin123</strong></td>
+                        <td>admin</td>
+                    </tr>
+                    <tr>
+                        <td><strong>admin</strong></td>
+                        <td><strong>admin</strong></td>
+                        <td>admin</td>
+                    </tr>
+                    <tr>
+                        <td><strong>test</strong></td>
+                        <td><strong>test</strong></td>
+                        <td>jemaat</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 Test Login Debug</h3>
+            <input type="text" id="nama" placeholder="Masukkan nama (case sensitive test)" value="christy potabuga">
+            <br>
+            <input type="text" id="password" placeholder="Masukkan password (visible untuk debug)" value="admin123">
+            <br>
+            <button onclick="debugLogin()">🔍 Debug Login</button>
+            <button onclick="testAllCombinations()">🧪 Test All Valid</button>
+        </div>
+
+        <div class="test-section">
+            <h3>⚡ Quick Tests</h3>
+            <button onclick="testExactChristy()">Test Christy Exact</button>
+            <button onclick="testChristyLower()">Test christy lower</button>
+            <button onclick="testChristyUpper()">Test CHRISTY UPPER</button>
+            <button onclick="testSpaceIssues()">Test Space Issues</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        function debugLogin() {
+            const nama = document.getElementById('nama').value;
+            const password = document.getElementById('password').value;
+            
+            addResult(`🔍 Debugging login untuk: "${nama}" / "${password}"`, 'info');
+            
+            // Simulate exact function from auth-hybrid-minimal
+            const validCredentials = [
+                { nama: 'christy potabuga', password: 'admin123', role: 'admin' },
+                { nama: 'admin', password: 'admin', role: 'admin' },
+                { nama: 'test', password: 'test', role: 'jemaat' }
+            ];
+            
+            addResult(`📏 Input length - Nama: ${nama.length}, Password: ${password.length}`, 'info');
+            addResult(`🔤 ASCII codes nama: [${nama.split('').map(c => c.charCodeAt(0)).join(', ')}]`, 'info');
+            addResult(`🔤 ASCII codes password: [${password.split('').map(c => c.charCodeAt(0)).join(', ')}]`, 'info');
+            
+            const normalizedNama = nama.toLowerCase().trim();
+            addResult(`🔧 Normalized nama: "${normalizedNama}"`, 'info');
+            
+            // Check each credential
+            validCredentials.forEach((cred, index) => {
+                const credNormalizedNama = cred.nama.toLowerCase();
+                const namaMatch = credNormalizedNama === normalizedNama;
+                const passwordMatch = cred.password === password;
+                
+                addResult(`✓ Credential ${index + 1}: "${cred.nama}" / "${cred.password}"`, 'info');
+                addResult(`  - Nama match: ${namaMatch} ("${credNormalizedNama}" === "${normalizedNama}")`, namaMatch ? 'success' : 'error');
+                addResult(`  - Password match: ${passwordMatch} ("${cred.password}" === "${password}")`, passwordMatch ? 'success' : 'error');
+                
+                if (namaMatch && passwordMatch) {
+                    addResult(`✅ MATCH FOUND! Credential ${index + 1} matches`, 'success');
+                    return;
+                }
+            });
+            
+            const user = validCredentials.find(cred => 
+                cred.nama.toLowerCase() === normalizedNama && cred.password === password
+            );
+            
+            if (user) {
+                addResult(`✅ Login SUCCESS: Found user ${user.nama} (${user.role})`, 'success');
+            } else {
+                addResult(`❌ Login FAILED: No matching credentials`, 'error');
+            }
+        }
+
+        function testAllCombinations() {
+            addResult(`🧪 Testing all valid combinations...`, 'info');
+            
+            const validCredentials = [
+                { nama: 'christy potabuga', password: 'admin123', role: 'admin' },
+                { nama: 'admin', password: 'admin', role: 'admin' },
+                { nama: 'test', password: 'test', role: 'jemaat' }
+            ];
+            
+            validCredentials.forEach((cred, index) => {
+                const normalizedNama = cred.nama.toLowerCase().trim();
+                const user = validCredentials.find(c => 
+                    c.nama.toLowerCase() === normalizedNama && c.password === cred.password
+                );
+                
+                if (user) {
+                    addResult(`✅ Test ${index + 1}: "${cred.nama}" / "${cred.password}" - SUCCESS`, 'success');
+                } else {
+                    addResult(`❌ Test ${index + 1}: "${cred.nama}" / "${cred.password}" - FAILED`, 'error');
+                }
+            });
+        }
+
+        function testExactChristy() {
+            document.getElementById('nama').value = 'christy potabuga';
+            document.getElementById('password').value = 'admin123';
+            addResult(`🎯 Testing exact Christy credentials...`, 'info');
+            debugLogin();
+        }
+
+        function testChristyLower() {
+            document.getElementById('nama').value = 'christy potabuga';
+            document.getElementById('password').value = 'admin123';
+            addResult(`🔽 Testing Christy lowercase...`, 'info');
+            debugLogin();
+        }
+
+        function testChristyUpper() {
+            document.getElementById('nama').value = 'CHRISTY POTABUGA';
+            document.getElementById('password').value = 'admin123';
+            addResult(`🔼 Testing Christy uppercase...`, 'info');
+            debugLogin();
+        }
+
+        function testSpaceIssues() {
+            addResult(`🔍 Testing potential space issues...`, 'info');
+            
+            // Test with extra spaces
+            document.getElementById('nama').value = ' christy potabuga ';
+            document.getElementById('password').value = 'admin123';
+            addResult(`Testing with spaces: " christy potabuga "`, 'info');
+            debugLogin();
+            
+            // Test with tabs
+            document.getElementById('nama').value = 'christy\tpotabuga';
+            document.getElementById('password').value = 'admin123';
+            addResult(`Testing with tab: "christy\\tpotabuga"`, 'info');
+            debugLogin();
+        }
+
+        // Auto test on load
+        window.onload = function() {
+            addResult(`🚀 Debug page loaded`, 'success');
+            addResult(`🎯 Ready to debug "christy potabuga" login issue`, 'info');
+            testExactChristy();
+        };
+    </script>
+</body>
+</html>

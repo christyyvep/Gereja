@@ -13,6 +13,34 @@ import SecuritySessionWarning from './components/SecuritySessionWarning.vue'
 // Image Optimization
 import { preloadCriticalImages } from './utils/imageOptimization'
 
+// Global Error Handler
+const handleGlobalError = (error, instance, info) => {
+  console.error('🚨 Vue Global Error:', error)
+  console.error('🔍 Component Info:', info)
+  
+  // Specific handler for parentNode null errors
+  if (error?.message?.includes('parentNode')) {
+    console.warn('⚠️ DOM parentNode error caught and handled')
+    return false // Prevent error from bubbling up
+  }
+  
+  // Log other errors but don't crash the app
+  if (process.env.NODE_ENV === 'development') {
+    console.error('Full error details:', error)
+  }
+}
+
+// Global unhandled promise rejection handler
+window.addEventListener('unhandledrejection', (event) => {
+  console.warn('🚨 Unhandled Promise Rejection:', event.reason)
+  
+  // Don't crash the app for DOM-related errors
+  if (event.reason?.message?.includes('parentNode')) {
+    console.warn('⚠️ DOM parentNode promise rejection caught')
+    event.preventDefault()
+  }
+})
+
 // ===== ENVIRONMENT DETECTION =====
 const isDevelopment = process.env.NODE_ENV === 'development'
 const isLocalhost = window.location.hostname === 'localhost' || 
@@ -279,6 +307,9 @@ if (isDevelopment) {
 const app = createApp(App)
 const pinia = createPinia()
 
+// Add global error handler
+app.config.errorHandler = handleGlobalError
+
 app.use(router)
 app.use(pinia)
 app.use(ToastPlugin)
@@ -360,7 +391,7 @@ console.log('⚡ [Performance] Image optimization active')
 if (isDevelopment) {
   window.debugSecurity = {
     async getCurrentUser() {
-      const { getCurrentUser } = await import('./services/auth-hybrid')
+      const { getCurrentUser } = await import('./services/auth-hybrid-minimal')
       return getCurrentUser()
     },
     

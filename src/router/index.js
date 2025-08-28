@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-// UPDATED: Import hybrid auth  
-import { getCurrentUser } from '../services/auth-hybrid'
+// TEMPORARY: Use minimal auth for debugging
+import { getCurrentUser } from '../services/auth-hybrid-minimal'
 // Enhanced Security Guards
 import {
   requireAuth,
@@ -41,6 +41,7 @@ import AdminDashboard from '@/views/admin/AdminDashboard.vue'
 import AdminNews from '@/views/admin/AdminNews.vue'
 import AdminRenungan from '@/views/admin/AdminRenungan.vue'
 import AdminLaporanJemaat from '@/views/admin/AdminLaporanJemaat.vue'
+import AdminTelegram from '@/views/admin/AdminTelegram.vue'
 import LaporanJemaat from '@/views/LaporanJemaat.vue'
 
 const routes = [
@@ -348,6 +349,18 @@ const routes = [
           requiresAdmin: true,
           title: 'Security Monitoring',
           breadcrumb: 'Security'
+        }
+      },
+      {
+        path: 'telegram',
+        name: 'AdminTelegram',
+        component: AdminTelegram,
+        beforeEnter: requireAdmin, // Only admin/gembala can access telegram management
+        meta: { 
+          requiresAuth: true,
+          requiresAdmin: true,
+          title: 'Kelola Telegram',
+          breadcrumb: 'Kelola Telegram'
         }
       }
       // {

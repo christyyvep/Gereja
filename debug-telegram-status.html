@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Telegram Registration Status</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .loading { background: #fff3cd; color: #856404; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f2f2f2; }
+        .status-pending { color: orange; font-weight: bold; }
+        .status-approved { color: green; font-weight: bold; }
+        .status-rejected { color: red; font-weight: bold; }
+        button { margin: 5px; padding: 8px 15px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Telegram Registration Status</h1>
+    
+    <h2>1. Check All Registrations</h2>
+    <button onclick="checkAllRegistrations()">📊 Check All Registrations</button>
+    <div id="allResult" class="result" style="display: none;"></div>
+    
+    <h2>2. Search Specific User</h2>
+    <input type="text" id="searchUserId" placeholder="Telegram User ID atau Nama" value="1220960394">
+    <button onclick="searchUser()">🔍 Search User</button>
+    <div id="searchResult" class="result" style="display: none;"></div>
+    
+    <h2>3. Clean Up Duplicates</h2>
+    <button onclick="cleanupDuplicates()">🧹 Clean Duplicates</button>
+    <div id="cleanupResult" class="result" style="display: none;"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, query, where, deleteDoc, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyBtGgShLr_s_qgq0GhOEPmh5VfwZUJDHeY",
+            authDomain: "myrajawali-app.firebaseapp.com",
+            projectId: "myrajawali-app",
+            storageBucket: "myrajawali-app.firebasestorage.app",
+            messagingSenderId: "414682263250",
+            appId: "1:414682263250:web:34750949198ce982da470b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.checkAllRegistrations = async function() {
+            const resultDiv = document.getElementById('allResult');
+            resultDiv.className = 'result loading';
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '⏳ Checking all registrations...';
+            
+            try {
+                const registrationsRef = collection(db, 'telegram_registrations');
+                const snapshot = await getDocs(registrationsRef);
+                
+                if (snapshot.empty) {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = '❌ No registrations found in database.';
+                    return;
+                }
+                
+                const registrations = [];
+                const statusCounts = { pending_approval: 0, approved: 0, rejected: 0, other: 0 };
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const registration = {
+                        docId: doc.id,
+                        telegramUserId: data.telegramUserId,
+                        telegramFirstName: data.telegramFirstName,
+                        telegramUsername: data.telegramUsername,
+                        status: data.status,
+                        registeredAt: data.registeredAt?.toDate?.()?.toLocaleString('id-ID') || 'Unknown',
+                        approvedAt: data.approvedAt?.toDate?.()?.toLocaleString('id-ID') || '-',
+                        rejectedAt: data.rejectedAt?.toDate?.()?.toLocaleString('id-ID') || '-',
+                        approvedBy: data.approvedBy || '-',
+                        rejectedBy: data.rejectedBy || '-'
+                    };
+                    registrations.push(registration);
+                    
+                    // Count statuses
+                    if (statusCounts[data.status] !== undefined) {
+                        statusCounts[data.status]++;
+                    } else {
+                        statusCounts.other++;
+                    }
+                });
+                
+                // Sort by registration time
+                registrations.sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+                
+                // Create summary table
+                let html = `
+                    <h3>📊 Status Summary:</h3>
+                    <ul>
+                        <li><span class="status-pending">Pending: ${statusCounts.pending_approval}</span></li>
+                        <li><span class="status-approved">Approved: ${statusCounts.approved}</span></li>
+                        <li><span class="status-rejected">Rejected: ${statusCounts.rejected}</span></li>
+                        <li>Other: ${statusCounts.other}</li>
+                        <li><strong>Total: ${registrations.length}</strong></li>
+                    </ul>
+                    
+                    <h3>📋 All Registrations:</h3>
+                    <table>
+                        <tr>
+                            <th>Doc ID</th>
+                            <th>User ID</th>
+                            <th>Name</th>
+                            <th>Username</th>
+                            <th>Status</th>
+                            <th>Registered</th>
+                            <th>Approved/Rejected</th>
+                            <th>By</th>
+                        </tr>
+                `;
+                
+                registrations.forEach(reg => {
+                    const statusClass = `status-${reg.status.replace('_', '-')}`;
+                    const actionDate = reg.status === 'approved' ? reg.approvedAt : 
+                                     reg.status === 'rejected' ? reg.rejectedAt : '-';
+                    const actionBy = reg.status === 'approved' ? reg.approvedBy : 
+                                    reg.status === 'rejected' ? reg.rejectedBy : '-';
+                    
+                    html += `
+                        <tr>
+                            <td style="font-size: 10px;">${reg.docId}</td>
+                            <td>${reg.telegramUserId}</td>
+                            <td><strong>${reg.telegramFirstName}</strong></td>
+                            <td>@${reg.telegramUsername || 'none'}</td>
+                            <td><span class="${statusClass}">${reg.status}</span></td>
+                            <td>${reg.registeredAt}</td>
+                            <td>${actionDate}</td>
+                            <td>${actionBy}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</table>';
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        };
+
+        window.searchUser = async function() {
+            const searchTerm = document.getElementById('searchUserId').value.trim();
+            const resultDiv = document.getElementById('searchResult');
+            
+            if (!searchTerm) {
+                alert('Please enter a search term');
+                return;
+            }
+            
+            resultDiv.className = 'result loading';
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = `⏳ Searching for: ${searchTerm}`;
+            
+            try {
+                const registrationsRef = collection(db, 'telegram_registrations');
+                const snapshot = await getDocs(registrationsRef);
+                
+                const matches = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.telegramUserId === searchTerm || 
+                        data.telegramFirstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        data.telegramUsername?.toLowerCase().includes(searchTerm.toLowerCase())) {
+                        matches.push({
+                            docId: doc.id,
+                            ...data,
+                            registeredAt: data.registeredAt?.toDate?.()?.toLocaleString('id-ID') || 'Unknown',
+                            approvedAt: data.approvedAt?.toDate?.()?.toLocaleString('id-ID') || '-',
+                            rejectedAt: data.rejectedAt?.toDate?.()?.toLocaleString('id-ID') || '-'
+                        });
+                    }
+                });
+                
+                if (matches.length === 0) {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ No matches found for: ${searchTerm}`;
+                    return;
+                }
+                
+                let html = `<h3>🔍 Found ${matches.length} match(es):</h3>`;
+                
+                matches.forEach((match, index) => {
+                    const statusClass = `status-${match.status.replace('_', '-')}`;
+                    html += `
+                        <div style="border: 1px solid #ddd; padding: 10px; margin: 10px 0;">
+                            <h4>Match ${index + 1}:</h4>
+                            <p><strong>Document ID:</strong> ${match.docId}</p>
+                            <p><strong>Telegram User ID:</strong> ${match.telegramUserId}</p>
+                            <p><strong>Name:</strong> ${match.telegramFirstName} ${match.telegramLastName || ''}</p>
+                            <p><strong>Username:</strong> @${match.telegramUsername || 'none'}</p>
+                            <p><strong>Status:</strong> <span class="${statusClass}">${match.status}</span></p>
+                            <p><strong>Registered:</strong> ${match.registeredAt}</p>
+                            <p><strong>Approved:</strong> ${match.approvedAt} (by: ${match.approvedBy || '-'})</p>
+                            <p><strong>Rejected:</strong> ${match.rejectedAt} (by: ${match.rejectedBy || '-'})</p>
+                            <button onclick="forceReject('${match.docId}', '${match.telegramUserId}')">🗑️ Force Reject</button>
+                            <button onclick="forceDelete('${match.docId}')">❌ Delete Document</button>
+                        </div>
+                    `;
+                });
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        };
+
+        window.forceReject = async function(docId, userId) {
+            if (!confirm(`Are you sure you want to force reject user ${userId}?`)) return;
+            
+            try {
+                const docRef = doc(db, 'telegram_registrations', docId);
+                await updateDoc(docRef, {
+                    status: 'rejected',
+                    rejectedAt: new Date(),
+                    rejectedBy: 'force-reject-admin'
+                });
+                
+                alert('✅ User force rejected successfully!');
+                await searchUser(); // Refresh search results
+                
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        };
+
+        window.forceDelete = async function(docId) {
+            if (!confirm('Are you sure you want to DELETE this document? This cannot be undone!')) return;
+            
+            try {
+                await deleteDoc(doc(db, 'telegram_registrations', docId));
+                alert('✅ Document deleted successfully!');
+                await searchUser(); // Refresh search results
+                
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        };
+
+        window.cleanupDuplicates = async function() {
+            const resultDiv = document.getElementById('cleanupResult');
+            resultDiv.className = 'result loading';
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = '⏳ Cleaning up duplicates...';
+            
+            try {
+                const registrationsRef = collection(db, 'telegram_registrations');
+                const snapshot = await getDocs(registrationsRef);
+                
+                const userGroups = {};
+                
+                // Group by telegramUserId
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const userId = data.telegramUserId;
+                    
+                    if (!userGroups[userId]) {
+                        userGroups[userId] = [];
+                    }
+                    
+                    userGroups[userId].push({
+                        docId: doc.id,
+                        ...data,
+                        registeredAt: data.registeredAt?.toDate?.() || new Date(0),
+                        approvedAt: data.approvedAt?.toDate?.() || null,
+                        rejectedAt: data.rejectedAt?.toDate?.() || null
+                    });
+                });
+                
+                let deletedCount = 0;
+                let log = 'Cleanup Log:\n\n';
+                
+                for (const userId in userGroups) {
+                    const docs = userGroups[userId];
+                    
+                    if (docs.length > 1) {
+                        // Sort: approved first, then by date
+                        docs.sort((a, b) => {
+                            if (a.status === 'approved' && b.status !== 'approved') return -1;
+                            if (b.status === 'approved' && a.status !== 'approved') return 1;
+                            return b.registeredAt - a.registeredAt;
+                        });
+                        
+                        const keepDoc = docs[0];
+                        const deleteDoc = docs.slice(1);
+                        
+                        log += `User ${userId} (${keepDoc.telegramFirstName}):\n`;
+                        log += `  ✅ KEEP: ${keepDoc.docId} (${keepDoc.status})\n`;
+                        
+                        for (const docToDelete of deleteDoc) {
+                            await deleteDoc(doc(db, 'telegram_registrations', docToDelete.docId));
+                            deletedCount++;
+                            log += `  ❌ DELETE: ${docToDelete.docId} (${docToDelete.status})\n`;
+                        }
+                        log += '\n';
+                    }
+                }
+                
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <h3>🧹 Cleanup Complete!</h3>
+                    <p><strong>Deleted ${deletedCount} duplicate documents</strong></p>
+                    <pre style="background: #f5f5f5; padding: 10px; white-space: pre-wrap;">${log}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        };
+    </script>
+</body>
+</html>

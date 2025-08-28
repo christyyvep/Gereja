@@ -54,7 +54,7 @@
 <script>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { logoutUser, getCurrentUser } from '../services/auth-hybrid'
+import { logoutUser, getCurrentUser } from '../services/auth-hybrid-minimal'
 import { logSecurityEvent, updateSessionActivity } from '../services/firebase-security'
 import { useToast } from '../composables/useToast'
 

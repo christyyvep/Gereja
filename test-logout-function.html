@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Logout Function - MyRajawali</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        button:hover { background: #0056b3; }
+        .success-btn { background: #28a745; }
+        .success-btn:hover { background: #218838; }
+        .danger-btn { background: #dc3545; }
+        .danger-btn:hover { background: #c82333; }
+        #result {
+            background: #1e1e1e;
+            color: #fff;
+            padding: 20px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            text-align: left;
+            margin-top: 20px;
+            min-height: 300px;
+            overflow-y: auto;
+        }
+        .storage-item {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚪 Test Logout Function</h1>
+        <p>Testing logout functionality after fix</p>
+        
+        <div id="status" class="status info">Ready to test logout...</div>
+        
+        <div class="controls">
+            <h3>🔧 Setup Test Data</h3>
+            <button onclick="createMockUser()" class="success-btn">👤 Create Mock User</button>
+            <button onclick="checkCurrentUser()">🔍 Check Current User</button>
+            <button onclick="testLogout()" class="danger-btn">🚪 Test Logout</button>
+            <button onclick="showStorage()">📦 Show Storage</button>
+            <button onclick="clearAll()" class="danger-btn">🧹 Clear All</button>
+        </div>
+        
+        <div id="result"></div>
+    </div>
+
+    <script type="module">
+        const resultDiv = document.getElementById('result');
+        const statusDiv = document.getElementById('status');
+        
+        let authModule = null;
+        
+        // Load auth module
+        (async function loadAuth() {
+            try {
+                authModule = await import('./src/services/auth-hybrid-minimal.js');
+                log('✅ Auth module loaded successfully', 'success');
+                statusDiv.innerHTML = '<div class="success">✅ Auth module ready!</div>';
+            } catch (error) {
+                log(`❌ Failed to load auth module: ${error.message}`, 'error');
+                statusDiv.innerHTML = `<div class="error">❌ Failed to load auth: ${error.message}</div>`;
+            }
+        })();
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#ff6b6b' : type === 'success' ? '#51cf66' : type === 'warning' ? '#feca57' : '#74c0fc';
+            
+            resultDiv.innerHTML += `<div style="color: ${color}; margin: 5px 0;">[${timestamp}] ${message}</div>`;
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+        }
+        
+        window.createMockUser = function() {
+            try {
+                const mockUser = {
+                    id: 'test123',
+                    nama: 'Christy Potabuga',
+                    role: 'admin',
+                    sektor: 'Test Sektor',
+                    status: 'active',
+                    loginTime: new Date().toISOString()
+                };
+                
+                const mockSession = {
+                    sessionId: 'sess_' + Date.now(),
+                    userId: mockUser.id,
+                    nama: mockUser.nama,
+                    role: mockUser.role,
+                    createdAt: Date.now(),
+                    expiresAt: Date.now() + (30 * 60 * 1000), // 30 minutes
+                    lastActivity: Date.now()
+                };
+                
+                localStorage.setItem('myrajawali_user', JSON.stringify(mockUser));
+                localStorage.setItem('myrajawali_session', JSON.stringify(mockSession));
+                
+                log('✅ Mock user created successfully', 'success');
+                log(`👤 User: ${mockUser.nama} (${mockUser.role})`, 'info');
+                statusDiv.innerHTML = '<div class="success">✅ Mock user created!</div>';
+                
+                // Check if user is detected
+                const currentUser = authModule?.getCurrentUser();
+                if (currentUser) {
+                    log(`✅ User detected by auth module: ${currentUser.nama}`, 'success');
+                } else {
+                    log('⚠️ User not detected by auth module', 'warning');
+                }
+                
+            } catch (error) {
+                log(`❌ Error creating mock user: ${error.message}`, 'error');
+                statusDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        };
+        
+        window.checkCurrentUser = function() {
+            if (!authModule) {
+                log('❌ Auth module not loaded', 'error');
+                return;
+            }
+            
+            try {
+                const currentUser = authModule.getCurrentUser();
+                const isLoggedIn = authModule.isLoggedIn();
+                
+                log('🔍 Checking current user...', 'info');
+                log(`   • getCurrentUser(): ${currentUser ? 'Found' : 'None'}`, 'info');
+                log(`   • isLoggedIn(): ${isLoggedIn}`, 'info');
+                
+                if (currentUser) {
+                    log(`   • Name: ${currentUser.nama}`, 'info');
+                    log(`   • Role: ${currentUser.role}`, 'info');
+                    log(`   • ID: ${currentUser.id}`, 'info');
+                    statusDiv.innerHTML = `<div class="success">✅ User logged in: ${currentUser.nama}</div>`;
+                } else {
+                    log('   • No user currently logged in', 'warning');
+                    statusDiv.innerHTML = '<div class="warning">⚠️ No user logged in</div>';
+                }
+                
+            } catch (error) {
+                log(`❌ Error checking user: ${error.message}`, 'error');
+                statusDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        };
+        
+        window.testLogout = async function() {
+            if (!authModule) {
+                log('❌ Auth module not loaded', 'error');
+                return;
+            }
+            
+            try {
+                log('🚪 Testing logout function...', 'info');
+                
+                // Check user before logout
+                const userBefore = authModule.getCurrentUser();
+                log(`👤 User before logout: ${userBefore ? userBefore.nama : 'None'}`, 'info');
+                
+                // Call logout
+                const logoutResult = await authModule.logoutUser();
+                log(`📤 Logout result: ${logoutResult}`, 'info');
+                
+                // Check user after logout
+                const userAfter = authModule.getCurrentUser();
+                const isLoggedInAfter = authModule.isLoggedIn();
+                
+                log(`👤 User after logout: ${userAfter ? userAfter.nama : 'None'}`, 'info');
+                log(`🔐 Is logged in after logout: ${isLoggedInAfter}`, 'info');
+                
+                // Check storage
+                const userStorage = localStorage.getItem('myrajawali_user');
+                const sessionStorage = localStorage.getItem('myrajawali_session');
+                
+                log('📦 Storage after logout:', 'info');
+                log(`   • myrajawali_user: ${userStorage ? 'Still exists' : 'Cleared'}`, userStorage ? 'warning' : 'success');
+                log(`   • myrajawali_session: ${sessionStorage ? 'Still exists' : 'Cleared'}`, sessionStorage ? 'warning' : 'success');
+                
+                if (!userAfter && !isLoggedInAfter && !userStorage && !sessionStorage) {
+                    log('✅ Logout test PASSED! All data cleared successfully', 'success');
+                    statusDiv.innerHTML = '<div class="success">✅ Logout test PASSED!</div>';
+                } else {
+                    log('❌ Logout test FAILED! Some data still exists', 'error');
+                    statusDiv.innerHTML = '<div class="error">❌ Logout test FAILED!</div>';
+                }
+                
+            } catch (error) {
+                log(`❌ Error testing logout: ${error.message}`, 'error');
+                statusDiv.innerHTML = `<div class="error">❌ Logout error: ${error.message}</div>`;
+            }
+        };
+        
+        window.showStorage = function() {
+            log('📦 Current localStorage contents:', 'info');
+            
+            const relevantKeys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('myrajawali_') || key.startsWith('rate_limit_'))) {
+                    relevantKeys.push(key);
+                }
+            }
+            
+            if (relevantKeys.length === 0) {
+                log('   • No MyRajawali data found in storage', 'info');
+            } else {
+                relevantKeys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    log(`   • ${key}: ${value ? value.substring(0, 100) + (value.length > 100 ? '...' : '') : 'null'}`, 'info');
+                });
+            }
+        };
+        
+        window.clearAll = function() {
+            localStorage.clear();
+            resultDiv.innerHTML = '';
+            log('🧹 All storage cleared', 'info');
+            statusDiv.innerHTML = '<div class="info">🧹 Storage cleared</div>';
+        };
+        
+        // Auto-check on load
+        setTimeout(() => {
+            checkCurrentUser();
+            showStorage();
+        }, 1000);
+    </script>
+</body>
+</html>

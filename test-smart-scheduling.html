@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Smart Scheduling - Renungan Harian</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .feature-section {
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+            background: #f8f9fa;
+        }
+        .feature-section h3 {
+            color: #28a745;
+            margin-top: 0;
+        }
+        .test-case {
+            background: #e7f3ff;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 6px;
+        }
+        .test-case h4 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .today {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        .future {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+        .past {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn.success {
+            background: #28a745;
+        }
+        .btn.warning {
+            background: #ffc107;
+            color: #000;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 6px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #dee2e6;
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -22px;
+            top: 8px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Smart Scheduling System - Renungan Harian</h1>
+        
+        <div class="feature-section">
+            <h3>✨ Fitur Smart Scheduling Yang Baru</h3>
+            <p>Sistem sekarang cerdas dalam menangani berbagai skenario tanggal:</p>
+            
+            <div class="test-case today">
+                <h4>📤 Hari Ini (Instant Send)</h4>
+                <p><strong>Behavior:</strong> Admin buat renungan untuk hari ini → Konfirmasi kirim sekarang</p>
+                <ul>
+                    <li>✅ Langsung muncul dialog konfirmasi</li>
+                    <li>✅ Jika OK: Kirim sekarang ke semua jemaat</li>
+                    <li>✅ Jika Cancel: Jadwalkan untuk nanti hari ini</li>
+                </ul>
+            </div>
+            
+            <div class="test-case future">
+                <h4>📅 Masa Depan (Auto Schedule)</h4>
+                <p><strong>Behavior:</strong> Admin buat renungan untuk masa depan → Auto-schedule jam 00:00</p>
+                <ul>
+                    <li>✅ Otomatis dijadwalkan</li>
+                    <li>✅ Kirim tepat jam 00:00 pada tanggal tersebut</li>
+                    <li>✅ Notifikasi: "dijadwalkan untuk dikirim otomatis pada [tanggal] pukul 00:00"</li>
+                </ul>
+            </div>
+            
+            <div class="test-case past">
+                <h4>📜 Masa Lalu (Archive Only)</h4>
+                <p><strong>Behavior:</strong> Admin buat renungan untuk masa lalu → Hanya simpan sebagai arsip</p>
+                <ul>
+                    <li>✅ Disimpan tanpa kirim/jadwalkan</li>
+                    <li>✅ Notifikasi: "berhasil ditambahkan sebagai arsip"</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="feature-section">
+            <h3>🕐 Background Scheduler Enhancement</h3>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <strong>Setiap Menit:</strong> Cek waktu dan pending schedules
+                </div>
+                <div class="timeline-item">
+                    <strong>Jam 00:00-00:05:</strong> Process semua schedule hari ini
+                </div>
+                <div class="timeline-item">
+                    <strong>Di luar jam tersebut:</strong> Hanya monitoring, tidak process
+                </div>
+                <div class="timeline-item">
+                    <strong>Manual Trigger:</strong> Admin bisa force process kapan saja
+                </div>
+            </div>
+        </div>
+
+        <div class="feature-section">
+            <h3>🧪 Testing Scenarios</h3>
+            
+            <div class="test-case">
+                <h4>Test 1: Renungan Hari Ini</h4>
+                <ol>
+                    <li>Buka admin dashboard</li>
+                    <li>Klik "Tambah Renungan"</li>
+                    <li>Set tanggal ke hari ini (28/08/2025)</li>
+                    <li>Isi form dan simpan</li>
+                    <li><strong>Expected:</strong> Dialog konfirmasi "Kirim sekarang?"</li>
+                    <li><strong>Jika OK:</strong> Langsung kirim + notifikasi sukses</li>
+                    <li><strong>Jika Cancel:</strong> Dijadwalkan untuk nanti</li>
+                </ol>
+            </div>
+            
+            <div class="test-case">
+                <h4>Test 2: Renungan Masa Depan</h4>
+                <ol>
+                    <li>Set tanggal ke 30/08/2025</li>
+                    <li>Simpan renungan</li>
+                    <li><strong>Expected:</strong> Auto-schedule, notifikasi "dijadwalkan untuk 30/08 pukul 00:00"</li>
+                    <li>Cek tabel: Status "🕒 Terjadwal"</li>
+                </ol>
+            </div>
+            
+            <div class="test-case">
+                <h4>Test 3: Renungan Masa Lalu</h4>
+                <ol>
+                    <li>Set tanggal ke 25/08/2025</li>
+                    <li>Simpan renungan</li>
+                    <li><strong>Expected:</strong> Notifikasi "berhasil ditambahkan sebagai arsip"</li>
+                    <li>Tidak ada schedule/kirim</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="feature-section">
+            <h3>🔧 Developer Testing</h3>
+            <p><strong>Manual Force Process (Console):</strong></p>
+            <div class="code-block">
+// Import background scheduler
+import backgroundScheduler from '/src/services/backgroundScheduler.js'
+
+// Force process today's schedules
+await backgroundScheduler.forceProcessToday()
+
+// Check scheduler status
+console.log(backgroundScheduler.getStatus())
+
+// Manual trigger (any time)
+await backgroundScheduler.triggerManual()
+            </div>
+        </div>
+
+        <div class="feature-section">
+            <h3>⏰ Cron Job untuk Production</h3>
+            <p><strong>Setup cron untuk jam 00:00 setiap hari:</strong></p>
+            <div class="code-block">
+# Linux/Mac crontab
+0 0 * * * cd /path/to/myrajawali-app && node scripts/run-telegram-scheduler.js
+
+# Windows Task Scheduler
+# Jalankan run-telegram-scheduler.ps1 setiap hari jam 00:00
+            </div>
+        </div>
+
+        <div class="feature-section">
+            <h3>📊 Expected Results Summary</h3>
+            <div class="status info">
+                <strong>Smart Behavior:</strong><br>
+                • Hari ini = Kirim sekarang (dengan konfirmasi)<br>
+                • Masa depan = Schedule jam 00:00<br>
+                • Masa lalu = Archive saja<br>
+                • Background process = Hanya jam 00:00-00:05<br>
+                • Manual control = Tetap bisa kapan saja
+            </div>
+        </div>
+
+        <div class="feature-section">
+            <h3>🎯 Quick Test Buttons</h3>
+            <button class="btn success" onclick="testToday()">Test Hari Ini</button>
+            <button class="btn warning" onclick="testFuture()">Test Masa Depan</button>
+            <button class="btn" onclick="testScheduler()">Test Scheduler</button>
+            <div id="testOutput"></div>
+        </div>
+    </div>
+
+    <script>
+        function getCurrentDate() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function getFutureDate(daysFromNow = 2) {
+            const date = new Date();
+            date.setDate(date.getDate() + daysFromNow);
+            return date.toISOString().split('T')[0];
+        }
+
+        function testToday() {
+            const output = document.getElementById('testOutput');
+            const todayDate = getCurrentDate();
+            
+            output.innerHTML = `
+                <div class="status info">
+                    <strong>Test Hari Ini (${todayDate}):</strong><br>
+                    1. Buka admin dashboard<br>
+                    2. Tambah renungan dengan tanggal: <strong>${todayDate}</strong><br>
+                    3. Expected: Dialog konfirmasi "Kirim sekarang?"<br>
+                    4. Jika OK: Langsung kirim ke Telegram<br>
+                    5. Jika Cancel: Schedule untuk nanti
+                </div>
+            `;
+        }
+
+        function testFuture() {
+            const output = document.getElementById('testOutput');
+            const futureDate = getFutureDate();
+            
+            output.innerHTML = `
+                <div class="status info">
+                    <strong>Test Masa Depan (${futureDate}):</strong><br>
+                    1. Tambah renungan dengan tanggal: <strong>${futureDate}</strong><br>
+                    2. Expected: Auto-schedule untuk jam 00:00<br>
+                    3. Notifikasi: "dijadwalkan untuk dikirim otomatis pada ${futureDate} pukul 00:00"<br>
+                    4. Status tabel: "🕒 Terjadwal"
+                </div>
+            `;
+        }
+
+        function testScheduler() {
+            const output = document.getElementById('testOutput');
+            
+            output.innerHTML = `
+                <div class="status info">
+                    <strong>Test Background Scheduler:</strong><br>
+                    1. Buka Console (F12)<br>
+                    2. Jalankan: <code>await backgroundScheduler.forceProcessToday()</code><br>
+                    3. Check schedule: <code>backgroundScheduler.getStatus()</code><br>
+                    4. Expected: Process schedule hari ini jika ada
+                </div>
+            `;
+        }
+
+        // Auto-show current info on load
+        window.addEventListener('load', () => {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('id-ID');
+            const dateString = now.toLocaleDateString('id-ID');
+            
+            console.log(`🕐 Current time: ${timeString}`);
+            console.log(`📅 Current date: ${dateString}`);
+            console.log('🧪 Use buttons above to test smart scheduling scenarios');
+        });
+    </script>
+</body>
+</html>

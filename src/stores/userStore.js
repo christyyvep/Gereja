@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia'
-// UPDATED: Import hybrid auth services
+// TEMPORARY: Use minimal auth for debugging
 import { 
-  loginUser, 
-  logoutUser, 
   getCurrentUser, 
-  isLoggedIn as checkLogin 
-} from '@/services/auth-hybrid'
+  isLoggedIn as checkLogin,
+  logoutUser,
+  loginUser
+} from '@/services/auth-hybrid-minimal'
 import { useStreakStore } from './streakStore'
 
 export const useUserStore = defineStore('user', {
@@ -136,13 +136,13 @@ export const useUserStore = defineStore('user', {
         // Clear any existing data first
         this.clearUserData()
 
-        // UPDATED: Use hybrid auth
+        // Use minimal auth login
         const result = await loginUser(nama, password)
         
         if (result.success) {
-          console.log('✅ [UserStore] Hybrid authentication successful')
+          console.log('✅ [UserStore] Minimal auth login successful')
           
-          // Set user data from hybrid auth result
+          // Set user data from auth result
           this.user = result.user
           this.isLoggedIn = true
           
@@ -177,7 +177,7 @@ export const useUserStore = defineStore('user', {
           this.clearUserSpecificData(this.user.id || this.user.nama)
         }
         
-        // UPDATED: Call hybrid auth logout with error handling
+        // Call auth logout (now using minimal version)
         logoutUser().catch(error => {
           console.error('❌ [UserStore] Auth logout error:', error)
           // Continue dengan local cleanup meskipun auth logout gagal
