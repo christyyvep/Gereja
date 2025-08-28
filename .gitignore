@@ -23,3 +23,25 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Debug and Test files (Security)
+debug-*.html
+test-*.html
+test-*.js
+quick-*.html
+temp-*.js
+*-test.html
+*-debug.html
+
+# Sensitive utility files
+public/telegram-*.html
+public/reset-*.html
+public/unlock-*.html
+public/upgrade-*.html
+public/debug-*.html
+public/test-*.html
+public/quick-*.html
+
+# Configuration generators
+*-config-generator.html
+create-operator-role.html
